@@ -1,49 +1,45 @@
 import React from 'react';
 import { View, Text, StyleSheet, Image, Alert } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import axios, { AxiosError } from 'axios'; // 导入 AxiosError 类型，因为 apiService 内部使用 axios
+import axios, { AxiosError } from 'axios';
 import { useNavigation } from '@react-navigation/native';
-// --- 导入你的 API 服务和常量 ---
-import apiService, { AUTH_TOKEN_KEY, REFRESH_TOKEN_KEY } from '../../utils/api'; // 确认路径是否正确
-
+import apiService, { AUTH_TOKEN_KEY, REFRESH_TOKEN_KEY } from '../../utils/api';
+import { useDispatch } from 'react-redux';
 import ScreenContainer from '../../components/common/ScreenContainer';
 import Button from '../../components/common/Button';
 import InputField from '../../components/common/InputField';
 import theme from '../../theme';
-// import { useNavigation } from '@react-navigation/native'; // 如果你使用了导航库
+import { loginSuccess } from '../../store/slices/authSlice'; // 导入你定义的登录成功 action
 
-// --- 定义后端成功登录响应中 `data` 字段的预期结构 ---
-// --- 重要：根据你后端接口实际返回的数据调整此接口 ---
 interface LoginResponseData {
-    accessToken: string;         // 访问令牌 (可能原名叫 token，这里改为 accessToken 以匹配刷新逻辑)
-    refreshToken?: string;        // 刷新令牌 (可选, 取决于你的后端实现)
-    user?: {                    // 用户信息 (可选)
+    access_token: string;
+    refresh_token?: string;
+    user?: {
         id: string | number;
-        name: string;
+        name: string; // Assuming backend might return 'name' based on register endpoint
         email: string;
-        // ... 其他用户字段
     };
 }
 
-// --- 定义后端错误响应的结构 (如果后端错误格式统一) ---
+// Keep a general error structure, but detailed logging will reveal the exact structure
 interface ApiErrorResponse {
-    status?: string; // 例如 'error'
-    code?: number;   // 例如 401, 500
-    message?: string; // 错误信息
-    errors?: Array<{ code: string; field?: string; message: string }>; // 更详细的字段错误 (可选)
+    status?: string;
+    code?: number;
+    message?: string;
+    errors?: any; // Use 'any' or a more specific type if known (e.g., object or array)
+    detail?: any; // Add 'detail' based on the previous error example
 }
 
 
 const LoginScreen: React.FC = () => {
-    const [email, setEmail] = React.useState('');
+    const [email, setEmail] = React.useState(''); // Assuming input is email
     const [password, setPassword] = React.useState('');
     const [loading, setLoading] = React.useState(false);
     const [error, setError] = React.useState('');
-    // const navigation = useNavigation(); // 获取导航对象
-    // 2. 获取 navigation 对象
     const navigation = useNavigation();
+    const dispatch = useDispatch(); // 获取 dispatch 函数
+
     const handleLogin = async () => {
-        // 基础的前端校验 (保留)
         if (!email || !password) {
             setError('邮箱和密码不能为空');
             return;
@@ -58,103 +54,146 @@ const LoginScreen: React.FC = () => {
         setError('');
 
         try {
-            // --- 使用 apiService.post 发起登录请求 ---
-            // 传递预期的响应数据类型 <LoginResponseData>
-            // 传递登录接口的路径 (相对于 api.ts 中 baseURL 的路径)
-            // 传递包含登录凭证的对象 { email, password }
+            // --- Make the request ---
+            // IMPORTANT: Based on the previous 422 error, try sending 'email'
+            // If this still fails, the detailed log below will show what the backend received
+            // and what it responded with.
             const responseData = await apiService.post<LoginResponseData>(
-                '/auth/login', // <-- 确认你的登录接口路径是否为此，如果不同请修改
+                '/auth/login',
                 {
                     email: email,
-                    password: password,
+                    password: password
                 }
             );
-
-            // --- 登录成功 ---
-            // responseData 现在是后端 ApiResponse 中 `data` 字段的内容
-            // 添加一个检查，确保响应中确实包含了 accessToken
-            if (!responseData || !responseData.accessToken) {
-                console.error('登录响应缺少 accessToken:', responseData);
-                // 抛出一个错误，让下面的 catch 块处理用户提示
+            console.log(responseData);
+            // --- Login Success ---
+            if (!responseData || !responseData.access_token) {
+                console.error('登录响应缺少 access_token:', responseData);
                 throw new Error('登录响应无效，请稍后重试。');
             }
-
             console.log('登录成功:', responseData);
-
-            // 1. 使用导入的 KEY 存储认证令牌
-            await AsyncStorage.setItem(AUTH_TOKEN_KEY, responseData.accessToken);
+            console.log('DEBUG: AUTH_TOKEN_KEY Before Use:', AUTH_TOKEN_KEY);
+            await AsyncStorage.setItem(AUTH_TOKEN_KEY, responseData.access_token);
             console.log('访问令牌 (Access Token) 存储成功');
 
-            // 如果后端返回了刷新令牌，也存储它
-            if (responseData.refreshToken) {
-                await AsyncStorage.setItem(REFRESH_TOKEN_KEY, responseData.refreshToken);
+            if (responseData.refresh_token) {
+                console.log('DEBUG: REFRESH_TOKEN_KEY Before Use:', REFRESH_TOKEN_KEY); // <--- 添加这行调试
+                await AsyncStorage.setItem(REFRESH_TOKEN_KEY, responseData.refresh_token);
                 console.log('刷新令牌 (Refresh Token) 存储成功');
             } else {
-                // 如果后端在登录时不返回 refreshToken，确保清除掉可能存在的旧 refreshToken
+                console.log('DEBUG: REFRESH_TOKEN_KEY Before Remove:', REFRESH_TOKEN_KEY);
                 await AsyncStorage.removeItem(REFRESH_TOKEN_KEY);
             }
 
-            // 2. 可选：存储用户信息 (如果后端返回了用户信息)
             if (responseData.user) {
                 try {
-                    // 将用户信息对象转换为 JSON 字符串存储
                     await AsyncStorage.setItem('@user_info', JSON.stringify(responseData.user));
                 } catch (e) {
-                    // 存储用户信息失败不是关键错误，打印警告即可
                     console.warn("无法存储用户信息:", e);
                 }
             }
+            // --- 3. Dispatch Redux action 来更新认证状态 ---
+            //    如果你的 action 需要用户信息或其他数据，请传递 payload
+            dispatch(loginSuccess({token:responseData.access_token,refreshToken:responseData.refresh_token }));
+            // --- 结束 Redux Dispatch ---
+            navigation.navigate('Main'); // Replace with actual navigation
+            // Alert.alert('登录成功', `欢迎回来${responseData.user?.name ? ', ' + responseData.user.name : ''}！`);
 
-            // 3. 更新全局应用状态 (推荐，例如使用 Context API 或 Redux)
-            // dispatch(loginSuccess(responseData.user)); // 假设有 Redux action
 
-            // 4. 导航到应用的主界面
-            // navigation.navigate('MainAppTabs'); // 替换为你的主屏幕/导航器名称
-            Alert.alert('登录成功', `欢迎回来${responseData.user ? ', ' + responseData.user.name : ''}！`); // 临时替代导航
+        } catch (err: any) {
+            console.error('登录失败:', err); // Keep the original error log
 
-        } catch (err: any) { // 捕获 Axios 错误和其他错误
-            console.error('登录失败:', err);
+            let errorMessage = '登录失败，请检查您的凭据或网络连接。'; // More specific default
 
-            let errorMessage = '登录失败，请稍后重试。'; // 默认错误信息
-
-            // 检查是否是 Axios 错误
             if (axios.isAxiosError(err)) {
-                const axiosError = err as AxiosError<ApiErrorResponse>; // 类型断言以获取更详细的类型信息
+                const axiosError = err as AxiosError<ApiErrorResponse>; // Use the defined interface
 
-                // 尝试从后端响应中获取错误信息
-                // **重要**: `axiosError.response.data.message` 这个路径需要根据你后端实际返回的错误结构调整
-                if (axiosError.response?.data?.message) {
-                    errorMessage = axiosError.response.data.message;
+                // --- DETAILED LOGGING ---
+                if (axiosError.response) {
+                    console.error('--- 后端错误响应 ---');
+                    console.error('状态码 (Status Code):', axiosError.response.status);
+                    // Log the raw data received from the backend
+                    console.error('响应数据 (Response Data):', JSON.stringify(axiosError.response.data, null, 2));
+                    // Log the request config's data to see what was SENT
+                    if(axiosError.config?.data) {
+                        try {
+                            // Axios request data might be a string, try parsing
+                            console.error('发送的数据 (Sent Data):', JSON.stringify(JSON.parse(axiosError.config.data), null, 2));
+                        } catch {
+                            // If not JSON, log as is
+                            console.error('发送的数据 (Sent Data):', axiosError.config.data);
+                        }
+                    }
+                    console.error('--- 结束后端错误响应 ---');
+                } else if (axiosError.request) {
+                    console.error('请求已发出但未收到响应:', axiosError.request);
+                    errorMessage = '无法连接到服务器，请检查网络。';
+                } else {
+                    console.error('Axios 配置或请求设置错误:', axiosError.message);
+                    errorMessage = '发起请求时出错。';
                 }
-                    // 如果是 401 错误 (未授权)，通常表示用户名或密码错误
-                // 注意：`api.ts` 中的拦截器会尝试处理 401，但如果刷新失败或没有刷新令牌，错误最终会在这里被捕获
-                else if (axiosError.response?.status === 401) {
-                    errorMessage = '邮箱或密码错误，请重试。';
+                // --- END DETAILED LOGGING ---
+
+
+                // --- Attempt to extract user-friendly message ---
+                if (axiosError.response?.data) {
+                    const responseData = axiosError.response.data;
+
+                    // 1. Check for FastAPI/Pydantic style 'detail' array
+                    if (responseData.detail && Array.isArray(responseData.detail) && responseData.detail.length > 0) {
+                        const firstError = responseData.detail[0];
+                        if (firstError.msg) {
+                            // Try to make it slightly more readable if loc is present
+                            if (firstError.loc && Array.isArray(firstError.loc) && firstError.loc.length > 1) {
+                                errorMessage = `字段 '${firstError.loc[firstError.loc.length - 1]}'： ${firstError.msg}`;
+                            } else {
+                                errorMessage = firstError.msg;
+                            }
+                        } // Fallback to generic message if no msg field
+                    }
+                    // 2. Check for common 'errors' object (e.g., Laravel)
+                    else if (typeof responseData.errors === 'object' && responseData.errors !== null && Object.keys(responseData.errors).length > 0) {
+                        const errorFields = Object.keys(responseData.errors);
+                        const firstFieldErrors = responseData.errors[errorFields[0]];
+                        if (Array.isArray(firstFieldErrors) && firstFieldErrors.length > 0) {
+                            errorMessage = firstFieldErrors[0];
+                        } else if (typeof firstFieldErrors === 'string') {
+                            errorMessage = firstFieldErrors;
+                        } else if (responseData.message) { // Use top-level message if errors field is weird
+                            errorMessage = responseData.message;
+                        }
+                    }
+                    // 3. Check for a top-level 'message'
+                    else if (responseData.message && typeof responseData.message === 'string') {
+                        errorMessage = responseData.message;
+                    }
+                    // 4. Use status code for generic messages if nothing else found
+                    else if (axiosError.response?.status === 422) {
+                        errorMessage = '输入信息无效或格式不正确。'; // Generic 422
+                    } else if (axiosError.response?.status === 401) {
+                        errorMessage = '邮箱或密码错误。'; // Generic 401
+                    } else if (axiosError.response?.status === 400) {
+                        errorMessage = '请求格式错误。'; // Generic 400
+                    }
                 }
-                // 可以为其他常见的 HTTP 状态码提供特定的用户提示
-                else if (axiosError.response?.status === 400) {
-                    errorMessage = '请求无效，请检查输入。'; // 例如：请求格式错误
+                // Keep the network error message if it was set earlier
+                else if (!axiosError.response && axiosError.request) {
+                    errorMessage = '无法连接到服务器，请检查网络。';
                 }
-                // 如果没有 `axiosError.response`，通常是网络问题
-                else if (!axiosError.response) {
-                    errorMessage = '无法连接到服务器，请检查您的网络连接。';
-                }
-                // 可以根据需要添加更多状态码的处理...
+
 
             } else if (err instanceof Error) {
-                // 处理其他类型的错误，例如上面手动抛出的 new Error('登录响应无效...')
-                errorMessage = err.message;
+                errorMessage = err.message; // Handle standard JS errors
             }
 
-            setError(errorMessage); // 在界面上显示错误信息
+            setError(errorMessage); // Show the best possible error message to the user
 
         } finally {
-            // 无论成功或失败，都要结束加载状态
             setLoading(false);
         }
     };
 
-    // --- 组件的 JSX 结构保持不变 ---
+    // --- JSX remains the same ---
     return (
         <ScreenContainer
             scrollable={true}
@@ -162,10 +201,10 @@ const LoginScreen: React.FC = () => {
             backgroundColor={theme.colors.background}
         >
             <View style={styles.container}>
-                {/* Logo 区域 */}
+                {/* Logo Area */}
                 <View style={styles.logoContainer}>
                     <Image
-                        source={require('../../../assets/images/logo-placeholder.png')} // 确认图片路径正确
+                        source={require('../../../assets/images/logo-placeholder.png')}
                         style={styles.logo}
                         resizeMode="contain"
                     />
@@ -173,7 +212,7 @@ const LoginScreen: React.FC = () => {
                     <Text style={styles.tagline}>您的智能生活助手</Text>
                 </View>
 
-                {/* 表单区域 */}
+                {/* Form Area */}
                 <View style={styles.formContainer}>
                     <InputField
                         label="邮箱"
@@ -183,7 +222,6 @@ const LoginScreen: React.FC = () => {
                         keyboardType="email-address"
                         autoCapitalize="none"
                     />
-
                     <InputField
                         label="密码"
                         placeholder="请输入您的密码"
@@ -191,47 +229,41 @@ const LoginScreen: React.FC = () => {
                         onChangeText={setPassword}
                         secureTextEntry={true}
                     />
-
-                    {/* 显示错误信息 */}
                     {error ? <Text style={styles.errorText}>{error}</Text> : null}
-
                     <Button
                         title="登录"
-                        onPress={handleLogin} // 使用更新后的异步函数
+                        onPress={handleLogin}
                         variant="primary"
                         size="large"
-                        loading={loading} // 由 state 控制加载状态
+                        loading={loading}
                         fullWidth={true}
                         style={styles.loginButton}
-                        disabled={loading} // 请求进行中时禁用按钮
+                        disabled={loading}
                     />
-
                     <Button
                         title="忘记密码？"
                         onPress={() => {
-                            navigation.navigate('ForgotPassword');
+                            navigation.navigate('ForgotPassword'); // Ensure 'ForgotPassword' screen exists in navigator
                         }}
                         variant="text"
                         size="medium"
                         style={styles.forgotPasswordButton}
-                        disabled={loading} // 请求进行中时也可禁用 (可选)
+                        disabled={loading}
                     />
                 </View>
 
-                {/* 底部区域 */}
+                {/* Footer Area */}
                 <View style={styles.footer}>
                     <Text style={styles.footerText}>还没有账号？</Text>
                     <Button
                         title="立即注册"
                         onPress={() => {
-                            // 使用 navigation.navigate 跳转
-                            // 'Register' 必须是你导航器中注册 RegisterScreen 时使用的名称
-                            navigation.navigate('Register'); // <-- 修改这里
+                            navigation.navigate('Register'); // Ensure 'Register' screen exists
                         }}
                         variant="outline"
                         size="medium"
                         style={styles.registerButton}
-                        disabled={loading} // 请求进行中时也可禁用 (可选)
+                        disabled={loading}
                     />
                 </View>
             </View>
@@ -239,7 +271,7 @@ const LoginScreen: React.FC = () => {
     );
 };
 
-// --- 样式 (styles) 保持不变 ---
+// --- Styles remain the same ---
 const styles = StyleSheet.create({
     container: {
         flex: 1,
@@ -292,7 +324,7 @@ const styles = StyleSheet.create({
         color: theme.colors.error,
         fontSize: theme.typography.fontSize.sm,
         marginTop: theme.spacing.sm,
-        marginBottom: theme.spacing.sm, // 给错误信息下方也加点间距
+        marginBottom: theme.spacing.sm,
         textAlign: 'center',
     },
 });

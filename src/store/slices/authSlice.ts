@@ -59,12 +59,14 @@ const authSlice = createSlice({
     },
     // 登录成功
     loginSuccess: (state, action: PayloadAction<{ user: User; token: string; refreshToken: string }>) => {
+      console.log('Reducer: loginSuccess - Before:', state.isAuthenticated);
       state.isAuthenticated = true;
       state.user = action.payload.user;
       state.token = action.payload.token;
       state.refreshToken = action.payload.refreshToken;
       state.loading = false;
       state.error = null;
+      console.log('Reducer: loginSuccess - After:', state.isAuthenticated);
     },
     // 登录失败
     loginFailure: (state, action: PayloadAction<string>) => {

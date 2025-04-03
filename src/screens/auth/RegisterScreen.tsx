@@ -1,7 +1,7 @@
 import React from 'react';
 import { View, Text, StyleSheet, Image, Alert } from 'react-native'; // 引入 Alert
 import axios, { AxiosError } from 'axios'; // 引入 AxiosError
-
+import { useNavigation } from '@react-navigation/native';
 // --- 导入你的 API 服务 ---
 // 注意：注册通常不需要 AUTH_TOKEN_KEY 或 REFRESH_TOKEN_KEY，因为用户此时还没有令牌
 import apiService from '../../utils/api'; // 确认路径是否正确
@@ -42,7 +42,7 @@ const RegisterScreen: React.FC = () => {
   const [confirmPassword, setConfirmPassword] = React.useState('');
   const [loading, setLoading] = React.useState(false);
   const [error, setError] = React.useState('');
-  // const navigation = useNavigation(); // 获取导航对象
+  const navigation = useNavigation(); // 获取导航对象
 
   const handleRegister = async () => { // 标记为 async
     // --- 前端表单验证 (保留) ---
@@ -79,7 +79,7 @@ const RegisterScreen: React.FC = () => {
       const responseData = await apiService.post<RegisterResponseData>(
           '/auth/register', // <-- 确认你的注册接口路径是否为此，如果不同请修改
           {
-            username: username,
+            name: username,
             email: email,
             password: password,
           }
@@ -95,7 +95,7 @@ const RegisterScreen: React.FC = () => {
           [
             { text: '好的', onPress: () => {
                 // 2. 导航到登录页面
-                // navigation.navigate('Login'); // 替换为你的登录页面路由名称
+                navigation.navigate('Login'); // 替换为你的登录页面路由名称
                 console.log('应导航到登录页面'); // 导航占位符
               } }
           ]
@@ -107,47 +107,79 @@ const RegisterScreen: React.FC = () => {
       // setPassword('');
       // setConfirmPassword('');
 
-    } catch (err: any) { // 捕获 Axios 错误和其他错误
-      console.error('注册失败:', err);
+    } catch (err: any) {
+      console.error('注册失败:', err); // 保留这个
 
-      let errorMessage = '注册失败，请稍后重试。'; // 默认错误信息
+      let errorMessage = '注册失败，请稍后重试。';
 
-      // 检查是否是 Axios 错误
       if (axios.isAxiosError(err)) {
-        const axiosError = err as AxiosError<ApiErrorResponse>;
+        const axiosError = err as AxiosError<ApiErrorResponse>; // 类型断言
 
-        // 尝试从后端响应中获取错误信息
-        // **重要**: `axiosError.response.data.message` 这个路径需要根据你后端实际返回的错误结构调整
-        if (axiosError.response?.data?.message) {
-          errorMessage = axiosError.response.data.message;
+        // --- 关键调试代码：打印完整的后端错误响应 ---
+        if (axiosError.response) {
+          console.error('后端响应状态码:', axiosError.response.status);
+          console.error('后端响应数据:', JSON.stringify(axiosError.response.data, null, 2)); // 打印详细数据
+        } else if (axiosError.request) {
+          console.error('请求已发出但无响应:', axiosError.request);
+        } else {
+          console.error('Axios 配置错误:', axiosError.message);
         }
-        // 处理特定错误状态码
-        else if (axiosError.response?.status === 409) { // 409 Conflict 通常表示资源已存在
-          // 后端可能在 message 中明确是邮箱还是用户名冲突，或者你需要检查 errors 字段
-          // 这里提供一个通用提示
-          errorMessage = '邮箱或用户名已被注册，请尝试其他名称。';
-          // 如果后端返回更详细的 errors 数组，可以这样处理：
-          // if (axiosError.response?.data?.errors && axiosError.response.data.errors.length > 0) {
-          //   errorMessage = axiosError.response.data.errors[0].message; // 显示第一个错误
-          // }
-        } else if (axiosError.response?.status === 400) { // 400 Bad Request 通常表示输入校验失败
-          errorMessage = '输入信息有误，请检查。';
-          // 同样可以检查 errors 字段获取更具体信息
+        // --- 结束调试代码 ---
+
+
+        // --- 更新错误处理逻辑 ---
+        if (axiosError.response?.data) {
+          const responseData = axiosError.response.data;
+
+          // 1. 优先尝试从常见的 'errors' 字段提取信息 (需要根据你的后端调整)
+          //    示例1: Laravel 风格 { message: "...", errors: { email: ["Email taken"], password: [...] } }
+          if (typeof responseData.errors === 'object' && responseData.errors !== null) {
+            const errorFields = Object.keys(responseData.errors);
+            if (errorFields.length > 0) {
+              // 取第一个字段的第一个错误信息
+              const firstFieldErrors = responseData.errors[errorFields[0]];
+              if (Array.isArray(firstFieldErrors) && firstFieldErrors.length > 0) {
+                errorMessage = firstFieldErrors[0];
+              } else if (typeof firstFieldErrors === 'string') { // 有时可能直接是字符串
+                errorMessage = firstFieldErrors;
+              }
+              // 如果有顶层 message，并且看起来更通用，也可以考虑使用它
+              // else if (responseData.message) {
+              //    errorMessage = responseData.message;
+              // }
+            } else if (responseData.message) { // 如果 errors 为空对象，尝试 message
+              errorMessage = responseData.message;
+            }
+          }
+          //    示例2: 数组风格 { errors: [ { field: 'email', message: 'Invalid format' } ] }
+          else if (Array.isArray(responseData.errors) && responseData.errors.length > 0) {
+            errorMessage = responseData.errors[0].message || '输入信息有误，请检查。'; // 取第一个错误的消息
+          }
+          // 2. 如果没有 'errors' 字段，再尝试顶层的 'message'
+          else if (responseData.message) {
+            errorMessage = responseData.message;
+          }
+          // 3. 根据状态码提供一些通用提示 (作为后备)
+          else if (axiosError.response?.status === 422) {
+            errorMessage = '输入信息不符合要求，请检查。'; // 422 的通用提示
+          } else if (axiosError.response?.status === 409) {
+            errorMessage = '邮箱或用户名已被注册。';
+          } else if (axiosError.response?.status === 400) {
+            errorMessage = '请求格式错误。';
+          }
         } else if (!axiosError.response) {
           // 网络错误
           errorMessage = '无法连接到服务器，请检查您的网络连接。';
         }
-        // 可以根据需要添加更多状态码的处理...
 
       } else if (err instanceof Error) {
-        // 处理其他类型的错误
+        // 处理其他类型的 JS 错误
         errorMessage = err.message;
       }
 
-      setError(errorMessage); // 在界面上显示错误信息
+      setError(errorMessage); // 在界面上显示最终的错误信息
 
     } finally {
-      // 无论成功或失败，都要结束加载状态
       setLoading(false);
     }
   };
@@ -230,7 +262,7 @@ const RegisterScreen: React.FC = () => {
             <Button
                 title="立即登录"
                 onPress={() => {
-                  // navigation.navigate('Login'); // TODO: 导航到登录页面
+                  navigation.navigate('Login');
                   console.log('应导航到登录页面');
                 }}
                 variant="text"

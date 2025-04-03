@@ -5,8 +5,9 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 const API_BASE_URL = process.env.API_BASE_URL || 'http://10.0.2.2:8000/api'; //虚拟机不用localhost
 
 // Keys for storing tokens in AsyncStorage
-const AUTH_TOKEN_KEY = 'aura_auth_token';
-const REFRESH_TOKEN_KEY = 'aura_refresh_token';
+export const AUTH_TOKEN_KEY = 'aura_auth_token';
+export const REFRESH_TOKEN_KEY = 'aura_refresh_token';
+
 // 创建axios实例
 const apiClient = axios.create({
   baseURL: API_BASE_URL,
