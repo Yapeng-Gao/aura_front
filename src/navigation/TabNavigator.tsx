@@ -4,7 +4,7 @@ import { createStackNavigator } from '@react-navigation/stack';
 import TabBarIcon from '../components/common/TabBarIcon';
 
 // 主屏幕组件
-import SmartHomeScreen from '../screens/iot/SmartHomeScreen';
+import HomeScreen from '../screens/home/HomeScreen';
 import UserProfileScreen from '../screens/profile/UserProfileScreen';
 
 // Assistant 相关
@@ -20,6 +20,7 @@ import TasksScreen from '../screens/scheduler/TasksScreen';
 // IoT 相关
 import DeviceManagementScreen from '../screens/iot/DeviceManagementScreen';
 import SceneManagementScreen from '../screens/iot/SceneManagementScreen';
+import SmartHomeScreen from '../screens/iot/SmartHomeScreen';
 
 const Tab = createBottomTabNavigator();
 const AssistantStack = createStackNavigator();
@@ -62,7 +63,7 @@ const TabNavigator = () => (
     >
         <Tab.Screen
             name="Home"
-            component={SmartHomeScreen}
+            component={HomeScreen}
             options={{
                 tabBarIcon: ({ color }) => <TabBarIcon name="home" color={color} />,
                 tabBarLabel: '首页'
