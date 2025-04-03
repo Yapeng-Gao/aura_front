@@ -8,11 +8,16 @@ import HomeScreen from '../screens/home/HomeScreen';
 import UserProfileScreen from '../screens/profile/UserProfileScreen';
 
 // Assistant 相关
+import AssistantHomeScreen from '../screens/assistant/AssistantHomeScreen';
 import AIAssistantScreen from '../screens/assistant/AIAssistantScreen';
 import AISettingsScreen from '../screens/assistant/AISettingsScreen';
+import MeetingAssistantScreen from '../screens/assistant/MeetingAssistantScreen';
+import WritingAssistantScreen from '../screens/assistant/WritingAssistantScreen';
+import CodeAssistantScreen from '../screens/assistant/CodeAssistantScreen';
+import ImageAssistantScreen from '../screens/assistant/ImageAssistantScreen';
+import VoiceAssistantScreen from '../screens/assistant/VoiceAssistantScreen';
 
 // Productivity 相关
-import MeetingAssistantScreen from '../screens/productivity/MeetingAssistantScreen';
 import NotesScreen from '../screens/productivity/NotesScreen';
 import CalendarScreen from '../screens/scheduler/CalendarScreen';
 import TasksScreen from '../screens/scheduler/TasksScreen';
@@ -30,8 +35,14 @@ const IoTStack = createStackNavigator();
 // 内联定义 Stack 导航器
 const AssistantStackNavigator = () => (
     <AssistantStack.Navigator screenOptions={{ headerShown: false }}>
+        <AssistantStack.Screen name="AssistantHome" component={AssistantHomeScreen} />
         <AssistantStack.Screen name="AIAssistant" component={AIAssistantScreen} />
         <AssistantStack.Screen name="AISettings" component={AISettingsScreen} />
+        <AssistantStack.Screen name="MeetingAssistant" component={MeetingAssistantScreen} />
+        <AssistantStack.Screen name="WritingAssistant" component={WritingAssistantScreen} />
+        <AssistantStack.Screen name="CodeAssistant" component={CodeAssistantScreen} />
+        <AssistantStack.Screen name="ImageAssistant" component={ImageAssistantScreen} />
+        <AssistantStack.Screen name="VoiceAssistant" component={VoiceAssistantScreen} />
     </AssistantStack.Navigator>
 );
 

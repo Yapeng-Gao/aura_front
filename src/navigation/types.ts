@@ -28,8 +28,14 @@ export type TabParamList = {
 };
 
 export type AssistantStackParamList = {
+    AssistantHome: undefined;
     AIAssistant: undefined;
     AISettings: undefined;
+    MeetingAssistant: undefined;
+    WritingAssistant: undefined;
+    CodeAssistant: undefined;
+    ImageAssistant: undefined;
+    VoiceAssistant: undefined;
 };
 
 export type ProductivityStackParamList = {

@@ -1,9 +1,13 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image, TextInput, KeyboardAvoidingView, Platform } from 'react-native';
+import { useNavigation } from '@react-navigation/native';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import ScreenContainer from '../../components/common/ScreenContainer';
-import Button from '../../components/common/Button';
 import Card from '../../components/common/Card';
 import theme from '../../theme';
+import { AssistantStackParamList } from '../../navigation/types';
+
+type AIAssistantScreenNavigationProp = NativeStackNavigationProp<AssistantStackParamList, 'AIAssistant'>;
 
 // 模拟消息数据类型
 interface Message {
@@ -21,10 +25,11 @@ interface Message {
 }
 
 const AIAssistantScreen: React.FC = () => {
+  const navigation = useNavigation<AIAssistantScreenNavigationProp>();
   const [messages, setMessages] = useState<Message[]>([
     {
       id: '1',
-      text: '您好！我是Aura，您的智能生活助手。今天我能为您做些什么？',
+      text: '你好！我是你的AI助手，有什么我可以帮你的吗？',
       sender: 'assistant',
       timestamp: '09:30',
     },
@@ -162,11 +167,51 @@ const AIAssistantScreen: React.FC = () => {
       }, 1500);
     }, 1000);
   };
+
+  // 处理文件上传
+  const handleFileUpload = () => {
+    console.log('上传文件');
+    setShowInputOptions(false);
+    
+    // 模拟文件上传和发送
+    setTimeout(() => {
+      const fileMessage: Message = {
+        id: Date.now().toString(),
+        text: '我发送了一个文件',
+        sender: 'user',
+        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        attachments: [
+          {
+            type: 'file',
+            url: 'https://example.com/document.pdf',
+            name: '项目报告.pdf',
+          }
+        ]
+      };
+      
+      setMessages(prev => [...prev, fileMessage]);
+      
+      // 模拟AI助手回复
+      setTimeout(() => {
+        setMessages(prev => [...prev, {
+          id: Date.now().toString(),
+          text: '我已收到您的文件。这是一个PDF文档，我可以帮您分析其中的内容。',
+          sender: 'assistant',
+          timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        }]);
+      }, 1500);
+    }, 1000);
+  };
   
   return (
     <ScreenContainer
-      title="Aura 智能助手"
+      title="AI助手"
       backgroundColor={theme.colors.background}
+      showBackButton
+      rightButton={{
+        icon: '设置',
+        onPress: () => navigation.navigate('AISettings'),
+      }}
     >
       <KeyboardAvoidingView 
         style={styles.container}
@@ -246,7 +291,7 @@ const AIAssistantScreen: React.FC = () => {
               <Text style={styles.inputOptionText}>图片</Text>
             </TouchableOpacity>
             
-            <TouchableOpacity style={styles.inputOption}>
+            <TouchableOpacity style={styles.inputOption} onPress={handleFileUpload}>
               <View style={styles.inputOptionIcon}>
                 <Text style={styles.inputOptionIconText}>📄</Text>
               </View>

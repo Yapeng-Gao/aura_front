@@ -1,85 +1,98 @@
 import React from 'react';
-import { View, Text, StyleSheet, ScrollView, SafeAreaView, StatusBar } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, SafeAreaView, StatusBar } from 'react-native';
+import { useNavigation } from '@react-navigation/native';
 import theme from '../../theme';
-import Header from '../common/Header';
+import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 
 interface ScreenContainerProps {
   children: React.ReactNode;
-  title?: string;
-  leftIcon?: React.ReactNode;
-  rightIcon?: React.ReactNode;
-  onLeftPress?: () => void;
-  onRightPress?: () => void;
-  scrollable?: boolean;
-  paddingHorizontal?: boolean;
+  title: string;
   backgroundColor?: string;
-  statusBarStyle?: 'light-content' | 'dark-content';
-  headerTransparent?: boolean;
+  showBackButton?: boolean;
+  rightButton?: {
+    icon: string;
+    onPress: () => void;
+  };
 }
 
 const ScreenContainer: React.FC<ScreenContainerProps> = ({
   children,
   title,
-  leftIcon,
-  rightIcon,
-  onLeftPress,
-  onRightPress,
-  scrollable = true,
-  paddingHorizontal = true,
   backgroundColor = theme.colors.background,
-  statusBarStyle = 'dark-content',
-  headerTransparent = false,
+  showBackButton = false,
+  rightButton,
 }) => {
-  const Container = scrollable ? ScrollView : View;
-  
+  const navigation = useNavigation();
+
   return (
-    <SafeAreaView style={[styles.safeArea, { backgroundColor }]}>
-      <StatusBar 
-        barStyle={statusBarStyle} 
-        backgroundColor={headerTransparent ? 'transparent' : backgroundColor}
-        translucent={headerTransparent}
-      />
-      
-      {title && (
-        <Header
-          title={title}
-          leftIcon={leftIcon}
-          rightIcon={rightIcon}
-          onLeftPress={onLeftPress}
-          onRightPress={onRightPress}
-          transparent={headerTransparent}
-          light={statusBarStyle === 'light-content'}
+    <View style={[styles.container, { backgroundColor }]}>
+      <SafeAreaView style={styles.safeArea}>
+        <StatusBar
+          barStyle="dark-content"
+          backgroundColor={backgroundColor}
+          translucent
         />
-      )}
-      
-      <Container
-        style={[
-          styles.container,
-          paddingHorizontal && styles.paddingHorizontal,
-          { backgroundColor },
-        ]}
-        contentContainerStyle={scrollable && styles.scrollContent}
-        showsVerticalScrollIndicator={false}
-      >
+        <View style={styles.header}>
+          {showBackButton && (
+            <TouchableOpacity
+              style={styles.backButton}
+              onPress={() => navigation.goBack()}
+            >
+              <Icon name="arrow-left" size={24} color={theme.colors.textPrimary} />
+            </TouchableOpacity>
+          )}
+          <View style={styles.titleContainer}>
+            <Text style={styles.title}>{title}</Text>
+          </View>
+          {rightButton && (
+            <TouchableOpacity
+              style={styles.rightButton}
+              onPress={rightButton.onPress}
+            >
+              <Text style={styles.rightButtonText}>{rightButton.icon}</Text>
+            </TouchableOpacity>
+          )}
+        </View>
         {children}
-      </Container>
-    </SafeAreaView>
+      </SafeAreaView>
+    </View>
   );
 };
 
 const styles = StyleSheet.create({
-  safeArea: {
-    flex: 1,
-  },
   container: {
     flex: 1,
   },
-  paddingHorizontal: {
-    paddingHorizontal: theme.spacing.md,
+  safeArea: {
+    flex: 1,
   },
-  scrollContent: {
-    flexGrow: 1,
-    paddingBottom: theme.spacing.xl,
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: theme.spacing.md,
+    borderBottomWidth: 1,
+    borderBottomColor: theme.colors.border,
+  },
+  backButton: {
+    padding: theme.spacing.sm,
+    marginRight: theme.spacing.sm,
+  },
+  titleContainer: {
+    flex: 1,
+    alignItems: 'center',
+  },
+  title: {
+    fontSize: theme.typography.fontSize.lg,
+    fontWeight: theme.typography.fontWeight.bold as any,
+    color: theme.colors.textPrimary,
+  },
+  rightButton: {
+    padding: theme.spacing.sm,
+  },
+  rightButtonText: {
+    fontSize: theme.typography.fontSize.md,
+    color: theme.colors.primary,
+    fontWeight: theme.typography.fontWeight.medium as any,
   },
 });
 
