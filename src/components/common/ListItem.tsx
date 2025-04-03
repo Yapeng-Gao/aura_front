@@ -47,7 +47,8 @@ const ListItem: React.FC<ListItemProps> = ({
           style={[
             styles.title, 
             disabled && styles.disabledText,
-            selected && styles.selectedText
+            selected && styles.selectedText,
+            subtitle && styles.titleWithSubtitle
           ]}
           numberOfLines={1}
         >
@@ -92,9 +93,11 @@ const styles = StyleSheet.create({
   },
   title: {
     fontSize: theme.typography.fontSize.md,
-    fontWeight: theme.typography.fontWeight.medium,
+    fontWeight: theme.typography.fontWeight.medium as any,
     color: theme.colors.textPrimary,
-    marginBottom: subtitle ? theme.spacing.xs : 0,
+  },
+  titleWithSubtitle: {
+    marginBottom: theme.spacing.xs,
   },
   subtitle: {
     fontSize: theme.typography.fontSize.sm,

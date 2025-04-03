@@ -1,148 +1,106 @@
 import React from 'react';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import theme from '../theme';
-import Icon from 'react-native-vector-icons/FontAwesome'; // 确保已安装 react-native-vector-icons
+import { createStackNavigator } from '@react-navigation/stack';
+import TabBarIcon from '../components/common/TabBarIcon';
 
-import AssistantScreen from '../screens/assistant/AssistantScreen';
-import CalendarScreen from '../screens/scheduler/CalendarScreen';
-import TasksScreen from '../screens/scheduler/TasksScreen';
+// 主屏幕组件
+import SmartHomeScreen from '../screens/iot/SmartHomeScreen';
+import UserProfileScreen from '../screens/profile/UserProfileScreen';
+
+// Assistant 相关
+import AIAssistantScreen from '../screens/assistant/AIAssistantScreen';
+import AISettingsScreen from '../screens/assistant/AISettingsScreen';
+
+// Productivity 相关
 import MeetingAssistantScreen from '../screens/productivity/MeetingAssistantScreen';
 import NotesScreen from '../screens/productivity/NotesScreen';
+import CalendarScreen from '../screens/scheduler/CalendarScreen';
+import TasksScreen from '../screens/scheduler/TasksScreen';
+
+// IoT 相关
 import DeviceManagementScreen from '../screens/iot/DeviceManagementScreen';
 import SceneManagementScreen from '../screens/iot/SceneManagementScreen';
-import SmartHomeScreen from '../screens/iot/SmartHomeScreen';
-import CreativeStudioScreen from '../screens/creative/CreativeStudioScreen';
 
-// 导航类型定义
-export type TabNavigatorParamList = {
-    Assistant: undefined;
-    Scheduler: undefined; // 注意 Scheduler 在这里代表 CalendarScreen
-    Tasks: undefined;     // TasksScreen 独立的 Tab
-    ProductivityMeeting: undefined; // 更明确的 Productivity Tab 名称
-    ProductivityNotes: undefined;   // Notes Tab 独立的 Tab
-    IoTDevices: undefined;        // IoT 设备管理
-    IoTScenes: undefined;         // IoT 场景管理
-    IoTSmartHome: undefined;      // 智能家居
-    Creative: undefined;
-};
+const Tab = createBottomTabNavigator();
+const AssistantStack = createStackNavigator();
+const ProductivityStack = createStackNavigator();
+const IoTStack = createStackNavigator();
 
-const Tab = createBottomTabNavigator<TabNavigatorParamList>();
+// 内联定义 Stack 导航器
+const AssistantStackNavigator = () => (
+    <AssistantStack.Navigator screenOptions={{ headerShown: false }}>
+        <AssistantStack.Screen name="AIAssistant" component={AIAssistantScreen} />
+        <AssistantStack.Screen name="AISettings" component={AISettingsScreen} />
+    </AssistantStack.Navigator>
+);
 
-// TabBarIcon 组件 (可以考虑移动到 components/common)
-const TabBarIcon = ({ name, color, size }: { name: string; color: string; size: number }) => {
-    return <Icon name={name} color={color} size={size} />;
-};
+const ProductivityStackNavigator = () => (
+    <ProductivityStack.Navigator screenOptions={{ headerShown: false }}>
+        <ProductivityStack.Screen name="Meeting" component={MeetingAssistantScreen} />
+        <ProductivityStack.Screen name="Notes" component={NotesScreen} />
+        <ProductivityStack.Screen name="Calendar" component={CalendarScreen} />
+        <ProductivityStack.Screen name="Tasks" component={TasksScreen} />
+    </ProductivityStack.Navigator>
+);
 
+const IoTStackNavigator = () => (
+    <IoTStack.Navigator screenOptions={{ headerShown: false }}>
+        <IoTStack.Screen name="Devices" component={DeviceManagementScreen} />
+        <IoTStack.Screen name="Scenes" component={SceneManagementScreen} />
+        <IoTStack.Screen name="SmartHome" component={SmartHomeScreen} />
+    </IoTStack.Navigator>
+);
 
-const TabNavigator: React.FC = () => {
-    return (
-        <Tab.Navigator
-            screenOptions={{
-                tabBarActiveTintColor: theme.colors.primary,
-                tabBarInactiveTintColor: theme.colors.textSecondary,
-                tabBarStyle: {
-                    backgroundColor: theme.colors.surface,
-                    borderTopWidth: 1,
-                    borderTopColor: theme.colors.border,
-                    paddingBottom: 5,
-                    paddingTop: 5,
-                    height: 60,
-                },
-                headerShown: false,
+// 主 Tab 导航器
+const TabNavigator = () => (
+    <Tab.Navigator
+        screenOptions={{
+            tabBarActiveTintColor: '#007AFF',
+            tabBarInactiveTintColor: '#8E8E93',
+            headerShown: false
+        }}
+    >
+        <Tab.Screen
+            name="Home"
+            component={SmartHomeScreen}
+            options={{
+                tabBarIcon: ({ color }) => <TabBarIcon name="home" color={color} />,
+                tabBarLabel: '首页'
             }}
-        >
-            <Tab.Screen
-                name="Assistant"
-                component={AssistantScreen}
-                options={{
-                    tabBarLabel: '助手',
-                    tabBarIcon: ({ color, size }) => (
-                        <TabBarIcon name="magic" color={color} size={size} />
-                    ),
-                }}
-            />
-            <Tab.Screen
-                name="Scheduler"
-                component={CalendarScreen}
-                options={{
-                    tabBarLabel: '日程',
-                    tabBarIcon: ({ color, size }) => (
-                        <TabBarIcon name="calendar-o" color={color} size={size} />
-                    ),
-                }}
-            />
-            <Tab.Screen
-                name="Tasks"
-                component={TasksScreen}
-                options={{
-                    tabBarLabel: '任务',
-                    tabBarIcon: ({ color, size }) => (
-                        <TabBarIcon name="tasks" color={color} size={size} />
-                    ),
-                }}
-            />
-            <Tab.Screen
-                name="ProductivityMeeting"
-                component={MeetingAssistantScreen}
-                options={{
-                    tabBarLabel: '会议助理',
-                    tabBarIcon: ({ color, size }) => (
-                        <TabBarIcon name="microphone" color={color} size={size} />
-                    ),
-                }}
-            />
-            <Tab.Screen
-                name="ProductivityNotes"
-                component={NotesScreen}
-                options={{
-                    tabBarLabel: '笔记',
-                    tabBarIcon: ({ color, size }) => (
-                        <TabBarIcon name="sticky-note-o" color={color} size={size} />
-                    ),
-                }}
-            />
-            <Tab.Screen
-                name="IoTDevices"
-                component={DeviceManagementScreen}
-                options={{
-                    tabBarLabel: '设备',
-                    tabBarIcon: ({ color, size }) => (
-                        <TabBarIcon name="usb" color={color} size={size} />
-                    ),
-                }}
-            />
-            <Tab.Screen
-                name="IoTScenes"
-                component={SceneManagementScreen}
-                options={{
-                    tabBarLabel: '场景',
-                    tabBarIcon: ({ color, size }) => (
-                        <TabBarIcon name="sun-o" color={color} size={size} />
-                    ),
-                }}
-            />
-            <Tab.Screen
-                name="IoTSmartHome"
-                component={SmartHomeScreen}
-                options={{
-                    tabBarLabel: '家居',
-                    tabBarIcon: ({ color, size }) => (
-                        <TabBarIcon name="home" color={color} size={size} />
-                    ),
-                }}
-            />
-            <Tab.Screen
-                name="Creative"
-                component={CreativeStudioScreen}
-                options={{
-                    tabBarLabel: '创意',
-                    tabBarIcon: ({ color, size }) => (
-                        <TabBarIcon name="paint-brush" color={color} size={size} />
-                    ),
-                }}
-            />
-        </Tab.Navigator>
-    );
-};
+        />
+        <Tab.Screen
+            name="Assistant"
+            component={AssistantStackNavigator}
+            options={{
+                tabBarIcon: ({ color }) => <TabBarIcon name="robot" color={color} />,
+                tabBarLabel: '助手'
+            }}
+        />
+        <Tab.Screen
+            name="Productivity"
+            component={ProductivityStackNavigator}
+            options={{
+                tabBarIcon: ({ color }) => <TabBarIcon name="tasks" color={color} />,
+                tabBarLabel: '效率'
+            }}
+        />
+        <Tab.Screen
+            name="IoT"
+            component={IoTStackNavigator}
+            options={{
+                tabBarIcon: ({ color }) => <TabBarIcon name="smartphone" color={color} />,
+                tabBarLabel: '物联网'
+            }}
+        />
+        <Tab.Screen
+            name="Profile"
+            component={UserProfileScreen}
+            options={{
+                tabBarIcon: ({ color }) => <TabBarIcon name="user" color={color} />,
+                tabBarLabel: '我的'
+            }}
+        />
+    </Tab.Navigator>
+);
 
 export default TabNavigator;

@@ -96,7 +96,7 @@ const LoginScreen: React.FC = () => {
             //    如果你的 action 需要用户信息或其他数据，请传递 payload
             dispatch(loginSuccess({token:responseData.access_token,refreshToken:responseData.refresh_token }));
             // --- 结束 Redux Dispatch ---
-            navigation.navigate('Main'); // Replace with actual navigation
+            navigation.navigate('Main');
             // Alert.alert('登录成功', `欢迎回来${responseData.user?.name ? ', ' + responseData.user.name : ''}！`);
 
 
