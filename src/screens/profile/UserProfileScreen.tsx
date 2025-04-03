@@ -1,12 +1,18 @@
 import React from 'react';
 import { View, Text, StyleSheet, Image, ScrollView, TouchableOpacity } from 'react-native';
+import { useNavigation } from '@react-navigation/native';
+import { useDispatch } from 'react-redux';
 import ScreenContainer from '../../components/common/ScreenContainer';
 import Button from '../../components/common/Button';
 import Card from '../../components/common/Card';
 import ListItem from '../../components/common/ListItem';
 import theme from '../../theme';
+import { logout } from '../../store/slices/authSlice';
 
 const UserProfileScreen: React.FC = () => {
+  const navigation = useNavigation();
+  const dispatch = useDispatch();
+
   // 模拟用户数据
   const user = {
     id: '1',
@@ -23,12 +29,20 @@ const UserProfileScreen: React.FC = () => {
     }
   };
 
+  const handleLogout = () => {
+    dispatch(logout());
+    navigation.reset({
+      index: 0,
+      routes: [{ name: 'Auth' }],
+    });
+  };
+
   return (
     <ScreenContainer
       title="个人资料"
       backgroundColor={theme.colors.background}
       rightIcon={<Text style={styles.editText}>编辑</Text>}
-      onRightPress={() => {/* 导航到编辑资料页面 */}}
+      onRightPress={() => navigation.navigate('EditProfile')}
     >
       <ScrollView style={styles.container}>
         <View style={styles.profileHeader}>
@@ -57,7 +71,7 @@ const UserProfileScreen: React.FC = () => {
               variant="primary"
               size="medium"
               style={styles.upgradeButton}
-              onPress={() => {/* 导航到会员升级页面 */}}
+              onPress={() => navigation.navigate('MembershipUpgrade')}
             />
           </View>
         </Card>
@@ -67,25 +81,25 @@ const UserProfileScreen: React.FC = () => {
             title="个人信息"
             subtitle="更新您的个人资料信息"
             rightIcon={<Text style={styles.arrowIcon}>›</Text>}
-            onPress={() => {/* 导航到个人信息页面 */}}
+            onPress={() => navigation.navigate('PersonalInfo')}
           />
           <ListItem
             title="安全设置"
             subtitle="密码和安全选项"
             rightIcon={<Text style={styles.arrowIcon}>›</Text>}
-            onPress={() => {/* 导航到安全设置页面 */}}
+            onPress={() => navigation.navigate('SecuritySettings')}
           />
           <ListItem
             title="通知设置"
             subtitle="管理应用通知"
             rightIcon={<Text style={styles.arrowIcon}>›</Text>}
-            onPress={() => {/* 导航到通知设置页面 */}}
+            onPress={() => navigation.navigate('NotificationSettings')}
           />
           <ListItem
             title="隐私设置"
             subtitle="管理数据和隐私选项"
             rightIcon={<Text style={styles.arrowIcon}>›</Text>}
-            onPress={() => {/* 导航到隐私设置页面 */}}
+            onPress={() => navigation.navigate('PrivacySettings')}
             divider={false}
           />
         </Card>
@@ -95,13 +109,13 @@ const UserProfileScreen: React.FC = () => {
             title="主题"
             subtitle={user.preferences.theme}
             rightIcon={<Text style={styles.arrowIcon}>›</Text>}
-            onPress={() => {/* 导航到主题设置页面 */}}
+            onPress={() => navigation.navigate('ThemeSettings')}
           />
           <ListItem
             title="语言"
             subtitle={user.preferences.language}
             rightIcon={<Text style={styles.arrowIcon}>›</Text>}
-            onPress={() => {/* 导航到语言设置页面 */}}
+            onPress={() => navigation.navigate('LanguageSettings')}
             divider={false}
           />
         </Card>
@@ -110,17 +124,17 @@ const UserProfileScreen: React.FC = () => {
           <ListItem
             title="帮助中心"
             rightIcon={<Text style={styles.arrowIcon}>›</Text>}
-            onPress={() => {/* 导航到帮助中心页面 */}}
+            onPress={() => navigation.navigate('HelpCenter')}
           />
           <ListItem
             title="隐私政策"
             rightIcon={<Text style={styles.arrowIcon}>›</Text>}
-            onPress={() => {/* 导航到隐私政策页面 */}}
+            onPress={() => navigation.navigate('PrivacyPolicy')}
           />
           <ListItem
             title="服务条款"
             rightIcon={<Text style={styles.arrowIcon}>›</Text>}
-            onPress={() => {/* 导航到服务条款页面 */}}
+            onPress={() => navigation.navigate('TermsOfService')}
             divider={false}
           />
         </Card>
@@ -130,7 +144,7 @@ const UserProfileScreen: React.FC = () => {
           variant="outline"
           size="large"
           style={styles.logoutButton}
-          onPress={() => {/* 处理退出登录 */}}
+          onPress={handleLogout}
         />
 
         <Text style={styles.versionText}>Aura v1.0.0</Text>

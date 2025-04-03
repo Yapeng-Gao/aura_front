@@ -5,6 +5,14 @@ import { useAppSelector } from '../store/hooks';
 import AuthNavigator from './AuthNavigator';
 import TabNavigator from './TabNavigator';
 import { RootStackParamList } from './types';
+import EditProfileScreen from '../screens/profile/EditProfileScreen';
+import PersonalInfoScreen from '../screens/profile/PersonalInfoScreen';
+import SecuritySettingsScreen from '../screens/profile/SecuritySettingsScreen';
+import NotificationSettingsScreen from '../screens/profile/NotificationSettingsScreen';
+import PrivacySettingsScreen from '../screens/profile/PrivacySettingsScreen';
+import HelpSupportScreen from '../screens/profile/HelpSupportScreen';
+import AboutScreen from '../screens/profile/AboutScreen';
+import MembershipUpgradeScreen from '../screens/profile/MembershipUpgradeScreen';
 
 const RootStack = createStackNavigator<RootStackParamList>();
 
@@ -15,7 +23,73 @@ const AppNavigator = () => {
         <NavigationContainer>
             <RootStack.Navigator screenOptions={{ headerShown: false }}>
                 {isAuthenticated ? (
-                    <RootStack.Screen name="Main" component={TabNavigator} />
+                    <>
+                        <RootStack.Screen name="Main" component={TabNavigator} />
+                        <RootStack.Screen 
+                            name="EditProfile" 
+                            component={EditProfileScreen}
+                            options={{
+                                headerShown: true,
+                                title: '编辑个人资料',
+                            }}
+                        />
+                        <RootStack.Screen 
+                            name="PersonalInfo" 
+                            component={PersonalInfoScreen}
+                            options={{
+                                headerShown: true,
+                                title: '个人信息',
+                            }}
+                        />
+                        <RootStack.Screen 
+                            name="SecuritySettings" 
+                            component={SecuritySettingsScreen}
+                            options={{
+                                headerShown: true,
+                                title: '安全设置',
+                            }}
+                        />
+                        <RootStack.Screen 
+                            name="NotificationSettings" 
+                            component={NotificationSettingsScreen}
+                            options={{
+                                headerShown: true,
+                                title: '通知设置',
+                            }}
+                        />
+                        <RootStack.Screen 
+                            name="PrivacySettings" 
+                            component={PrivacySettingsScreen}
+                            options={{
+                                headerShown: true,
+                                title: '隐私设置',
+                            }}
+                        />
+                        <RootStack.Screen 
+                            name="HelpSupport" 
+                            component={HelpSupportScreen}
+                            options={{
+                                headerShown: true,
+                                title: '帮助与支持',
+                            }}
+                        />
+                        <RootStack.Screen 
+                            name="About" 
+                            component={AboutScreen}
+                            options={{
+                                headerShown: true,
+                                title: '关于',
+                            }}
+                        />
+                        <RootStack.Screen 
+                            name="MembershipUpgrade" 
+                            component={MembershipUpgradeScreen}
+                            options={{
+                                headerShown: true,
+                                title: '会员升级',
+                            }}
+                        />
+                    </>
                 ) : (
                     <RootStack.Screen name="Auth" component={AuthNavigator} />
                 )}

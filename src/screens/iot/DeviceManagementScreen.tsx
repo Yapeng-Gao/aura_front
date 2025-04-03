@@ -1,5 +1,5 @@
 import React, {useState} from 'react';
-import {View, Text, StyleSheet, ScrollView, TouchableOpacity, Switch, TextInput} from 'react-native';
+import {View, Text, StyleSheet, ScrollView, TouchableOpacity, Switch, TextInput, Platform} from 'react-native';
 import ScreenContainer from '../../components/common/ScreenContainer';
 import Card from '../../components/common/Card';
 import Button from '../../components/common/Button';
@@ -452,13 +452,6 @@ const DeviceManagementScreen: React.FC = () => {
                 </View>
 
                 <View style={styles.detailActions}>
-                    <Button
-                        title="删除设备"
-                        variant="outline"
-                        size="medium"
-                        onPress={handleDeleteDevice}
-                        style={[styles.actionButton, styles.deleteButton]}
-                    />
                     {isEditing ? (
                         <>
                             <Button
@@ -478,13 +471,23 @@ const DeviceManagementScreen: React.FC = () => {
                             />
                         </>
                     ) : (
-                        <Button
-                            title="编辑设备"
-                            variant="outline"
-                            size="medium"
-                            onPress={handleEditDevice}
-                            style={styles.actionButton}
-                        />
+                        <>
+                            <Button
+                                title="删除设备"
+                                variant="outline"
+                                size="medium"
+                                onPress={handleDeleteDevice}
+                                style={styles.actionButton}
+                                textStyle={{ color: theme.colors.error }}
+                            />
+                            <Button
+                                title="编辑设备"
+                                variant="primary"
+                                size="medium"
+                                onPress={handleEditDevice}
+                                style={styles.actionButton}
+                            />
+                        </>
                     )}
                 </View>
             </View>
@@ -512,6 +515,7 @@ const styles = StyleSheet.create({
     container: {
         flex: 1,
         flexDirection: 'row',
+        backgroundColor: theme.colors.background,
     },
     listContainer: {
         flex: 1,
@@ -519,16 +523,29 @@ const styles = StyleSheet.create({
         padding: theme.spacing.md,
         borderRightWidth: 1,
         borderRightColor: theme.colors.border,
+        backgroundColor: theme.colors.background,
     },
     detailContainer: {
         flex: 2,
         padding: theme.spacing.md,
+        backgroundColor: theme.colors.background,
     },
     filtersContainer: {
         backgroundColor: theme.colors.surface,
         borderRadius: theme.borderRadius.md,
         padding: theme.spacing.md,
-        marginBottom: theme.spacing.sm,
+        marginBottom: theme.spacing.md,
+        ...Platform.select({
+            ios: {
+                shadowColor: '#000',
+                shadowOffset: { width: 0, height: 1 },
+                shadowOpacity: 0.18,
+                shadowRadius: 1.0,
+            },
+            android: {
+                elevation: 2,
+            },
+        }),
     },
     searchInput: {
         backgroundColor: theme.colors.background,
@@ -539,29 +556,36 @@ const styles = StyleSheet.create({
         marginBottom: theme.spacing.md,
         borderWidth: 1,
         borderColor: theme.colors.border,
+        height: 48,
     },
     filterGroup: {
         marginRight: theme.spacing.lg,
+        marginBottom: theme.spacing.md,
     },
     filterLabel: {
         fontSize: theme.typography.fontSize.sm,
         color: theme.colors.textSecondary,
         marginBottom: theme.spacing.sm,
+        fontWeight: '500',
     },
     filterOptions: {
         flexDirection: 'row',
         flexWrap: 'wrap',
+        gap: theme.spacing.sm,
     },
     filterOption: {
         paddingHorizontal: theme.spacing.md,
         paddingVertical: theme.spacing.sm,
         backgroundColor: theme.colors.background,
         borderRadius: theme.borderRadius.md,
-        marginRight: theme.spacing.sm,
-        marginBottom: theme.spacing.sm,
+        borderWidth: 1,
+        borderColor: theme.colors.border,
+        minWidth: 80,
+        alignItems: 'center',
     },
     activeFilterOption: {
         backgroundColor: theme.colors.primary,
+        borderColor: theme.colors.primary,
     },
     filterOptionText: {
         fontSize: theme.typography.fontSize.sm,
@@ -569,6 +593,7 @@ const styles = StyleSheet.create({
     },
     activeFilterOptionText: {
         color: theme.colors.onPrimary,
+        fontWeight: '500',
     },
     devicesListContainer: {
         flex: 1,
@@ -582,20 +607,32 @@ const styles = StyleSheet.create({
         borderRadius: theme.borderRadius.md,
         padding: theme.spacing.md,
         marginBottom: theme.spacing.sm,
+        ...Platform.select({
+            ios: {
+                shadowColor: '#000',
+                shadowOffset: { width: 0, height: 1 },
+                shadowOpacity: 0.18,
+                shadowRadius: 1.0,
+            },
+            android: {
+                elevation: 1,
+            },
+        }),
     },
     selectedDeviceItem: {
-        borderWidth: 1,
+        borderWidth: 2,
         borderColor: theme.colors.primary,
+        backgroundColor: `${theme.colors.primary}10`,
     },
     disconnectedDeviceItem: {
-        opacity: 0.6,
+        opacity: 0.7,
     },
     deviceItemHeader: {
         flexDirection: 'row',
         alignItems: 'center',
     },
     deviceIcon: {
-        fontSize: 24,
+        fontSize: 32,
         marginRight: theme.spacing.md,
     },
     deviceInfo: {
@@ -603,7 +640,7 @@ const styles = StyleSheet.create({
     },
     deviceName: {
         fontSize: theme.typography.fontSize.md,
-        fontWeight: theme.typography.fontWeight.medium,
+        fontWeight: '500',
         color: theme.colors.textPrimary,
         marginBottom: theme.spacing.xs,
     },
@@ -614,6 +651,10 @@ const styles = StyleSheet.create({
     deviceStatus: {
         flexDirection: 'row',
         alignItems: 'center',
+        backgroundColor: theme.colors.background,
+        paddingHorizontal: theme.spacing.sm,
+        paddingVertical: theme.spacing.xs,
+        borderRadius: theme.borderRadius.md,
     },
     statusIndicator: {
         width: 8,
@@ -629,14 +670,17 @@ const styles = StyleSheet.create({
     },
     statusText: {
         fontSize: theme.typography.fontSize.sm,
+        color: theme.colors.textPrimary,
     },
     emptyListText: {
         textAlign: 'center',
         color: theme.colors.textSecondary,
         padding: theme.spacing.lg,
+        fontSize: theme.typography.fontSize.md,
     },
     addButton: {
         marginBottom: theme.spacing.md,
+        height: 48,
     },
     emptyDetailContainer: {
         flex: 1,
@@ -645,25 +689,51 @@ const styles = StyleSheet.create({
         backgroundColor: theme.colors.surface,
         borderRadius: theme.borderRadius.md,
         padding: theme.spacing.lg,
+        ...Platform.select({
+            ios: {
+                shadowColor: '#000',
+                shadowOffset: { width: 0, height: 1 },
+                shadowOpacity: 0.18,
+                shadowRadius: 1.0,
+            },
+            android: {
+                elevation: 2,
+            },
+        }),
     },
     emptyDetailText: {
         fontSize: theme.typography.fontSize.md,
         color: theme.colors.textSecondary,
+        textAlign: 'center',
     },
     deviceDetailContainer: {
         flex: 1,
         backgroundColor: theme.colors.surface,
         borderRadius: theme.borderRadius.md,
-        padding: theme.spacing.md,
+        padding: theme.spacing.lg,
+        ...Platform.select({
+            ios: {
+                shadowColor: '#000',
+                shadowOffset: { width: 0, height: 1 },
+                shadowOpacity: 0.18,
+                shadowRadius: 1.0,
+            },
+            android: {
+                elevation: 2,
+            },
+        }),
     },
     deviceDetailHeader: {
         flexDirection: 'row',
         alignItems: 'center',
         marginBottom: theme.spacing.lg,
+        paddingBottom: theme.spacing.md,
+        borderBottomWidth: 1,
+        borderBottomColor: theme.colors.border,
     },
     deviceNameText: {
-        fontSize: theme.typography.fontSize.lg,
-        fontWeight: theme.typography.fontWeight.bold,
+        fontSize: theme.typography.fontSize.xl,
+        fontWeight: '700',
         color: theme.colors.textPrimary,
         flex: 1,
     },
@@ -672,20 +742,23 @@ const styles = StyleSheet.create({
         backgroundColor: theme.colors.background,
         borderRadius: theme.borderRadius.md,
         padding: theme.spacing.md,
-        fontSize: theme.typography.fontSize.lg,
-        fontWeight: theme.typography.fontWeight.bold,
+        fontSize: theme.typography.fontSize.xl,
+        fontWeight: '700',
         color: theme.colors.textPrimary,
         marginRight: theme.spacing.md,
         borderWidth: 1,
         borderColor: theme.colors.border,
+        height: 56,
     },
     deviceStatusBadge: {
         flexDirection: 'row',
         alignItems: 'center',
         backgroundColor: theme.colors.background,
         borderRadius: theme.borderRadius.md,
-        paddingHorizontal: theme.spacing.sm,
-        paddingVertical: theme.spacing.xs,
+        paddingHorizontal: theme.spacing.md,
+        paddingVertical: theme.spacing.sm,
+        borderWidth: 1,
+        borderColor: theme.colors.border,
     },
     editFormGroup: {
         marginBottom: theme.spacing.lg,
@@ -694,6 +767,7 @@ const styles = StyleSheet.create({
         fontSize: theme.typography.fontSize.md,
         color: theme.colors.textSecondary,
         marginBottom: theme.spacing.sm,
+        fontWeight: '500',
     },
     editRoomInput: {
         backgroundColor: theme.colors.background,
@@ -703,13 +777,17 @@ const styles = StyleSheet.create({
         color: theme.colors.textPrimary,
         borderWidth: 1,
         borderColor: theme.colors.border,
+        height: 48,
     },
     detailSection: {
         marginBottom: theme.spacing.lg,
+        backgroundColor: theme.colors.background,
+        borderRadius: theme.borderRadius.md,
+        padding: theme.spacing.md,
     },
     detailSectionTitle: {
         fontSize: theme.typography.fontSize.md,
-        fontWeight: theme.typography.fontWeight.bold,
+        fontWeight: '700',
         color: theme.colors.textPrimary,
         marginBottom: theme.spacing.md,
     },
@@ -724,6 +802,7 @@ const styles = StyleSheet.create({
     detailLabel: {
         fontSize: theme.typography.fontSize.sm,
         color: theme.colors.textSecondary,
+        fontWeight: '500',
     },
     detailValue: {
         fontSize: theme.typography.fontSize.sm,
@@ -732,13 +811,13 @@ const styles = StyleSheet.create({
     batteryContainer: {
         flexDirection: 'row',
         alignItems: 'center',
+        gap: theme.spacing.sm,
     },
     batteryLevel: {
-        width: 100,
+        width: 120,
         height: 8,
         backgroundColor: theme.colors.background,
         borderRadius: 4,
-        marginRight: theme.spacing.sm,
         overflow: 'hidden',
     },
     batteryFill: {
@@ -749,13 +828,16 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         justifyContent: 'space-between',
         marginTop: theme.spacing.lg,
+        gap: theme.spacing.md,
     },
     actionButton: {
         flex: 1,
-        marginHorizontal: theme.spacing.xs,
+        height: 48,
+        minWidth: 120,
     },
     deleteButton: {
         borderColor: theme.colors.error,
+        backgroundColor: 'transparent',
     },
 });
 

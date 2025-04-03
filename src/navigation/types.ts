@@ -2,9 +2,16 @@ import { NavigatorScreenParams } from '@react-navigation/native';
 
 // 定义所有路由参数类型
 export type RootStackParamList = {
+    Main: undefined;
     Auth: undefined;
-    Main: NavigatorScreenParams<TabParamList>;
-    UserProfile: undefined;
+    EditProfile: undefined;
+    PersonalInfo: undefined;
+    SecuritySettings: undefined;
+    NotificationSettings: undefined;
+    PrivacySettings: undefined;
+    HelpSupport: undefined;
+    About: undefined;
+    MembershipUpgrade: undefined;
 };
 
 export type AuthStackParamList = {
@@ -15,9 +22,8 @@ export type AuthStackParamList = {
 
 export type TabParamList = {
     Home: undefined;
-    Assistant: NavigatorScreenParams<AssistantStackParamList>;
-    Productivity: NavigatorScreenParams<ProductivityStackParamList>;
-    IoT: NavigatorScreenParams<IoTStackParamList>;
+    SmartHome: undefined;
+    Tasks: undefined;
     Profile: undefined;
 };
 
