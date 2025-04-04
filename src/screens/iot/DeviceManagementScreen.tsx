@@ -19,6 +19,23 @@ interface Device {
 }
 
 const DeviceManagementScreen: React.FC = () => {
+    // 预定义的房间列表
+    const predefinedRooms = [
+        '客厅', '卧室', '厨房', '浴室', '书房', '阳台', '餐厅', '门厅'
+    ];
+
+    // 预定义的设备类型列表
+    const predefinedTypes = [
+        { id: 'light', name: '灯光' },
+        { id: 'thermostat', name: '温控器' },
+        { id: 'lock', name: '智能锁' },
+        { id: 'camera', name: '摄像头' },
+        { id: 'speaker', name: '音箱' },
+        { id: 'curtain', name: '窗帘' },
+        { id: 'tv', name: '电视' },
+        { id: 'other', name: '其他设备' }
+    ];
+
     const [devices, setDevices] = useState<Device[]>([
         {
             id: '101',
@@ -43,6 +60,9 @@ const DeviceManagementScreen: React.FC = () => {
     const [filterRoom, setFilterRoom] = useState<string | null>(null);
     const [filterType, setFilterType] = useState<string | null>(null);
     const [filterStatus, setFilterStatus] = useState<string | null>(null);
+    const [isRoomExpanded, setIsRoomExpanded] = useState(false);
+    const [isTypeExpanded, setIsTypeExpanded] = useState(false);
+    const [isStatusExpanded, setIsStatusExpanded] = useState(false);
 
     const allRooms = Array.from(new Set(devices.map(device => device.room)));
     const allTypes = Array.from(new Set(devices.map(device => device.type)));
@@ -188,6 +208,106 @@ const DeviceManagementScreen: React.FC = () => {
         return true;
     });
 
+    const renderRoomFilters = () => (
+        <View style={styles.filterGroup}>
+            <TouchableOpacity 
+                style={styles.filterHeader}
+                onPress={() => setIsRoomExpanded(!isRoomExpanded)}
+            >
+                <Text style={styles.filterLabel}>房间:</Text>
+                <Text style={styles.expandIcon}>{isRoomExpanded ? '▼' : '▶'}</Text>
+            </TouchableOpacity>
+            {isRoomExpanded && (
+                <View style={styles.filterOptions}>
+                    <TouchableOpacity
+                        style={[styles.filterOption, !filterRoom && styles.activeFilterOption]}
+                        onPress={() => setFilterRoom(null)}
+                    >
+                        <Text style={[styles.filterOptionText, !filterRoom && styles.activeFilterOptionText]}>全部</Text>
+                    </TouchableOpacity>
+                    {predefinedRooms.map(room => (
+                        <TouchableOpacity
+                            key={room}
+                            style={[styles.filterOption, filterRoom === room && styles.activeFilterOption]}
+                            onPress={() => setFilterRoom(room)}
+                        >
+                            <Text style={[styles.filterOptionText, filterRoom === room && styles.activeFilterOptionText]}>
+                                {room}
+                            </Text>
+                        </TouchableOpacity>
+                    ))}
+                </View>
+            )}
+        </View>
+    );
+
+    const renderTypeFilters = () => (
+        <View style={styles.filterGroup}>
+            <TouchableOpacity 
+                style={styles.filterHeader}
+                onPress={() => setIsTypeExpanded(!isTypeExpanded)}
+            >
+                <Text style={styles.filterLabel}>类型:</Text>
+                <Text style={styles.expandIcon}>{isTypeExpanded ? '▼' : '▶'}</Text>
+            </TouchableOpacity>
+            {isTypeExpanded && (
+                <View style={styles.filterOptions}>
+                    <TouchableOpacity
+                        style={[styles.filterOption, !filterType && styles.activeFilterOption]}
+                        onPress={() => setFilterType(null)}
+                    >
+                        <Text style={[styles.filterOptionText, !filterType && styles.activeFilterOptionText]}>全部</Text>
+                    </TouchableOpacity>
+                    {predefinedTypes.map(type => (
+                        <TouchableOpacity
+                            key={type.id}
+                            style={[styles.filterOption, filterType === type.id && styles.activeFilterOption]}
+                            onPress={() => setFilterType(type.id)}
+                        >
+                            <Text style={[styles.filterOptionText, filterType === type.id && styles.activeFilterOptionText]}>
+                                {type.name}
+                            </Text>
+                        </TouchableOpacity>
+                    ))}
+                </View>
+            )}
+        </View>
+    );
+
+    const renderStatusFilters = () => (
+        <View style={styles.filterGroup}>
+            <TouchableOpacity 
+                style={styles.filterHeader}
+                onPress={() => setIsStatusExpanded(!isStatusExpanded)}
+            >
+                <Text style={styles.filterLabel}>状态:</Text>
+                <Text style={styles.expandIcon}>{isStatusExpanded ? '▼' : '▶'}</Text>
+            </TouchableOpacity>
+            {isStatusExpanded && (
+                <View style={styles.filterOptions}>
+                    <TouchableOpacity
+                        style={[styles.filterOption, !filterStatus && styles.activeFilterOption]}
+                        onPress={() => setFilterStatus(null)}
+                    >
+                        <Text style={[styles.filterOptionText, !filterStatus && styles.activeFilterOptionText]}>全部</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                        style={[styles.filterOption, filterStatus === 'connected' && styles.activeFilterOption]}
+                        onPress={() => setFilterStatus('connected')}
+                    >
+                        <Text style={[styles.filterOptionText, filterStatus === 'connected' && styles.activeFilterOptionText]}>已连接</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                        style={[styles.filterOption, filterStatus === 'disconnected' && styles.activeFilterOption]}
+                        onPress={() => setFilterStatus('disconnected')}
+                    >
+                        <Text style={[styles.filterOptionText, filterStatus === 'disconnected' && styles.activeFilterOptionText]}>未连接</Text>
+                    </TouchableOpacity>
+                </View>
+            )}
+        </View>
+    );
+
     const renderFilters = () => (
         <View style={styles.filtersContainer}>
             <TextInput
@@ -196,96 +316,15 @@ const DeviceManagementScreen: React.FC = () => {
                 value={searchQuery}
                 onChangeText={setSearchQuery}
             />
-
-            <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-                <View style={styles.filterGroup}>
-                    <Text style={styles.filterLabel}>房间:</Text>
-                    <View style={styles.filterOptions}>
-                        <TouchableOpacity
-                            style={[styles.filterOption, !filterRoom && styles.activeFilterOption]}
-                            onPress={() => setFilterRoom(null)}
-                        >
-                            <Text
-                                style={[styles.filterOptionText, !filterRoom && styles.activeFilterOptionText]}>全部</Text>
-                        </TouchableOpacity>
-                        {allRooms.map(room => (
-                            <TouchableOpacity
-                                key={room}
-                                style={[styles.filterOption, filterRoom === room && styles.activeFilterOption]}
-                                onPress={() => setFilterRoom(room)}
-                            >
-                                <Text
-                                    style={[styles.filterOptionText, filterRoom === room && styles.activeFilterOptionText]}>{room}</Text>
-                            </TouchableOpacity>
-                        ))}
-                    </View>
-                </View>
-
-                <View style={styles.filterGroup}>
-                    <Text style={styles.filterLabel}>类型:</Text>
-                    <View style={styles.filterOptions}>
-                        <TouchableOpacity
-                            style={[styles.filterOption, !filterType && styles.activeFilterOption]}
-                            onPress={() => setFilterType(null)}
-                        >
-                            <Text
-                                style={[styles.filterOptionText, !filterType && styles.activeFilterOptionText]}>全部</Text>
-                        </TouchableOpacity>
-                        {allTypes.map(type => (
-                            <TouchableOpacity
-                                key={type}
-                                style={[styles.filterOption, filterType === type && styles.activeFilterOption]}
-                                onPress={() => setFilterType(type)}
-                            >
-                                <Text
-                                    style={[styles.filterOptionText, filterType === type && styles.activeFilterOptionText]}>
-                                    {type === 'light' ? '灯光' :
-                                        type === 'thermostat' ? '温控' :
-                                            type === 'lock' ? '门锁' :
-                                                type === 'camera' ? '摄像头' :
-                                                    type === 'speaker' ? '音箱' :
-                                                        type === 'curtain' ? '窗帘' :
-                                                            type === 'tv' ? '电视' : '其他'}
-                                </Text>
-                            </TouchableOpacity>
-                        ))}
-                    </View>
-                </View>
-
-                <View style={styles.filterGroup}>
-                    <Text style={styles.filterLabel}>状态:</Text>
-                    <View style={styles.filterOptions}>
-                        <TouchableOpacity
-                            style={[styles.filterOption, !filterStatus && styles.activeFilterOption]}
-                            onPress={() => setFilterStatus(null)}
-                        >
-                            <Text
-                                style={[styles.filterOptionText, !filterStatus && styles.activeFilterOptionText]}>全部</Text>
-                        </TouchableOpacity>
-                        <TouchableOpacity
-                            style={[styles.filterOption, filterStatus === 'connected' && styles.activeFilterOption]}
-                            onPress={() => setFilterStatus('connected')}
-                        >
-                            <Text
-                                style={[styles.filterOptionText, filterStatus === 'connected' && styles.activeFilterOptionText]}>已连接</Text>
-                        </TouchableOpacity>
-                        <TouchableOpacity
-                            style={[styles.filterOption, filterStatus === 'disconnected' && styles.activeFilterOption]}
-                            onPress={() => setFilterStatus('disconnected')}
-                        >
-                            <Text
-                                style={[styles.filterOptionText, filterStatus === 'disconnected' && styles.activeFilterOptionText]}>未连接</Text>
-                        </TouchableOpacity>
-                    </View>
-                </View>
-            </ScrollView>
+            {renderRoomFilters()}
+            {renderTypeFilters()}
+            {renderStatusFilters()}
         </View>
     );
 
     const renderDevicesList = () => (
         <View style={styles.devicesListContainer}>
             {renderFilters()}
-
             <ScrollView style={styles.devicesList}>
                 {filteredDevices.length > 0 ? (
                     filteredDevices.map(device => (
@@ -320,7 +359,6 @@ const DeviceManagementScreen: React.FC = () => {
                     <Text style={styles.emptyListText}>没有找到匹配的设备</Text>
                 )}
             </ScrollView>
-
             <Button
                 title="添加新设备"
                 variant="primary"
@@ -550,13 +588,13 @@ const styles = StyleSheet.create({
     searchInput: {
         backgroundColor: theme.colors.background,
         borderRadius: theme.borderRadius.md,
-        padding: theme.spacing.md,
-        fontSize: theme.typography.fontSize.md,
+        padding: theme.spacing.sm,
+        fontSize: theme.typography.fontSize.sm,
         color: theme.colors.textPrimary,
         marginBottom: theme.spacing.md,
         borderWidth: 1,
         borderColor: theme.colors.border,
-        height: 48,
+        height: 40,
     },
     filterGroup: {
         marginRight: theme.spacing.lg,
@@ -681,6 +719,7 @@ const styles = StyleSheet.create({
     addButton: {
         marginBottom: theme.spacing.md,
         height: 48,
+        paddingHorizontal: theme.spacing.md,
     },
     emptyDetailContainer: {
         flex: 1,
@@ -711,6 +750,8 @@ const styles = StyleSheet.create({
         backgroundColor: theme.colors.surface,
         borderRadius: theme.borderRadius.md,
         padding: theme.spacing.lg,
+        marginBottom: theme.spacing.lg,
+        maxWidth: '100%',
         ...Platform.select({
             ios: {
                 shadowColor: '#000',
@@ -829,15 +870,30 @@ const styles = StyleSheet.create({
         justifyContent: 'space-between',
         marginTop: theme.spacing.lg,
         gap: theme.spacing.md,
+        paddingHorizontal: theme.spacing.sm,
+        marginBottom: theme.spacing.md,
+        width: '100%',
     },
     actionButton: {
         flex: 1,
         height: 48,
-        minWidth: 120,
+        minWidth: 100,
+        maxWidth: '45%',
+        paddingHorizontal: theme.spacing.sm,
     },
     deleteButton: {
         borderColor: theme.colors.error,
         backgroundColor: 'transparent',
+    },
+    filterHeader: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        paddingVertical: theme.spacing.sm,
+    },
+    expandIcon: {
+        fontSize: theme.typography.fontSize.sm,
+        color: theme.colors.textSecondary,
     },
 });
 
