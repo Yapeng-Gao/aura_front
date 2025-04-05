@@ -13,6 +13,8 @@ interface ScreenContainerProps {
     icon: string;
     onPress: () => void;
   };
+  rightIcon?: React.ReactNode;
+  onRightPress?: () => void;
 }
 
 const ScreenContainer: React.FC<ScreenContainerProps> = ({
@@ -21,6 +23,8 @@ const ScreenContainer: React.FC<ScreenContainerProps> = ({
   backgroundColor = theme.colors.background,
   showBackButton = false,
   rightButton,
+  rightIcon,
+  onRightPress,
 }) => {
   const navigation = useNavigation();
 
@@ -50,6 +54,14 @@ const ScreenContainer: React.FC<ScreenContainerProps> = ({
               onPress={rightButton.onPress}
             >
               <Text style={styles.rightButtonText}>{rightButton.icon}</Text>
+            </TouchableOpacity>
+          )}
+          {rightIcon && onRightPress && (
+            <TouchableOpacity
+              style={styles.rightButton}
+              onPress={onRightPress}
+            >
+              {rightIcon}
             </TouchableOpacity>
           )}
         </View>

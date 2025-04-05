@@ -6,6 +6,11 @@ export type RootStackParamList = {
     Main: NavigatorScreenParams<MainTabParamList>;
     Settings: undefined;
     NotFound: undefined;
+    Feedback: undefined;
+    UserProfile: undefined;
+    EditProfile: undefined;
+    UserAnalytics: undefined;
+    LanguageSettings: undefined;
 };
 
 // 认证导航栈参数

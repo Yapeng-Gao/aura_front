@@ -1,62 +1,106 @@
 import React from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, useColorScheme } from 'react-native';
 import ScreenContainer from '../../components/common/ScreenContainer';
 import theme from '../../theme';
+import { useNavigation } from '@react-navigation/native';
+import useTranslation from '../../hooks/useTranslation';
+import ListItem from '../../components/common/ListItem';
+import Icon from 'react-native-vector-icons/Ionicons';
+import { StackNavigationProp } from '@react-navigation/stack';
+import { RootStackParamList } from '../../navigation/types';
+
+type HelpSupportScreenNavigationProp = StackNavigationProp<RootStackParamList>;
 
 const HelpSupportScreen: React.FC = () => {
+  const navigation = useNavigation<HelpSupportScreenNavigationProp>();
+  const { t } = useTranslation();
+  const colorScheme = useColorScheme();
+  const isDarkMode = colorScheme === 'dark';
+
   return (
     <ScreenContainer
-      title="帮助与支持"
-      backgroundColor={theme.colors.background}
+      title={t('profile.helpSupport')}
+      backgroundColor={isDarkMode ? theme.dark.colors.background : theme.colors.background}
+      showBackButton
     >
       <ScrollView style={styles.container}>
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>常见问题</Text>
+          <Text style={[styles.sectionTitle, isDarkMode && styles.sectionTitleDark]}>
+            {t('help.faq')}
+          </Text>
           <TouchableOpacity style={styles.menuItem}>
-            <Text style={styles.menuTitle}>设备连接问题</Text>
-            <Text style={styles.arrow}>›</Text>
+            <Text style={[styles.menuTitle, isDarkMode && styles.menuTitleDark]}>
+              {t('help.deviceConnectionIssues')}
+            </Text>
+            <Text style={[styles.arrow, isDarkMode && styles.arrowDark]}>›</Text>
           </TouchableOpacity>
           <TouchableOpacity style={styles.menuItem}>
-            <Text style={styles.menuTitle}>账号相关问题</Text>
-            <Text style={styles.arrow}>›</Text>
+            <Text style={[styles.menuTitle, isDarkMode && styles.menuTitleDark]}>
+              {t('help.accountIssues')}
+            </Text>
+            <Text style={[styles.arrow, isDarkMode && styles.arrowDark]}>›</Text>
           </TouchableOpacity>
           <TouchableOpacity style={styles.menuItem}>
-            <Text style={styles.menuTitle}>支付问题</Text>
-            <Text style={styles.arrow}>›</Text>
-          </TouchableOpacity>
-        </View>
-
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>联系支持</Text>
-          <TouchableOpacity style={styles.menuItem}>
-            <Text style={styles.menuTitle}>在线客服</Text>
-            <Text style={styles.arrow}>›</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.menuItem}>
-            <Text style={styles.menuTitle}>电话支持</Text>
-            <Text style={styles.arrow}>›</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.menuItem}>
-            <Text style={styles.menuTitle}>邮件支持</Text>
-            <Text style={styles.arrow}>›</Text>
+            <Text style={[styles.menuTitle, isDarkMode && styles.menuTitleDark]}>
+              {t('help.paymentIssues')}
+            </Text>
+            <Text style={[styles.arrow, isDarkMode && styles.arrowDark]}>›</Text>
           </TouchableOpacity>
         </View>
 
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>其他</Text>
+          <Text style={[styles.sectionTitle, isDarkMode && styles.sectionTitleDark]}>
+            {t('help.contactSupport')}
+          </Text>
           <TouchableOpacity style={styles.menuItem}>
-            <Text style={styles.menuTitle}>用户协议</Text>
-            <Text style={styles.arrow}>›</Text>
+            <Text style={[styles.menuTitle, isDarkMode && styles.menuTitleDark]}>
+              {t('help.onlineSupport')}
+            </Text>
+            <Text style={[styles.arrow, isDarkMode && styles.arrowDark]}>›</Text>
           </TouchableOpacity>
           <TouchableOpacity style={styles.menuItem}>
-            <Text style={styles.menuTitle}>隐私政策</Text>
-            <Text style={styles.arrow}>›</Text>
+            <Text style={[styles.menuTitle, isDarkMode && styles.menuTitleDark]}>
+              {t('help.phoneSupport')}
+            </Text>
+            <Text style={[styles.arrow, isDarkMode && styles.arrowDark]}>›</Text>
           </TouchableOpacity>
           <TouchableOpacity style={styles.menuItem}>
-            <Text style={styles.menuTitle}>意见反馈</Text>
-            <Text style={styles.arrow}>›</Text>
+            <Text style={[styles.menuTitle, isDarkMode && styles.menuTitleDark]}>
+              {t('help.emailSupport')}
+            </Text>
+            <Text style={[styles.arrow, isDarkMode && styles.arrowDark]}>›</Text>
           </TouchableOpacity>
         </View>
+
+        <View style={styles.section}>
+          <Text style={[styles.sectionTitle, isDarkMode && styles.sectionTitleDark]}>
+            {t('help.other')}
+          </Text>
+          <TouchableOpacity style={styles.menuItem}>
+            <Text style={[styles.menuTitle, isDarkMode && styles.menuTitleDark]}>
+              {t('help.userAgreement')}
+            </Text>
+            <Text style={[styles.arrow, isDarkMode && styles.arrowDark]}>›</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.menuItem}>
+            <Text style={[styles.menuTitle, isDarkMode && styles.menuTitleDark]}>
+              {t('help.privacyPolicy')}
+            </Text>
+            <Text style={[styles.arrow, isDarkMode && styles.arrowDark]}>›</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.menuItem}>
+            <Text style={[styles.menuTitle, isDarkMode && styles.menuTitleDark]}>
+              {t('help.feedback')}
+            </Text>
+            <Text style={[styles.arrow, isDarkMode && styles.arrowDark]}>›</Text>
+          </TouchableOpacity>
+        </View>
+
+        <ListItem
+          title={t('settings.feedback.title')}
+          leftIcon={<Icon name="chatbubble-ellipses-outline" size={24} color={isDarkMode ? theme.dark.colors.textPrimary : theme.colors.textPrimary} />}
+          onPress={() => navigation.navigate('Feedback')}
+        />
       </ScrollView>
     </ScreenContainer>
   );
@@ -79,6 +123,9 @@ const styles = StyleSheet.create({
     color: theme.colors.textPrimary,
     marginBottom: theme.spacing.md,
   },
+  sectionTitleDark: {
+    color: theme.dark.colors.textPrimary,
+  },
   menuItem: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -91,10 +138,16 @@ const styles = StyleSheet.create({
     fontSize: theme.typography.fontSize.md,
     color: theme.colors.textPrimary,
   },
+  menuTitleDark: {
+    color: theme.dark.colors.textPrimary,
+  },
   arrow: {
     fontSize: 24,
     color: theme.colors.textSecondary,
   },
+  arrowDark: {
+    color: theme.dark.colors.textSecondary,
+  }
 });
 
 export default HelpSupportScreen; 

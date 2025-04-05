@@ -1,73 +1,212 @@
-import React from 'react';
-import { View, Text, StyleSheet, Image, ScrollView, TouchableOpacity } from 'react-native';
+import React, { useEffect, useState } from 'react';
+import { View, Text, StyleSheet, Image, ScrollView, TouchableOpacity, ActivityIndicator, useColorScheme, Alert } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
+import { StackNavigationProp } from '@react-navigation/stack';
 import { useDispatch } from 'react-redux';
 import ScreenContainer from '../../components/common/ScreenContainer';
 import Button from '../../components/common/Button';
 import Card from '../../components/common/Card';
 import ListItem from '../../components/common/ListItem';
+import AvatarUploader from '../../components/profile/AvatarUploader';
+import ProfileCompletionCard from '../../components/profile/ProfileCompletionCard';
+import ProfileActionRow from '../../components/profile/ProfileActionRow';
+import AchievementsCard from '../../components/profile/AchievementsCard';
 import theme from '../../theme';
 import { logout } from '../../store/slices/authSlice';
+import { RootStackParamList } from '../../navigation/types';
+import apiService from '../../services/api';
+import useTranslation from '../../hooks/useTranslation';
+
+type ProfileScreenNavigationProp = StackNavigationProp<RootStackParamList>;
+
+interface UserProfile {
+  userId: string;
+  username: string;
+  email: string;
+  phoneNumber?: string;
+  profileImage?: string;
+  avatar?: any; // 本地图片资源，用于加载失败时显示默认头像
+  membershipType: string;
+  membershipExpiry: string;
+  joinDate: string;
+  preferences: {
+    theme: string;
+    language: string;
+    notifications: boolean;
+  }
+}
 
 const UserProfileScreen: React.FC = () => {
-  const navigation = useNavigation();
+  const navigation = useNavigation<ProfileScreenNavigationProp>();
   const dispatch = useDispatch();
-
-  // 模拟用户数据
-  const user = {
-    id: '1',
-    username: '张明',
-    email: 'zhangming@example.com',
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const colorScheme = useColorScheme();
+  const isDarkMode = colorScheme === 'dark';
+  const { t } = useTranslation();
+  const [user, setUser] = useState<UserProfile>({
+    userId: '',
+    username: '',
+    email: '',
     avatar: require('../../../assets/images/avatar-placeholder.png'),
-    membershipType: 'Pro',
-    membershipExpiry: '2025-12-31',
-    joinDate: '2023-05-15',
+    membershipType: '',
+    membershipExpiry: '',
+    joinDate: '',
     preferences: {
-      theme: '跟随系统',
-      language: '简体中文',
-      notifications: true,
+      theme: '',
+      language: '',
+      notifications: false,
+    }
+  });
+
+  useEffect(() => {
+    fetchUserProfile();
+  }, []);
+
+  const fetchUserProfile = async () => {
+    try {
+      setLoading(true);
+      const userData = await apiService.user.getProfile();
+      
+      if (userData) {
+        setUser({
+          userId: userData.userId || '',
+          username: userData.name || '',
+          email: userData.email || '',
+          phoneNumber: userData.phoneNumber,
+          profileImage: userData.profileImage,
+          avatar: require('../../../assets/images/avatar-placeholder.png'), // 保留默认头像以备加载失败
+          membershipType: userData.subscription?.plan || 'Free',
+          membershipExpiry: userData.subscription?.expiresAt || '未设置',
+          joinDate: userData.createdAt || '',
+          preferences: {
+            theme: userData.preferences?.theme || '跟随系统',
+            language: userData.preferences?.language || '简体中文',
+            notifications: userData.preferences?.notifications?.push || false,
+          }
+        });
+      }
+      setError(null);
+    } catch (err) {
+      console.error('获取用户资料失败:', err);
+      setError('获取用户资料失败，请稍后重试');
+    } finally {
+      setLoading(false);
     }
   };
 
   const handleLogout = () => {
-    dispatch(logout());
-    navigation.reset({
-      index: 0,
-      routes: [{ name: 'Auth' }],
-    });
+    Alert.alert(
+      t('auth.logout'),
+      t('auth.logoutConfirm'),
+      [
+        {
+          text: t('common.cancel'),
+          style: 'cancel',
+        },
+        {
+          text: t('common.confirm'),
+          onPress: () => {
+            dispatch(logout());
+            navigation.reset({
+              index: 0,
+              routes: [{ name: 'Auth' }],
+            });
+          },
+        },
+      ]
+    );
   };
+
+  if (loading) {
+    return (
+      <ScreenContainer title={t('profile.title')} 
+        backgroundColor={isDarkMode ? theme.dark.colors.background : theme.colors.background}>
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color={theme.colors.primary} />
+          <Text style={[styles.loadingText, isDarkMode && styles.loadingTextDark]}>{t('common.loading')}</Text>
+        </View>
+      </ScreenContainer>
+    );
+  }
 
   return (
     <ScreenContainer
-      title="个人资料"
-      backgroundColor={theme.colors.background}
-      rightIcon={<Text style={styles.editText}>编辑</Text>}
+      title={t('profile.title')}
+      backgroundColor={isDarkMode ? theme.dark.colors.background : theme.colors.background}
+      rightIcon={<Text style={styles.editText}>{t('common.edit')}</Text>}
       onRightPress={() => navigation.navigate('EditProfile')}
     >
       <ScrollView style={styles.container}>
-        <View style={styles.profileHeader}>
-          <Image source={user.avatar} style={styles.avatar} />
+        {error && (
+          <View style={styles.errorContainer}>
+            <Text style={styles.errorText}>{error}</Text>
+            <Button 
+              title={t('common.retry')}
+              variant="primary" 
+              size="small" 
+              onPress={fetchUserProfile}
+              style={styles.retryButton} 
+            />
+          </View>
+        )}
+
+        <ProfileCompletionCard user={user} />
+
+        <ProfileActionRow
+          actions={[
+            { icon: "🔒", label: t('profile.security'), screen: "SecuritySettings", color: theme.colors.info },
+            { icon: "🔔", label: t('profile.notifications'), screen: "NotificationSettings", color: theme.colors.warning },
+            { icon: "📊", label: t('profile.analytics'), screen: "UserAnalytics", color: theme.colors.success },
+            { icon: "💬", label: t('settings.feedback.title'), screen: "Feedback", color: theme.colors.primary }
+          ]}
+        />
+
+        <TouchableOpacity
+          style={[styles.profileHeader, isDarkMode && styles.profileHeaderDark]}
+          onPress={() => navigation.navigate('PersonalInfo')}
+          activeOpacity={0.7}
+        >
+          <AvatarUploader
+            currentImageUrl={user.profileImage}
+            defaultImage={user.avatar}
+            size="large"
+            onImageUpdated={(newImageUrl) => {
+              setUser(prev => ({
+                ...prev,
+                profileImage: newImageUrl
+              }));
+            }}
+          />
           <View style={styles.profileInfo}>
-            <Text style={styles.username}>{user.username}</Text>
-            <Text style={styles.email}>{user.email}</Text>
+            <Text style={[styles.username, isDarkMode && styles.usernameDark]}>{user.username}</Text>
+            <Text style={[styles.email, isDarkMode && styles.emailDark]}>{user.email}</Text>
             <View style={styles.membershipBadge}>
               <Text style={styles.membershipText}>{user.membershipType}</Text>
             </View>
           </View>
-        </View>
+        </TouchableOpacity>
 
-        <Card title="会员信息" style={styles.card}>
+        <Card title={t('profile.membership.membershipInfo')} style={styles.card}>
           <View style={styles.membershipInfo}>
             <View style={styles.membershipItem}>
-              <Text style={styles.membershipLabel}>会员类型</Text>
-              <Text style={styles.membershipValue}>{user.membershipType}</Text>
+              <Text style={[styles.membershipLabel, isDarkMode && styles.membershipLabelDark]}>
+                {t('profile.membership.membershipType')}
+              </Text>
+              <Text style={[styles.membershipValue, isDarkMode && styles.membershipValueDark]}>
+                {user.membershipType}
+              </Text>
             </View>
             <View style={styles.membershipItem}>
-              <Text style={styles.membershipLabel}>到期日期</Text>
-              <Text style={styles.membershipValue}>{user.membershipExpiry}</Text>
+              <Text style={[styles.membershipLabel, isDarkMode && styles.membershipLabelDark]}>
+                {t('profile.membership.expiryDate')}
+              </Text>
+              <Text style={[styles.membershipValue, isDarkMode && styles.membershipValueDark]}>
+                {user.membershipExpiry}
+              </Text>
             </View>
             <Button
-              title="升级会员"
+              title={t('profile.membership.upgradeMembership')}
               variant="primary"
               size="medium"
               style={styles.upgradeButton}
@@ -76,78 +215,94 @@ const UserProfileScreen: React.FC = () => {
           </View>
         </Card>
 
-        <Card title="账户设置" style={styles.card}>
-          <ListItem
-            title="个人信息"
-            subtitle="更新您的个人资料信息"
-            rightIcon={<Text style={styles.arrowIcon}>›</Text>}
-            onPress={() => navigation.navigate('PersonalInfo')}
-          />
-          <ListItem
-            title="安全设置"
-            subtitle="密码和安全选项"
-            rightIcon={<Text style={styles.arrowIcon}>›</Text>}
-            onPress={() => navigation.navigate('SecuritySettings')}
-          />
-          <ListItem
-            title="通知设置"
-            subtitle="管理应用通知"
-            rightIcon={<Text style={styles.arrowIcon}>›</Text>}
-            onPress={() => navigation.navigate('NotificationSettings')}
-          />
-          <ListItem
-            title="隐私设置"
-            subtitle="管理数据和隐私选项"
-            rightIcon={<Text style={styles.arrowIcon}>›</Text>}
-            onPress={() => navigation.navigate('PrivacySettings')}
-            divider={false}
-          />
-        </Card>
+        <AchievementsCard
+          achievements={[
+            {
+              icon: "🌟",
+              title: t('achievements.activeUser'),
+              progress: 18,
+              total: 30,
+              unlocked: false
+            },
+            {
+              icon: "📝",
+              title: t('achievements.contentCreator'),
+              progress: 5,
+              total: 5,
+              unlocked: true
+            }
+          ]}
+          onSeeAll={() => {
+            Alert.alert(
+              t('achievements.featureDeveloperTitle'), 
+              t('achievements.featureDeveloperMessage')
+            );
+          }}
+        />
 
-        <Card title="应用设置" style={styles.card}>
-          <ListItem
-            title="主题"
-            subtitle={user.preferences.theme}
-            rightIcon={<Text style={styles.arrowIcon}>›</Text>}
-            onPress={() => navigation.navigate('ThemeSettings')}
-          />
-          <ListItem
-            title="语言"
-            subtitle={user.preferences.language}
-            rightIcon={<Text style={styles.arrowIcon}>›</Text>}
-            onPress={() => navigation.navigate('LanguageSettings')}
-            divider={false}
-          />
-        </Card>
-
-        <Card title="关于" style={styles.card}>
-          <ListItem
-            title="帮助中心"
-            rightIcon={<Text style={styles.arrowIcon}>›</Text>}
-            onPress={() => navigation.navigate('HelpCenter')}
-          />
-          <ListItem
-            title="隐私政策"
-            rightIcon={<Text style={styles.arrowIcon}>›</Text>}
-            onPress={() => navigation.navigate('PrivacyPolicy')}
-          />
-          <ListItem
-            title="服务条款"
-            rightIcon={<Text style={styles.arrowIcon}>›</Text>}
-            onPress={() => navigation.navigate('TermsOfService')}
-            divider={false}
-          />
+        <Card title={t('profile.accountSettings')} style={styles.card}>
+          <View style={styles.settingsContainer}>
+            <ListItem
+              title={t('profile.personalInfo')}
+              leftIcon={<Text>👤</Text>}
+              onPress={() => navigation.navigate('PersonalInfo')}
+            />
+            <ListItem
+              title={t('settings.feedback.title')}
+              leftIcon={<Text>💬</Text>}
+              onPress={() => navigation.navigate('Feedback')}
+            />
+            <ListItem
+              title={t('profile.analytics')}
+              leftIcon={<Text>📊</Text>}
+              onPress={() => navigation.navigate('UserAnalytics')}
+            />
+            <ListItem
+              title={t('profile.securitySettings')}
+              leftIcon={<Text>🔒</Text>}
+              onPress={() => navigation.navigate('SecuritySettings')}
+            />
+            <ListItem
+              title={t('profile.notificationSettings')}
+              leftIcon={<Text>🔔</Text>}
+              onPress={() => navigation.navigate('NotificationSettings')}
+            />
+            <ListItem
+              title={t('profile.language')}
+              leftIcon={<Text>🌐</Text>}
+              onPress={() => navigation.navigate('LanguageSettings')}
+            />
+            <ListItem
+              title={t('profile.darkMode')}
+              leftIcon={<Text>🌙</Text>}
+              onPress={() => navigation.navigate('ThemeSettings')}
+            />
+            <ListItem
+              title={t('profile.privacySettings')}
+              leftIcon={<Text>🛡️</Text>}
+              onPress={() => navigation.navigate('PrivacySettings')}
+            />
+            <ListItem
+              title={t('profile.helpSupport')}
+              leftIcon={<Text>❓</Text>}
+              onPress={() => navigation.navigate('HelpSupport')}
+            />
+            <ListItem
+              title={t('profile.about')}
+              leftIcon={<Text>ℹ️</Text>}
+              onPress={() => navigation.navigate('About')}
+              divider={false}
+            />
+          </View>
         </Card>
 
         <Button
-          title="退出登录"
+          title={t('auth.logout')}
           variant="outline"
           size="large"
           style={styles.logoutButton}
           onPress={handleLogout}
         />
-
-        <Text style={styles.versionText}>Aura v1.0.0</Text>
       </ScrollView>
     </ScreenContainer>
   );
@@ -156,6 +311,36 @@ const UserProfileScreen: React.FC = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  loadingText: {
+    marginTop: theme.spacing.md,
+    fontSize: theme.typography.fontSize.md,
+    color: theme.colors.textSecondary,
+  },
+  loadingTextDark: {
+    color: theme.dark.colors.textSecondary,
+  },
+  errorContainer: {
+    padding: theme.spacing.md,
+    backgroundColor: theme.colors.error + '20', // 20% opacity
+    borderRadius: theme.borderRadius.md,
+    marginBottom: theme.spacing.md,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  errorText: {
+    color: theme.colors.error,
+    flex: 1,
+    fontSize: theme.typography.fontSize.md,
+  },
+  retryButton: {
+    marginLeft: theme.spacing.md,
   },
   editText: {
     color: theme.colors.primary,
@@ -169,6 +354,9 @@ const styles = StyleSheet.create({
     borderRadius: theme.borderRadius.md,
     marginBottom: theme.spacing.md,
   },
+  profileHeaderDark: {
+    backgroundColor: theme.dark.colors.surface,
+  },
   avatar: {
     width: 80,
     height: 80,
@@ -180,14 +368,20 @@ const styles = StyleSheet.create({
   },
   username: {
     fontSize: theme.typography.fontSize.xl,
-    fontWeight: theme.typography.fontWeight.bold,
+    fontWeight: 'bold',
     color: theme.colors.textPrimary,
     marginBottom: theme.spacing.xs,
+  },
+  usernameDark: {
+    color: theme.dark.colors.textPrimary,
   },
   email: {
     fontSize: theme.typography.fontSize.md,
     color: theme.colors.textSecondary,
     marginBottom: theme.spacing.sm,
+  },
+  emailDark: {
+    color: theme.dark.colors.textSecondary,
   },
   membershipBadge: {
     backgroundColor: theme.colors.primary,
@@ -199,7 +393,7 @@ const styles = StyleSheet.create({
   membershipText: {
     color: theme.colors.onPrimary,
     fontSize: theme.typography.fontSize.sm,
-    fontWeight: theme.typography.fontWeight.medium,
+    fontWeight: 'medium',
   },
   card: {
     marginBottom: theme.spacing.md,
@@ -216,10 +410,16 @@ const styles = StyleSheet.create({
     fontSize: theme.typography.fontSize.md,
     color: theme.colors.textSecondary,
   },
+  membershipLabelDark: {
+    color: theme.dark.colors.textSecondary,
+  },
   membershipValue: {
     fontSize: theme.typography.fontSize.md,
-    fontWeight: theme.typography.fontWeight.medium,
+    fontWeight: 'medium',
     color: theme.colors.textPrimary,
+  },
+  membershipValueDark: {
+    color: theme.dark.colors.textPrimary,
   },
   upgradeButton: {
     marginTop: theme.spacing.sm,
@@ -236,6 +436,9 @@ const styles = StyleSheet.create({
     fontSize: theme.typography.fontSize.sm,
     color: theme.colors.textSecondary,
     marginBottom: theme.spacing.xxl,
+  },
+  settingsContainer: {
+    padding: theme.spacing.md,
   },
 });
 

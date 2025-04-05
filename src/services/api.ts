@@ -185,6 +185,7 @@ export interface ApiService {
     forgotPassword: (email: string) => Promise<any | undefined>;
     resetPassword: (token: string, newPassword: string) => Promise<any | undefined>;
     refreshToken: (refreshToken: string) => Promise<any | undefined>;
+    logout: () => Promise<any | undefined>;
   };
   user: {
     getProfile: () => Promise<any | undefined>;
@@ -265,6 +266,41 @@ export interface ApiService {
     getUsageStats: (period: string) => Promise<any | undefined>;
     getProductivityStats: (period: string) => Promise<any | undefined>;
     getIoTStats: (period: string) => Promise<any | undefined>;
+    getFeatureUsageStats: (featureType?: string, period?: string) => Promise<any | undefined>;
+    getUserActivity: (startDate?: string, endDate?: string) => Promise<any | undefined>;
+    getAnalyticsInsights: () => Promise<any | undefined>;
+    recordActivity: (data: {
+      activity_type: string;
+      module: string;
+      action: string;
+      resource_type?: string;
+      resource_id?: string;
+      session_id?: string;
+      details?: any;
+    }) => Promise<any | undefined>;
+  };
+  feedback: {
+    createFeedback: (feedbackData: {
+      type: 'bug' | 'feature' | 'question' | 'other';
+      title: string;
+      content: string;
+      contactInfo?: string;
+    }) => Promise<any | undefined>;
+    listFeedback: (params?: {
+      feedback_type?: string;
+      status?: string;
+      limit?: number;
+      offset?: number;
+    }) => Promise<any | undefined>;
+    getFeedback: (feedbackId: string) => Promise<any | undefined>;
+    updateFeedback: (feedbackId: string, feedbackData: {
+      type: 'bug' | 'feature' | 'question' | 'other';
+      title: string;
+      content: string;
+      contactInfo?: string;
+    }) => Promise<any | undefined>;
+    deleteFeedback: (feedbackId: string) => Promise<any | undefined>;
+    submitAppRating: (rating: number, comment?: string) => Promise<any | undefined>;
   };
   custom: {
     get: <T>(endpoint: string, config?: AxiosRequestConfig) => Promise<T | undefined>;
@@ -293,14 +329,15 @@ const apiService: ApiService = {
       apiClient.post('/auth/reset-password', { token, new_password: newPassword }),
     refreshToken: (refreshToken: string) => 
       apiClient.post('/auth/refresh-token', { refresh_token: refreshToken }),
+    logout: () => apiClient.post('/auth/logout'),
   },
   
   // 用户相关API
   user: {
-    getProfile: () => apiClient.get('/user/profile'),
-    updateProfile: (userData: any) => apiClient.put('/user/profile', userData),
-    updatePreferences: (preferences: any) => apiClient.put('/user/preferences', preferences),
-    uploadAvatar: (formData: FormData) => apiClient.post('/user/avatar', formData, {
+    getProfile: () => apiClient.get('/users/profile'),
+    updateProfile: (userData: any) => apiClient.patch('/users/profile', userData),
+    updatePreferences: (preferences: any) => apiClient.patch('/users/preferences', preferences),
+    uploadAvatar: (formData: FormData) => apiClient.post('/users/profile/avatar', formData, {
       headers: {
         'Content-Type': 'multipart/form-data',
       },
@@ -418,6 +455,46 @@ const apiService: ApiService = {
     getProductivityStats: (period: string) => 
       apiClient.get('/analytics/productivity', { params: { period } }),
     getIoTStats: (period: string) => apiClient.get('/analytics/iot', { params: { period } }),
+    getFeatureUsageStats: (featureType?: string, period?: string) => 
+      apiClient.get('/analytics/feature-usage', { params: { feature_type: featureType, period: period || 'week' } }),
+    getUserActivity: (startDate?: string, endDate?: string) => 
+      apiClient.get('/analytics/user-activity', { params: { start_date: startDate, end_date: endDate } }),
+    getAnalyticsInsights: () => apiClient.get('/analytics/insights'),
+    recordActivity: (data: {
+      activity_type: string;
+      module: string;
+      action: string;
+      resource_type?: string;
+      resource_id?: string;
+      session_id?: string;
+      details?: any;
+    }) => apiClient.post('/analytics/record-activity', data),
+  },
+  
+  // 反馈相关API
+  feedback: {
+    createFeedback: (feedbackData: {
+      type: 'bug' | 'feature' | 'question' | 'other';
+      title: string;
+      content: string;
+      contactInfo?: string;
+    }) => apiClient.post('/feedback', feedbackData),
+    listFeedback: (params?: {
+      feedback_type?: string;
+      status?: string;
+      limit?: number;
+      offset?: number;
+    }) => apiClient.get('/feedback', { params }),
+    getFeedback: (feedbackId: string) => apiClient.get(`/feedback/${feedbackId}`),
+    updateFeedback: (feedbackId: string, feedbackData: {
+      type: 'bug' | 'feature' | 'question' | 'other';
+      title: string;
+      content: string;
+      contactInfo?: string;
+    }) => apiClient.put(`/feedback/${feedbackId}`, feedbackData),
+    deleteFeedback: (feedbackId: string) => apiClient.delete(`/feedback/${feedbackId}`),
+    submitAppRating: (rating: number, comment?: string) => 
+      apiClient.post('/feedback/app-rating', { rating, comment }),
   },
   
   // 自定义API请求

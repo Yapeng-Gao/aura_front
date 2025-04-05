@@ -13,6 +13,13 @@ export type RootStackParamList = {
     About: undefined;
     MembershipUpgrade: undefined;
     MeetingDetail: { meetingId: string };
+    ThemeSettings: undefined;
+    LanguageSettings: undefined;
+    PrivacyPolicy: undefined;
+    TermsOfService: undefined;
+    HelpCenter: undefined;
+    UserAnalytics: undefined;
+    Feedback: undefined;
 };
 
 export type AuthStackParamList = {

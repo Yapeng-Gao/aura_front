@@ -1,12 +1,17 @@
 import React from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Linking } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Linking, useColorScheme } from 'react-native';
 import ScreenContainer from '../../components/common/ScreenContainer';
 import theme from '../../theme';
+import useTranslation from '../../hooks/useTranslation';
 
 const AboutScreen: React.FC = () => {
+  const { t } = useTranslation();
+  const colorScheme = useColorScheme();
+  const isDarkMode = colorScheme === 'dark';
+  
   const handleCheckUpdate = () => {
     // TODO: 实现检查更新逻辑
-    console.log('检查更新');
+    console.log(t('about.checkingForUpdates'));
   };
 
   const handleOpenWebsite = () => {
@@ -15,32 +20,41 @@ const AboutScreen: React.FC = () => {
 
   return (
     <ScreenContainer
-      title="关于"
-      backgroundColor={theme.colors.background}
+      title={t('profile.about')}
+      backgroundColor={isDarkMode ? theme.dark.colors.background : theme.colors.background}
+      showBackButton
     >
       <ScrollView style={styles.container}>
         <View style={styles.section}>
           <View style={styles.appInfo}>
-            <Text style={styles.appName}>Aura</Text>
-            <Text style={styles.appVersion}>版本 1.0.0</Text>
+            <Text style={[styles.appName, isDarkMode && styles.appNameDark]}>Aura</Text>
+            <Text style={[styles.appVersion, isDarkMode && styles.appVersionDark]}>
+              {t('about.version')} 1.0.0
+            </Text>
           </View>
         </View>
 
         <View style={styles.section}>
           <TouchableOpacity style={styles.menuItem} onPress={handleCheckUpdate}>
-            <Text style={styles.menuTitle}>检查更新</Text>
-            <Text style={styles.arrow}>›</Text>
+            <Text style={[styles.menuTitle, isDarkMode && styles.menuTitleDark]}>
+              {t('about.checkForUpdates')}
+            </Text>
+            <Text style={[styles.arrow, isDarkMode && styles.arrowDark]}>›</Text>
           </TouchableOpacity>
           <TouchableOpacity style={styles.menuItem} onPress={handleOpenWebsite}>
-            <Text style={styles.menuTitle}>官方网站</Text>
-            <Text style={styles.arrow}>›</Text>
+            <Text style={[styles.menuTitle, isDarkMode && styles.menuTitleDark]}>
+              {t('about.officialWebsite')}
+            </Text>
+            <Text style={[styles.arrow, isDarkMode && styles.arrowDark]}>›</Text>
           </TouchableOpacity>
         </View>
 
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>版权信息</Text>
-          <Text style={styles.copyright}>
-            © 2024 Aura. All rights reserved.
+          <Text style={[styles.sectionTitle, isDarkMode && styles.sectionTitleDark]}>
+            {t('about.copyright')}
+          </Text>
+          <Text style={[styles.copyright, isDarkMode && styles.copyrightDark]}>
+            © 2024 Aura. {t('about.allRightsReserved')}
           </Text>
         </View>
       </ScrollView>
@@ -69,9 +83,15 @@ const styles = StyleSheet.create({
     color: theme.colors.textPrimary,
     marginBottom: theme.spacing.sm,
   },
+  appNameDark: {
+    color: theme.dark.colors.textPrimary,
+  },
   appVersion: {
     fontSize: theme.typography.fontSize.md,
     color: theme.colors.textSecondary,
+  },
+  appVersionDark: {
+    color: theme.dark.colors.textSecondary,
   },
   menuItem: {
     flexDirection: 'row',
@@ -85,9 +105,15 @@ const styles = StyleSheet.create({
     fontSize: theme.typography.fontSize.md,
     color: theme.colors.textPrimary,
   },
+  menuTitleDark: {
+    color: theme.dark.colors.textPrimary,
+  },
   arrow: {
     fontSize: 24,
     color: theme.colors.textSecondary,
+  },
+  arrowDark: {
+    color: theme.dark.colors.textSecondary,
   },
   sectionTitle: {
     fontSize: theme.typography.fontSize.md,
@@ -95,10 +121,16 @@ const styles = StyleSheet.create({
     color: theme.colors.textPrimary,
     marginBottom: theme.spacing.md,
   },
+  sectionTitleDark: {
+    color: theme.dark.colors.textPrimary,
+  },
   copyright: {
     fontSize: theme.typography.fontSize.sm,
     color: theme.colors.textSecondary,
     textAlign: 'center',
+  },
+  copyrightDark: {
+    color: theme.dark.colors.textSecondary,
   },
 });
 
