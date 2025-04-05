@@ -1,15 +1,18 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { View, Text, StyleSheet, Image, Alert } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import axios, { AxiosError } from 'axios';
 import { useNavigation } from '@react-navigation/native';
-import apiService, { AUTH_TOKEN_KEY, REFRESH_TOKEN_KEY } from '../../utils/api';
+import apiService, { AUTH_TOKEN_KEY, REFRESH_TOKEN_KEY } from '../../services/api';
 import { useDispatch } from 'react-redux';
 import ScreenContainer from '../../components/common/ScreenContainer';
 import Button from '../../components/common/Button';
 import InputField from '../../components/common/InputField';
 import theme from '../../theme';
 import { loginSuccess } from '../../store/slices/authSlice'; // 导入你定义的登录成功 action
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { RootStackParamList } from '../../navigation/types';
+import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 
 interface LoginResponseData {
     access_token: string;

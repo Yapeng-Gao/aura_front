@@ -11,13 +11,15 @@ import UserProfileScreen from '../screens/profile/UserProfileScreen';
 import AssistantHomeScreen from '../screens/assistant/AssistantHomeScreen';
 import AIAssistantScreen from '../screens/assistant/AIAssistantScreen';
 import AISettingsScreen from '../screens/assistant/AISettingsScreen';
-import MeetingAssistantScreen from '../screens/assistant/MeetingAssistantScreen';
+import { default as AssistantMeetingScreen } from '../screens/assistant/MeetingAssistantScreen';
 import WritingAssistantScreen from '../screens/assistant/WritingAssistantScreen';
 import CodeAssistantScreen from '../screens/assistant/CodeAssistantScreen';
 import ImageAssistantScreen from '../screens/assistant/ImageAssistantScreen';
 import VoiceAssistantScreen from '../screens/assistant/VoiceAssistantScreen';
 
 // Productivity 相关
+import ProductivityHomeScreen from '../screens/productivity/ProductivityHomeScreen';
+import { default as ProductivityMeetingScreen } from '../screens/productivity/MeetingAssistantScreen';
 import NotesScreen from '../screens/productivity/NotesScreen';
 import CalendarScreen from '../screens/scheduler/CalendarScreen';
 import TasksScreen from '../screens/scheduler/TasksScreen';
@@ -38,7 +40,7 @@ const AssistantStackNavigator = () => (
         <AssistantStack.Screen name="AssistantHome" component={AssistantHomeScreen} />
         <AssistantStack.Screen name="AIAssistant" component={AIAssistantScreen} />
         <AssistantStack.Screen name="AISettings" component={AISettingsScreen} />
-        <AssistantStack.Screen name="MeetingAssistant" component={MeetingAssistantScreen} />
+        <AssistantStack.Screen name="MeetingAssistant" component={AssistantMeetingScreen} />
         <AssistantStack.Screen name="WritingAssistant" component={WritingAssistantScreen} />
         <AssistantStack.Screen name="CodeAssistant" component={CodeAssistantScreen} />
         <AssistantStack.Screen name="ImageAssistant" component={ImageAssistantScreen} />
@@ -48,7 +50,8 @@ const AssistantStackNavigator = () => (
 
 const ProductivityStackNavigator = () => (
     <ProductivityStack.Navigator screenOptions={{ headerShown: false }}>
-        <ProductivityStack.Screen name="Meeting" component={MeetingAssistantScreen} />
+        <ProductivityStack.Screen name="ProductivityHome" component={ProductivityHomeScreen} />
+        <ProductivityStack.Screen name="Meeting" component={ProductivityMeetingScreen} />
         <ProductivityStack.Screen name="Notes" component={NotesScreen} />
         <ProductivityStack.Screen name="Calendar" component={CalendarScreen} />
         <ProductivityStack.Screen name="Tasks" component={TasksScreen} />

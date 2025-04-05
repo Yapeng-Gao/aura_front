@@ -1,16 +1,14 @@
-import React from 'react';
-import { View, Text, StyleSheet, Image, Alert } from 'react-native'; // 引入 Alert
-import axios, { AxiosError } from 'axios'; // 引入 AxiosError
+import React, { useState } from 'react';
+import { View, StyleSheet, ScrollView, Text, Image, Alert } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
-// --- 导入你的 API 服务 ---
-// 注意：注册通常不需要 AUTH_TOKEN_KEY 或 REFRESH_TOKEN_KEY，因为用户此时还没有令牌
-import apiService from '../../utils/api'; // 确认路径是否正确
-
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import ScreenContainer from '../../components/common/ScreenContainer';
-import Button from '../../components/common/Button';
+import apiService from '../../services/api'; // 确认路径是否正确
+import { RootStackParamList } from '../../navigation/types';
 import InputField from '../../components/common/InputField';
+import Button from '../../components/common/Button';
 import theme from '../../theme';
-// import { useNavigation } from '@react-navigation/native'; // 如果你使用了导航库
+import axios, { AxiosError } from 'axios'; // 引入 AxiosError
 
 // --- 定义后端成功注册响应中 `data` 字段的预期结构 (可选) ---
 // --- 注册成功后后端可能只返回一个简单的消息，或者新创建的用户信息 ---
@@ -33,7 +31,6 @@ interface ApiErrorResponse {
   message?: string;
   errors?: Array<{ code: string; field?: string; message: string }>;
 }
-
 
 const RegisterScreen: React.FC = () => {
   const [username, setUsername] = React.useState('');
