@@ -1,11 +1,12 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image, TextInput, KeyboardAvoidingView, Platform } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image, TextInput, KeyboardAvoidingView, Platform, ActivityIndicator, Dimensions } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import ScreenContainer from '../../components/common/ScreenContainer';
 import Card from '../../components/common/Card';
 import theme from '../../theme';
 import { AssistantStackParamList } from '../../navigation/types';
+import apiService from '../../services/api';
 
 type AIAssistantScreenNavigationProp = NativeStackNavigationProp<AssistantStackParamList, 'AIAssistant'>;
 
@@ -48,7 +49,7 @@ const AIAssistantScreen: React.FC = () => {
   }, [messages]);
   
   // 发送消息
-  const handleSendMessage = () => {
+  const handleSendMessage = async () => {
     if (inputText.trim()) {
       // 添加用户消息
       const userMessage: Message = {
@@ -61,32 +62,49 @@ const AIAssistantScreen: React.FC = () => {
       setMessages(prev => [...prev, userMessage]);
       setInputText('');
       
-      // 模拟AI助手回复
-      setTimeout(() => {
-        // 先添加一个处理中的消息
-        const processingMessage: Message = {
-          id: `processing-${Date.now()}`,
-          text: '正在思考...',
-          sender: 'assistant',
-          timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-          isProcessing: true,
-        };
+      // 添加处理中消息
+      const processingMessageId = `processing-${Date.now()}`;
+      const processingMessage: Message = {
+        id: processingMessageId,
+        text: '正在思考...',
+        sender: 'assistant',
+        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        isProcessing: true,
+      };
+      
+      setMessages(prev => [...prev, processingMessage]);
+      
+      try {
+        // 调用API获取AI回复
+        const response = await apiService.assistant.sendMessage({
+          message: userMessage.text,
+          conversation_id: 'current'
+        });
         
-        setMessages(prev => [...prev, processingMessage]);
+        // 替换处理中消息为实际回复
+        setMessages(prev => {
+          const filtered = prev.filter(msg => msg.id !== processingMessageId);
+          return [...filtered, {
+            id: Date.now().toString(),
+            text: response?.text || getAIResponse(inputText),
+            sender: 'assistant',
+            timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+          }];
+        });
+      } catch (error) {
+        console.error('获取AI回复失败:', error);
         
-        // 2秒后替换为实际回复
-        setTimeout(() => {
-          setMessages(prev => {
-            const filtered = prev.filter(msg => !msg.isProcessing);
-            return [...filtered, {
-              id: Date.now().toString(),
-              text: getAIResponse(inputText),
-              sender: 'assistant',
-              timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-            }];
-          });
-        }, 2000);
-      }, 500);
+        // 替换处理中消息为本地模拟回复
+        setMessages(prev => {
+          const filtered = prev.filter(msg => msg.id !== processingMessageId);
+          return [...filtered, {
+            id: Date.now().toString(),
+            text: getAIResponse(inputText),
+            sender: 'assistant',
+            timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+          }];
+        });
+      }
     }
   };
   
@@ -246,105 +264,95 @@ const AIAssistantScreen: React.FC = () => {
                 message.sender === 'user' ? styles.userMessageContent : styles.assistantMessageContent,
                 message.isProcessing && styles.processingMessageContent
               ]}>
-                <Text style={[
-                  styles.messageText,
-                  message.sender === 'user' ? styles.userMessageText : styles.assistantMessageText,
-                  message.isProcessing && styles.processingMessageText
-                ]}>
-                  {message.text}
-                </Text>
-                
-                {message.attachments && message.attachments.map((attachment, index) => (
-                  <View key={index} style={styles.attachmentContainer}>
-                    {attachment.type === 'image' && (
-                      <Image
-                        source={{ uri: attachment.thumbnail || attachment.url }}
-                        style={styles.attachmentImage}
-                        resizeMode="cover"
-                      />
-                    )}
-                    {attachment.type === 'file' && (
-                      <View style={styles.fileAttachment}>
-                        <Text style={styles.fileName}>{attachment.name}</Text>
+                {message.isProcessing ? (
+                  <View style={styles.processingContainer}>
+                    <Text style={styles.processingText}>AI助手正在思考</Text>
+                    <ActivityIndicator size="small" color={theme.colors.primary} style={styles.loader} />
+                  </View>
+                ) : (
+                  <>
+                    <Text style={[
+                      styles.messageText,
+                      message.sender === 'user' ? styles.userMessageText : styles.assistantMessageText
+                    ]}>
+                      {message.text}
+                    </Text>
+                    
+                    {message.attachments && message.attachments.length > 0 && (
+                      <View style={styles.attachmentsContainer}>
+                        {message.attachments.map((attachment, index) => (
+                          <View key={index} style={styles.attachment}>
+                            {attachment.type === 'image' && (
+                              <Image
+                                source={{ uri: attachment.thumbnail || attachment.url }}
+                                style={styles.attachmentImage}
+                                resizeMode="cover"
+                              />
+                            )}
+                            
+                            {attachment.type === 'file' && (
+                              <View style={styles.fileAttachment}>
+                                <Text style={styles.fileName}>{attachment.name}</Text>
+                              </View>
+                            )}
+                            
+                            {attachment.type === 'audio' && (
+                              <View style={styles.audioAttachment}>
+                                <Text style={styles.audioLabel}>语音记录</Text>
+                              </View>
+                            )}
+                          </View>
+                        ))}
                       </View>
                     )}
-                  </View>
-                ))}
+                  </>
+                )}
                 
-                <Text style={[
-                  styles.timestamp,
-                  message.sender === 'user' ? styles.userTimestamp : styles.assistantTimestamp
-                ]}>
-                  {message.timestamp}
-                </Text>
+                <Text style={styles.timestamp}>{message.timestamp}</Text>
               </View>
             </View>
           ))}
         </ScrollView>
         
-        {showInputOptions && (
-          <View style={styles.inputOptionsContainer}>
-            <TouchableOpacity style={styles.inputOption} onPress={handleImageUpload}>
-              <View style={styles.inputOptionIcon}>
-                <Text style={styles.inputOptionIconText}>📷</Text>
-              </View>
-              <Text style={styles.inputOptionText}>图片</Text>
-            </TouchableOpacity>
-            
-            <TouchableOpacity style={styles.inputOption} onPress={handleFileUpload}>
-              <View style={styles.inputOptionIcon}>
-                <Text style={styles.inputOptionIconText}>📄</Text>
-              </View>
-              <Text style={styles.inputOptionText}>文件</Text>
-            </TouchableOpacity>
-            
-            <TouchableOpacity style={styles.inputOption}>
-              <View style={styles.inputOptionIcon}>
-                <Text style={styles.inputOptionIconText}>📝</Text>
-              </View>
-              <Text style={styles.inputOptionText}>手写</Text>
-            </TouchableOpacity>
-            
-            <TouchableOpacity style={styles.inputOption}>
-              <View style={styles.inputOptionIcon}>
-                <Text style={styles.inputOptionIconText}>🔍</Text>
-              </View>
-              <Text style={styles.inputOptionText}>扫描</Text>
-            </TouchableOpacity>
-          </View>
-        )}
-        
         <View style={styles.inputContainer}>
-          <TouchableOpacity 
-            style={styles.inputButton}
-            onPress={toggleInputOptions}
-          >
-            <Text style={styles.inputButtonText}>+</Text>
-          </TouchableOpacity>
-          
-          <TextInput
-            style={styles.textInput}
-            placeholder="输入消息..."
-            value={inputText}
-            onChangeText={setInputText}
-            multiline
-          />
-          
-          {inputText.trim() ? (
-            <TouchableOpacity 
-              style={styles.sendButton}
-              onPress={handleSendMessage}
-            >
-              <Text style={styles.sendButtonText}>发送</Text>
-            </TouchableOpacity>
-          ) : (
-            <TouchableOpacity 
-              style={[styles.voiceButton, isRecording && styles.recordingButton]}
-              onPress={handleVoiceInput}
-            >
-              <Text style={styles.voiceButtonText}>🎤</Text>
-            </TouchableOpacity>
+          {showInputOptions && (
+            <View style={styles.inputOptionsContainer}>
+              <TouchableOpacity style={styles.inputOption} onPress={handleImageUpload}>
+                <Text style={styles.inputOptionText}>图片</Text>
+              </TouchableOpacity>
+              
+              <TouchableOpacity style={styles.inputOption} onPress={handleFileUpload}>
+                <Text style={styles.inputOptionText}>文件</Text>
+              </TouchableOpacity>
+            </View>
           )}
+          
+          <View style={styles.inputRow}>
+            <TouchableOpacity style={styles.inputButton} onPress={toggleInputOptions}>
+              <Text style={styles.inputButtonText}>+</Text>
+            </TouchableOpacity>
+            
+            <TextInput
+              style={styles.input}
+              placeholder="输入消息..."
+              value={inputText}
+              onChangeText={setInputText}
+              multiline
+            />
+            
+            {inputText.trim() ? (
+              <TouchableOpacity style={styles.sendButton} onPress={handleSendMessage}>
+                <Text style={styles.sendButtonText}>发送</Text>
+              </TouchableOpacity>
+            ) : (
+              <TouchableOpacity
+                style={[styles.voiceButton, isRecording && styles.recordingButton]}
+                onPress={handleVoiceInput}
+              >
+                <Text style={styles.voiceButtonText}>{isRecording ? '停止' : '语音'}</Text>
+              </TouchableOpacity>
+            )}
+          </View>
         </View>
       </KeyboardAvoidingView>
     </ScreenContainer>
@@ -360,7 +368,7 @@ const styles = StyleSheet.create({
   },
   messagesContent: {
     padding: theme.spacing.md,
-    paddingBottom: theme.spacing.xl,
+    paddingBottom: theme.spacing.xl * 2,
   },
   messageBubble: {
     flexDirection: 'row',
@@ -369,11 +377,11 @@ const styles = StyleSheet.create({
   },
   userMessage: {
     justifyContent: 'flex-end',
-    marginLeft: 50,
+    alignSelf: 'flex-end',
   },
   assistantMessage: {
     justifyContent: 'flex-start',
-    marginRight: 50,
+    alignSelf: 'flex-start',
   },
   processingMessage: {
     opacity: 0.7,
@@ -383,27 +391,26 @@ const styles = StyleSheet.create({
     alignSelf: 'flex-end',
   },
   avatar: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+    width: 30,
+    height: 30,
+    borderRadius: 15,
   },
   messageContent: {
-    padding: theme.spacing.md,
     borderRadius: theme.borderRadius.lg,
-    maxWidth: '85%',
+    padding: theme.spacing.md,
+    maxWidth: '80%',
   },
   userMessageContent: {
     backgroundColor: theme.colors.primary,
-    borderBottomRightRadius: 0,
+    borderBottomRightRadius: 4,
   },
   assistantMessageContent: {
     backgroundColor: theme.colors.surface,
-    borderBottomLeftRadius: 0,
-    borderWidth: 1,
-    borderColor: theme.colors.border,
+    borderBottomLeftRadius: 4,
   },
   processingMessageContent: {
-    borderStyle: 'dashed',
+    backgroundColor: theme.colors.surface,
+    opacity: 0.8,
   },
   messageText: {
     fontSize: theme.typography.fontSize.md,
@@ -415,127 +422,144 @@ const styles = StyleSheet.create({
   assistantMessageText: {
     color: theme.colors.textPrimary,
   },
-  processingMessageText: {
-    fontStyle: 'italic',
+  processingContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: theme.spacing.sm,
   },
-  timestamp: {
-    fontSize: theme.typography.fontSize.xs,
-    marginTop: theme.spacing.xs,
-    alignSelf: 'flex-end',
-  },
-  userTimestamp: {
-    color: theme.colors.onPrimary + '99', // 添加透明度
-  },
-  assistantTimestamp: {
+  processingText: {
     color: theme.colors.textSecondary,
+    fontSize: theme.typography.fontSize.sm,
+    marginRight: theme.spacing.sm,
+  },
+  loader: {
+    marginLeft: theme.spacing.xs,
+  },
+  attachmentsContainer: {
+    marginTop: theme.spacing.sm,
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+  },
+  attachment: {
+    marginRight: theme.spacing.sm,
+    marginBottom: theme.spacing.sm,
   },
   attachmentContainer: {
     marginTop: theme.spacing.sm,
   },
   attachmentImage: {
-    width: '100%',
+    width: 150,
     height: 150,
-    borderRadius: theme.borderRadius.sm,
+    borderRadius: theme.borderRadius.md,
   },
   fileAttachment: {
+    backgroundColor: `${theme.colors.primary}10`,
+    padding: theme.spacing.sm,
+    borderRadius: theme.borderRadius.sm,
     flexDirection: 'row',
     alignItems: 'center',
-    padding: theme.spacing.sm,
-    backgroundColor: theme.colors.background,
-    borderRadius: theme.borderRadius.sm,
   },
   fileName: {
-    fontSize: theme.typography.fontSize.sm,
     color: theme.colors.primary,
+    fontSize: theme.typography.fontSize.sm,
+  },
+  audioAttachment: {
+    backgroundColor: `${theme.colors.secondary}10`,
+    padding: theme.spacing.sm,
+    borderRadius: theme.borderRadius.sm,
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  audioLabel: {
+    color: theme.colors.secondary,
+    fontSize: theme.typography.fontSize.sm,
+  },
+  timestamp: {
+    fontSize: theme.typography.fontSize.xs,
+    color: theme.colors.textSecondary,
+    alignSelf: 'flex-end',
+    marginTop: theme.spacing.sm,
+  },
+  inputContainer: {
+    padding: theme.spacing.sm,
+    borderTopWidth: 1,
+    borderTopColor: theme.colors.divider,
+    backgroundColor: theme.colors.background,
+  },
+  inputRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
   },
   inputOptionsContainer: {
     flexDirection: 'row',
+    marginBottom: theme.spacing.sm,
     backgroundColor: theme.colors.surface,
-    borderTopWidth: 1,
-    borderTopColor: theme.colors.border,
+    borderRadius: theme.borderRadius.md,
     padding: theme.spacing.sm,
-    justifyContent: 'space-around',
   },
   inputOption: {
     alignItems: 'center',
-    padding: theme.spacing.sm,
-  },
-  inputOptionIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: theme.colors.background,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: theme.spacing.xs,
-  },
-  inputOptionIconText: {
-    fontSize: 20,
+    marginRight: theme.spacing.md,
   },
   inputOptionText: {
     fontSize: theme.typography.fontSize.sm,
-    color: theme.colors.textSecondary,
-  },
-  inputContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: theme.spacing.sm,
-    backgroundColor: theme.colors.surface,
-    borderTopWidth: 1,
-    borderTopColor: theme.colors.border,
+    color: theme.colors.textPrimary,
+    marginTop: theme.spacing.xs,
   },
   inputButton: {
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: theme.colors.background,
-    alignItems: 'center',
+    backgroundColor: theme.colors.surface,
     justifyContent: 'center',
+    alignItems: 'center',
     marginRight: theme.spacing.sm,
   },
   inputButtonText: {
     fontSize: 24,
-    color: theme.colors.primary,
-    fontWeight: 'bold',
+    color: theme.colors.textSecondary,
+    lineHeight: 24,
   },
-  textInput: {
+  input: {
     flex: 1,
-    minHeight: 36,
-    maxHeight: 100,
-    backgroundColor: theme.colors.background,
+    backgroundColor: theme.colors.surface,
     borderRadius: theme.borderRadius.md,
-    paddingHorizontal: theme.spacing.md,
-    paddingVertical: theme.spacing.sm,
+    padding: theme.spacing.sm,
+    paddingTop: theme.spacing.sm,
+    paddingBottom: theme.spacing.sm,
     fontSize: theme.typography.fontSize.md,
+    maxHeight: 100,
   },
   sendButton: {
-    marginLeft: theme.spacing.sm,
-    paddingHorizontal: theme.spacing.md,
+    width: 60,
     height: 36,
     borderRadius: 18,
     backgroundColor: theme.colors.primary,
-    alignItems: 'center',
     justifyContent: 'center',
+    alignItems: 'center',
+    marginLeft: theme.spacing.sm,
   },
   sendButtonText: {
     color: theme.colors.onPrimary,
-    fontWeight: 'bold',
+    fontSize: theme.typography.fontSize.sm,
   },
   voiceButton: {
-    width: 36,
+    width: 60,
     height: 36,
     borderRadius: 18,
-    backgroundColor: theme.colors.primary,
-    alignItems: 'center',
+    backgroundColor: theme.colors.secondary,
     justifyContent: 'center',
+    alignItems: 'center',
     marginLeft: theme.spacing.sm,
   },
   recordingButton: {
     backgroundColor: theme.colors.error,
   },
   voiceButtonText: {
-    fontSize: 18,
-  },
+    color: theme.colors.onPrimary,
+    fontSize: theme.typography.fontSize.sm,
+  }
 });
 
 export default AIAssistantScreen;
