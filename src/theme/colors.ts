@@ -29,11 +29,16 @@ export const colors = {
   // 文字颜色
   textPrimary: '#212121',  // 主要文字颜色
   textSecondary: '#757575', // 次要文字颜色
+  textTertiary: '#C5CEE0',  // 第三级文字颜色
   textDisabled: '#9E9E9E', // 禁用状态文字颜色
   
   // 边框和分隔线
   border: '#E0E0E0',       // 边框颜色
   divider: '#EEEEEE',      // 分隔线颜色
+  
+  // 基础颜色
+  white: '#FFFFFF',        // 白色
+  black: '#000000',        // 黑色
   
   // 功能模块特定颜色
   assistant: {
@@ -70,8 +75,11 @@ export const colors = {
     onSurface: '#FFFFFF',
     textPrimary: '#FFFFFF',
     textSecondary: '#B0B0B0',
+    textTertiary: '#8897B1',  // 暗色模式第三级文字颜色
     border: '#2C2C2C',
     divider: '#2C2C2C',
+    white: '#FFFFFF',        // 暗色模式白色
+    black: '#000000',        // 暗色模式黑色
   }
 };
 

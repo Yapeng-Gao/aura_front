@@ -23,6 +23,51 @@ import {
   DeviceUsageStats, SystemStats, SystemConfigUpdate
 } from '../types/iot';
 
+// Assistant相关类型导入
+import { 
+  SendMessageRequest, 
+  SendMessageResponse, 
+  GetConversationResponse, 
+  GetConversationsResponse, 
+  UpdateAssistantSettingsRequest, 
+  UpdateAssistantSettingsResponse, 
+  UploadAttachmentResponse,
+  // 代码助手类型
+  CodeGenerationRequest,
+  CodeGenerationResponse,
+  CodeOptimizationRequest,
+  CodeTestRequest,
+  CodeExplainRequest,
+  // 写作助手类型
+  WritingTemplate,
+  WriteGenerationRequest,
+  WriteGenerationResponse,
+  WritePolishRequest,
+  WriteGrammarCheckRequest,
+  WriteGrammarCheckResponse,
+  // 图像助手类型
+  ImageStyle,
+  ImageGenerationRequest,
+  ImageGenerationResponse,
+  ImageEditRequest,
+  ImageStyleTransferRequest,
+  ImageRemoveBackgroundRequest,
+  // 语音助手类型
+  Voice,
+  VoiceTranscriptionRequest,
+  VoiceTranscriptionResponse,
+  VoiceGenerationRequest,
+  VoiceGenerationResponse,
+  VoiceTranslateRequest,
+  VoiceTranslateResponse,
+  // 会议助手类型
+  MeetingRequest,
+  MeetingResponse,
+  MeetingNotesRequest,
+  MeetingNoteResponse,
+  MeetingSummaryResponse
+} from '../types/assistant';
+
 // Keys for storing tokens in AsyncStorage
 export const AUTH_TOKEN_KEY = 'aura_auth_token';
 export const REFRESH_TOKEN_KEY = 'aura_refresh_token';
@@ -213,12 +258,48 @@ export interface ApiService {
     uploadAvatar: (formData: FormData) => Promise<any | undefined>;
   };
   assistant: {
-    sendMessage: (message: any) => Promise<any | undefined>;
-    getConversation: (conversationId: string) => Promise<any | undefined>;
-    getConversations: () => Promise<any | undefined>;
-    deleteConversation: (conversationId: string) => Promise<any | undefined>;
-    updateAssistantSettings: (settings: any) => Promise<any | undefined>;
-    uploadAttachment: (formData: FormData, conversationId: string) => Promise<any | undefined>;
+    sendMessage: (message: SendMessageRequest) => Promise<SendMessageResponse | undefined>;
+    getConversation: (conversationId: string) => Promise<GetConversationResponse | undefined>;
+    getConversations: () => Promise<GetConversationsResponse | undefined>;
+    deleteConversation: (conversationId: string) => Promise<void>;
+    updateAssistantSettings: (settings: UpdateAssistantSettingsRequest) => Promise<UpdateAssistantSettingsResponse | undefined>;
+    uploadAttachment: (formData: FormData, conversationId: string) => Promise<UploadAttachmentResponse | undefined>;
+    
+    // 代码助手API
+    generateCode: (request: CodeGenerationRequest) => Promise<CodeGenerationResponse | undefined>;
+    optimizeCode: (request: CodeOptimizationRequest) => Promise<CodeGenerationResponse | undefined>;
+    generateTest: (request: CodeTestRequest) => Promise<CodeGenerationResponse | undefined>;
+    explainCode: (request: CodeExplainRequest) => Promise<CodeGenerationResponse | undefined>;
+    
+    // 写作助手API
+    getWritingTemplates: () => Promise<WritingTemplate[] | undefined>;
+    generateText: (request: WriteGenerationRequest) => Promise<WriteGenerationResponse | undefined>;
+    polishText: (request: WritePolishRequest) => Promise<WriteGenerationResponse | undefined>;
+    checkGrammar: (request: WriteGrammarCheckRequest) => Promise<WriteGrammarCheckResponse | undefined>;
+    
+    // 图像助手API
+    getImageStyles: () => Promise<ImageStyle[] | undefined>;
+    generateImage: (request: ImageGenerationRequest) => Promise<ImageGenerationResponse | undefined>;
+    editImage: (formData: FormData) => Promise<ImageGenerationResponse | undefined>;
+    transferStyle: (formData: FormData) => Promise<ImageGenerationResponse | undefined>;
+    removeBackground: (formData: FormData) => Promise<ImageGenerationResponse | undefined>;
+    
+    // 语音助手API
+    getVoices: () => Promise<Voice[] | undefined>;
+    transcribeAudio: (formData: FormData) => Promise<VoiceTranscriptionResponse | undefined>;
+    generateSpeech: (request: VoiceGenerationRequest) => Promise<VoiceGenerationResponse | undefined>;
+    translateAudio: (formData: FormData, targetLanguage: string, options?: any) => Promise<VoiceTranslateResponse | undefined>;
+    
+    // 会议助手API
+    createMeeting: (request: MeetingRequest) => Promise<MeetingResponse | undefined>;
+    getMeeting: (meetingId: string) => Promise<MeetingResponse | undefined>;
+    getMeetings: (status?: string, fromDate?: string, toDate?: string) => Promise<MeetingResponse[] | undefined>;
+    updateMeeting: (meetingId: string, updates: Partial<MeetingRequest>) => Promise<MeetingResponse | undefined>;
+    startMeeting: (meetingId: string) => Promise<MeetingResponse | undefined>;
+    endMeeting: (meetingId: string) => Promise<MeetingResponse | undefined>;
+    cancelMeeting: (meetingId: string, reason?: string) => Promise<MeetingResponse | undefined>;
+    generateMeetingNotes: (request: MeetingNotesRequest) => Promise<MeetingNoteResponse | undefined>;
+    generateMeetingSummary: (meetingId: string) => Promise<MeetingSummaryResponse | undefined>;
   };
   scheduler: {
     getEvents: (startDate: string, endDate: string) => Promise<any | undefined>;
@@ -379,17 +460,134 @@ const apiService: ApiService = {
   
   // AI助手相关API
   assistant: {
-    sendMessage: (message: any) => apiClient.post('/assistant/message', message),
-    getConversation: (conversationId: string) => apiClient.get(`/assistant/conversation/${conversationId}`),
-    getConversations: () => apiClient.get('/assistant/conversations'),
-    deleteConversation: (conversationId: string) => apiClient.delete(`/assistant/conversation/${conversationId}`),
-    updateAssistantSettings: (settings: any) => apiClient.put('/assistant/settings', settings),
-    uploadAttachment: (formData: FormData, conversationId: string) => 
+    sendMessage: (message: SendMessageRequest): Promise<SendMessageResponse | undefined> => 
+      apiClient.post('/assistant/message', message),
+    getConversation: (conversationId: string): Promise<GetConversationResponse | undefined> => 
+      apiClient.get(`/assistant/conversation/${conversationId}`),
+    getConversations: (): Promise<GetConversationsResponse | undefined> => 
+      apiClient.get('/assistant/conversations'),
+    deleteConversation: (conversationId: string): Promise<void> => 
+      apiClient.delete(`/assistant/conversation/${conversationId}`),
+    updateAssistantSettings: (settings: UpdateAssistantSettingsRequest): Promise<UpdateAssistantSettingsResponse | undefined> => 
+      apiClient.put('/assistant/preference', settings),
+    uploadAttachment: (formData: FormData, conversationId: string): Promise<UploadAttachmentResponse | undefined> => 
       apiClient.post(`/assistant/attachment/${conversationId}`, formData, {
         headers: {
           'Content-Type': 'multipart/form-data',
         },
       }),
+    
+    // 代码助手API
+    generateCode: (request: CodeGenerationRequest): Promise<CodeGenerationResponse | undefined> =>
+      apiClient.post('/assistant/code/generate', request),
+    optimizeCode: (request: CodeOptimizationRequest): Promise<CodeGenerationResponse | undefined> =>
+      apiClient.post('/assistant/code/optimize', request),
+    generateTest: (request: CodeTestRequest): Promise<CodeGenerationResponse | undefined> =>
+      apiClient.post('/assistant/code/test', request),
+    explainCode: (request: CodeExplainRequest): Promise<CodeGenerationResponse | undefined> =>
+      apiClient.post('/assistant/code/explain', request),
+    
+    // 写作助手API
+    getWritingTemplates: (): Promise<WritingTemplate[] | undefined> =>
+      apiClient.get('/assistant/writing/templates'),
+    generateText: (request: WriteGenerationRequest): Promise<WriteGenerationResponse | undefined> =>
+      apiClient.post('/assistant/writing/generate', request),
+    polishText: (request: WritePolishRequest): Promise<WriteGenerationResponse | undefined> =>
+      apiClient.post('/assistant/writing/polish', request),
+    checkGrammar: (request: WriteGrammarCheckRequest): Promise<WriteGrammarCheckResponse | undefined> =>
+      apiClient.post('/assistant/writing/check-grammar', request),
+    
+    // 图像助手API
+    getImageStyles: (): Promise<ImageStyle[] | undefined> =>
+      apiClient.get('/assistant/image/styles'),
+    generateImage: (request: ImageGenerationRequest): Promise<ImageGenerationResponse | undefined> =>
+      apiClient.post('/assistant/image/generate', request),
+    editImage: (formData: FormData): Promise<ImageGenerationResponse | undefined> =>
+      apiClient.post('/assistant/image/edit', formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      }),
+    transferStyle: (formData: FormData): Promise<ImageGenerationResponse | undefined> =>
+      apiClient.post('/assistant/image/transfer-style', formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      }),
+    removeBackground: (formData: FormData): Promise<ImageGenerationResponse | undefined> =>
+      apiClient.post('/assistant/image/remove-background', formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      }),
+    
+    // 语音助手API
+    getVoices: (): Promise<Voice[] | undefined> =>
+      apiClient.get('/assistant/voice/voices'),
+    transcribeAudio: (formData: FormData): Promise<VoiceTranscriptionResponse | undefined> =>
+      apiClient.post('/assistant/voice/transcribe', formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      }),
+    generateSpeech: (request: VoiceGenerationRequest): Promise<VoiceGenerationResponse | undefined> =>
+      apiClient.post('/assistant/voice/generate-speech', request),
+    translateAudio: (formData: FormData, targetLanguage: string, options?: any): Promise<VoiceTranslateResponse | undefined> => {
+      const data = new FormData();
+      // 不能直接使用for...in遍历FormData，需要使用正确的方法
+      // 将原始音频文件添加到新FormData
+      if (formData.get('audio')) {
+        data.append('audio', formData.get('audio') as Blob);
+      }
+      data.append('target_language', targetLanguage);
+      if (options) {
+        data.append('options', JSON.stringify(options));
+      }
+      return apiClient.post('/assistant/voice/translate', data, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      });
+    },
+    
+    // 会议助手API
+    createMeeting: (request: MeetingRequest): Promise<MeetingResponse | undefined> =>
+      apiClient.post('/assistant/meeting', request),
+    getMeeting: (meetingId: string): Promise<MeetingResponse | undefined> =>
+      apiClient.get(`/assistant/meeting/${meetingId}`),
+    getMeetings: (status?: string, fromDate?: string, toDate?: string): Promise<MeetingResponse[] | undefined> => {
+      let url = '/assistant/meetings';
+      const params: Record<string, string> = {};
+      if (status) params.status = status;
+      if (fromDate) params.from_date = fromDate;
+      if (toDate) params.to_date = toDate;
+      
+      return apiClient.get(url, { params });
+    },
+    updateMeeting: (meetingId: string, updates: Partial<MeetingRequest>): Promise<MeetingResponse | undefined> =>
+      apiClient.put(`/assistant/meeting/${meetingId}`, updates),
+    startMeeting: (meetingId: string): Promise<MeetingResponse | undefined> =>
+      apiClient.post(`/assistant/meeting/${meetingId}/start`),
+    endMeeting: (meetingId: string): Promise<MeetingResponse | undefined> =>
+      apiClient.post(`/assistant/meeting/${meetingId}/end`),
+    cancelMeeting: (meetingId: string, reason?: string): Promise<MeetingResponse | undefined> =>
+      apiClient.post(`/assistant/meeting/${meetingId}/cancel`, { reason }),
+    generateMeetingNotes: (request: MeetingNotesRequest): Promise<MeetingNoteResponse | undefined> => {
+      if (request.audio) {
+        const formData = new FormData();
+        formData.append('meeting_id', request.meeting_id);
+        formData.append('audio', request.audio);
+        return apiClient.post('/assistant/meeting/notes', formData, {
+          headers: {
+            'Content-Type': 'multipart/form-data',
+          },
+        });
+      } else {
+        return apiClient.post('/assistant/meeting/notes', request);
+      }
+    },
+    generateMeetingSummary: (meetingId: string): Promise<MeetingSummaryResponse | undefined> =>
+      apiClient.post(`/assistant/meeting/${meetingId}/summary`),
   },
   
   // 日程管理相关API

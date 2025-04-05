@@ -27,6 +27,7 @@ const RootStack = createStackNavigator<RootStackParamList>();
 
 const AppNavigator = () => {
     const isAuthenticated = useAppSelector(state => state.auth.isAuthenticated);
+    const { t } = useTranslation();
 
     return (
         <NavigationContainer>
@@ -148,12 +149,9 @@ const AppNavigator = () => {
                         <RootStack.Screen 
                             name="UserAnalytics" 
                             component={UserAnalyticsScreen}
-                            options={({ navigation }) => {
-                                const { t } = useTranslation();
-                                return {
-                                    headerShown: true,
-                                    title: t('analytics.title'),
-                                };
+                            options={{
+                                headerShown: false,
+                                title: t('analytics.title'),
                             }}
                         />
                         <RootStack.Screen 

@@ -1,13 +1,13 @@
-import React from 'react';
+import React, { ReactNode } from 'react';
 import {View, Text, StyleSheet, ViewStyle, StyleProp} from 'react-native';
 import theme from '../../theme';
 import {Platform} from 'react-native';
 import Icon from 'react-native-vector-icons/Ionicons';
 
-interface CardProps {
+export interface CardProps {
     title?: string;
     subtitle?: string;
-    children: React.ReactNode;
+    children: ReactNode;
     style?: StyleProp<ViewStyle>;
     contentStyle?: ViewStyle;
     elevation?: 'none' | 'small' | 'medium' | 'large';
@@ -15,6 +15,7 @@ interface CardProps {
     headerRight?: React.ReactNode;
     isDarkMode?: boolean;
     icon?: string;
+    rightContent?: ReactNode;
 }
 
 const Card: React.FC<CardProps> = ({
@@ -28,6 +29,7 @@ const Card: React.FC<CardProps> = ({
                                        headerRight,
                                        isDarkMode,
                                        icon,
+                                       rightContent,
                                    }) => {
     // 获取阴影样式
     const getElevationStyle = () => {
@@ -75,6 +77,7 @@ const Card: React.FC<CardProps> = ({
                         {subtitle && <Text style={styles.subtitle}>{subtitle}</Text>}
                     </View>
                     {headerRight && <View style={styles.headerRight}>{headerRight}</View>}
+                    {rightContent && <View style={styles.rightContent}>{rightContent}</View>}
                 </View>
             )}
             <View style={[styles.content, contentStyle]}>{children}</View>
@@ -114,6 +117,9 @@ const styles = StyleSheet.create({
         flex: 1,
     },
     headerRight: {
+        marginLeft: theme.spacing.sm,
+    },
+    rightContent: {
         marginLeft: theme.spacing.sm,
     },
     titleContainer: {

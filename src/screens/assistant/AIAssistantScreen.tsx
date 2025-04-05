@@ -1,43 +1,37 @@
-import React, { useState, useRef, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image, TextInput, KeyboardAvoidingView, Platform, ActivityIndicator, Dimensions } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
-import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { 
+  View, 
+  Text, 
+  StyleSheet, 
+  ScrollView, 
+  TextInput, 
+  TouchableOpacity, 
+  KeyboardAvoidingView, 
+  Platform, 
+  Image,
+  ActivityIndicator,
+  Alert,
+  RefreshControl
+} from 'react-native';
+import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import ScreenContainer from '../../components/common/ScreenContainer';
-import Card from '../../components/common/Card';
 import theme from '../../theme';
-import { AssistantStackParamList } from '../../navigation/types';
 import apiService from '../../services/api';
-
-type AIAssistantScreenNavigationProp = NativeStackNavigationProp<AssistantStackParamList, 'AIAssistant'>;
-
-// 模拟消息数据类型
-interface Message {
-  id: string;
-  text: string;
-  sender: 'user' | 'assistant';
-  timestamp: string;
-  attachments?: {
-    type: 'image' | 'audio' | 'file';
-    url: string;
-    thumbnail?: string;
-    name?: string;
-  }[];
-  isProcessing?: boolean;
-}
+import { Message, SendMessageRequest, SendMessageResponse, UpdateAssistantSettingsResponse } from '../../types/assistant';
+import { AIAssistantScreenNavigationProp } from '../../types/navigation';
+import { Ionicons } from '@expo/vector-icons';
 
 const AIAssistantScreen: React.FC = () => {
   const navigation = useNavigation<AIAssistantScreenNavigationProp>();
-  const [messages, setMessages] = useState<Message[]>([
-    {
-      id: '1',
-      text: '你好！我是你的AI助手，有什么我可以帮你的吗？',
-      sender: 'assistant',
-      timestamp: '09:30',
-    },
-  ]);
+  const [messages, setMessages] = useState<Message[]>([]);
   const [inputText, setInputText] = useState('');
   const [isRecording, setIsRecording] = useState(false);
   const [showInputOptions, setShowInputOptions] = useState(false);
+  const [conversationId, setConversationId] = useState('new');
+  const [isLoading, setIsLoading] = useState(false);
+  const [isSending, setIsSending] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [assistantInfo, setAssistantInfo] = useState<UpdateAssistantSettingsResponse | null>(null);
   
   const scrollViewRef = useRef<ScrollView>(null);
   
@@ -47,6 +41,87 @@ const AIAssistantScreen: React.FC = () => {
       scrollViewRef.current?.scrollToEnd({ animated: true });
     }, 100);
   }, [messages]);
+
+  // 加载助手设置
+  const loadAssistantSettings = async () => {
+    try {
+      const settings = await apiService.assistant.updateAssistantSettings({});
+      if (settings) {
+        setAssistantInfo(settings);
+      }
+    } catch (error) {
+      console.error('加载助手设置失败:', error);
+    }
+  };
+
+  // 每次聚焦屏幕时刷新助手设置
+  useFocusEffect(
+    useCallback(() => {
+      loadAssistantSettings();
+    }, [])
+  );
+
+  // 初始化时加载对话
+  useEffect(() => {
+    loadConversation();
+  }, []);
+  
+  const loadConversation = async (withRefresh = false) => {
+    try {
+      if (withRefresh) {
+        setIsRefreshing(true);
+      } else {
+        setIsLoading(true);
+      }
+      
+      const conversations = await apiService.assistant.getConversations();
+      if (conversations && conversations.conversations.length > 0) {
+        // 使用最近的对话
+        const latestConversation = conversations.conversations[0];
+        setConversationId(latestConversation.id);
+        
+        // 获取对话内容
+        const conversation = await apiService.assistant.getConversation(latestConversation.id);
+        if (conversation) {
+          // 转换消息格式
+          const formattedMessages: Message[] = conversation.messages.map(msg => ({
+            id: msg.message_id,
+            text: msg.content.text,
+            sender: msg.sender,
+            timestamp: new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+            attachmentUrl: msg.content.attachment_url
+          }));
+          
+          setMessages(formattedMessages);
+        }
+      } else {
+        // 没有现有对话，使用欢迎消息
+        setConversationId('new');
+        setMessages([{
+          id: '1',
+          text: '你好！我是你的AI助手，有什么我可以帮你的吗？',
+          sender: 'assistant',
+          timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        }]);
+      }
+    } catch (error) {
+      console.error('加载对话失败:', error);
+      // 使用默认欢迎消息
+      setMessages([{
+        id: '1',
+        text: '你好！我是你的AI助手，有什么我可以帮你的吗？',
+        sender: 'assistant',
+        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      }]);
+    } finally {
+      setIsLoading(false);
+      setIsRefreshing(false);
+    }
+  };
+  
+  const handleRefresh = () => {
+    loadConversation(true);
+  };
   
   // 发送消息
   const handleSendMessage = async () => {
@@ -61,6 +136,7 @@ const AIAssistantScreen: React.FC = () => {
       
       setMessages(prev => [...prev, userMessage]);
       setInputText('');
+      setIsSending(true);
       
       // 添加处理中消息
       const processingMessageId = `processing-${Date.now()}`;
@@ -75,159 +151,130 @@ const AIAssistantScreen: React.FC = () => {
       setMessages(prev => [...prev, processingMessage]);
       
       try {
-        // 调用API获取AI回复
-        const response = await apiService.assistant.sendMessage({
+        // 准备请求参数
+        const messageRequest: SendMessageRequest = {
           message: userMessage.text,
-          conversation_id: 'current'
-        });
+          conversation_id: conversationId
+        };
+        
+        // 调用API获取AI回复
+        const response = await apiService.assistant.sendMessage(messageRequest);
         
         // 替换处理中消息为实际回复
-        setMessages(prev => {
-          const filtered = prev.filter(msg => msg.id !== processingMessageId);
-          return [...filtered, {
-            id: Date.now().toString(),
-            text: response?.text || getAIResponse(inputText),
-            sender: 'assistant',
-            timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-          }];
-        });
+        if (response) {
+          setMessages(prev => {
+            const filtered = prev.filter(msg => msg.id !== processingMessageId);
+            return [...filtered, {
+              id: response.message_id,
+              text: response.content.text,
+              sender: 'assistant',
+              timestamp: new Date(response.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+            }];
+          });
+          
+          // 如果是新对话，更新conversationId
+          if (conversationId === 'new') {
+            // 获取最新的对话列表来获取当前对话的ID
+            const conversations = await apiService.assistant.getConversations();
+            if (conversations && conversations.conversations.length > 0) {
+              setConversationId(conversations.conversations[0].id);
+            }
+          }
+        } else {
+          throw new Error('获取回复失败');
+        }
       } catch (error) {
         console.error('获取AI回复失败:', error);
         
-        // 替换处理中消息为本地模拟回复
+        // 显示错误消息
         setMessages(prev => {
           const filtered = prev.filter(msg => msg.id !== processingMessageId);
           return [...filtered, {
             id: Date.now().toString(),
-            text: getAIResponse(inputText),
+            text: '抱歉，我遇到了一些问题，请稍后再试。',
             sender: 'assistant',
             timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
           }];
         });
+        
+        Alert.alert('错误', '无法连接到AI助手服务，请稍后再试。');
+      } finally {
+        setIsSending(false);
       }
     }
   };
   
-  // 模拟AI回复
-  const getAIResponse = (userInput: string): string => {
-    const lowerInput = userInput.toLowerCase();
-    
-    if (lowerInput.includes('你好') || lowerInput.includes('嗨') || lowerInput.includes('hi')) {
-      return '您好！很高兴为您服务。请问有什么我可以帮助您的吗？';
-    } else if (lowerInput.includes('天气')) {
-      return '根据最新天气预报，今天天气晴朗，气温18-25℃，空气质量良好，适合户外活动。';
-    } else if (lowerInput.includes('日程') || lowerInput.includes('安排') || lowerInput.includes('计划')) {
-      return '您今天有3个日程安排：\n1. 10:00 产品团队会议\n2. 14:30 客户演示\n3. 18:00 健身';
-    } else if (lowerInput.includes('笔记') || lowerInput.includes('记录')) {
-      return '我可以帮您记录笔记。请告诉我您想记录的内容，或者您可以使用语音录入功能。';
-    } else if (lowerInput.includes('智能家居') || lowerInput.includes('设备')) {
-      return '您的智能家居系统已连接。客厅灯已开启，空调温度设置为24℃，窗帘已关闭。';
-    } else if (lowerInput.includes('创意') || lowerInput.includes('灵感')) {
-      return '我可以帮您生成创意内容。请告诉我您需要什么类型的创意，例如文案、图片创意或者音乐灵感。';
-    } else {
-      return '我理解您的问题。请允许我为您提供更多相关信息或者解决方案。您可以尝试更具体地描述您的需求。';
-    }
+  // 处理图片上传
+  const handleImageUpload = () => {
+    Alert.alert('即将推出', '图片上传功能正在开发中');
+    setShowInputOptions(false);
+  };
+  
+  // 处理文件上传
+  const handleFileUpload = () => {
+    Alert.alert('即将推出', '文件上传功能正在开发中');
+    setShowInputOptions(false);
   };
   
   // 开始语音输入
   const handleVoiceInput = () => {
     setIsRecording(!isRecording);
     if (!isRecording) {
-      // 开始录音逻辑
-      console.log('开始录音');
+      Alert.alert('即将推出', '语音识别功能正在开发中');
     } else {
-      // 结束录音逻辑
-      console.log('结束录音');
-      
-      // 模拟语音识别结果
-      setTimeout(() => {
-        setInputText('这是通过语音识别转换的文本');
-      }, 1000);
+      setIsRecording(false);
     }
   };
   
-  // 切换输入选项显示
-  const toggleInputOptions = () => {
-    setShowInputOptions(!showInputOptions);
+  // 创建新对话
+  const handleNewConversation = () => {
+    Alert.alert(
+      '新对话',
+      '是否开始新的对话？当前对话记录将会保存。',
+      [
+        { text: '取消', style: 'cancel' },
+        { 
+          text: '确定', 
+          onPress: () => {
+            setConversationId('new');
+            setMessages([{
+              id: '1',
+              text: '你好！我是你的AI助手，有什么我可以帮你的吗？',
+              sender: 'assistant',
+              timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+            }]);
+          }
+        }
+      ]
+    );
   };
   
-  // 处理图片上传
-  const handleImageUpload = () => {
-    console.log('上传图片');
-    setShowInputOptions(false);
-    
-    // 模拟图片上传和发送
-    setTimeout(() => {
-      const imageMessage: Message = {
-        id: Date.now().toString(),
-        text: '我发送了一张图片',
-        sender: 'user',
-        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-        attachments: [
-          {
-            type: 'image',
-            url: 'https://example.com/image.jpg',
-            thumbnail: 'https://example.com/image_thumb.jpg',
-          }
-        ]
-      };
-      
-      setMessages(prev => [...prev, imageMessage]);
-      
-      // 模拟AI助手回复
-      setTimeout(() => {
-        setMessages(prev => [...prev, {
-          id: Date.now().toString(),
-          text: '我已收到您的图片。这看起来是一张风景照片，拍摄得很美。',
-          sender: 'assistant',
-          timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-        }]);
-      }, 1500);
-    }, 1000);
-  };
-
-  // 处理文件上传
-  const handleFileUpload = () => {
-    console.log('上传文件');
-    setShowInputOptions(false);
-    
-    // 模拟文件上传和发送
-    setTimeout(() => {
-      const fileMessage: Message = {
-        id: Date.now().toString(),
-        text: '我发送了一个文件',
-        sender: 'user',
-        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-        attachments: [
-          {
-            type: 'file',
-            url: 'https://example.com/document.pdf',
-            name: '项目报告.pdf',
-          }
-        ]
-      };
-      
-      setMessages(prev => [...prev, fileMessage]);
-      
-      // 模拟AI助手回复
-      setTimeout(() => {
-        setMessages(prev => [...prev, {
-          id: Date.now().toString(),
-          text: '我已收到您的文件。这是一个PDF文档，我可以帮您分析其中的内容。',
-          sender: 'assistant',
-          timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-        }]);
-      }, 1500);
-    }, 1000);
-  };
+  if (isLoading) {
+    return (
+      <ScreenContainer
+        title={assistantInfo?.assistant_name || "AI助手"}
+        backgroundColor={theme.colors.background}
+        showBackButton
+        rightButton={{
+          icon: 'settings-outline',
+          onPress: () => navigation.navigate('AISettings'),
+        }}
+      >
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color={theme.colors.primary} />
+          <Text style={styles.loadingText}>加载对话中...</Text>
+        </View>
+      </ScreenContainer>
+    );
+  }
   
   return (
     <ScreenContainer
-      title="AI助手"
+      title={assistantInfo?.assistant_name || "AI助手"}
       backgroundColor={theme.colors.background}
       showBackButton
       rightButton={{
-        icon: '设置',
+        icon: 'settings-outline',
         onPress: () => navigation.navigate('AISettings'),
       }}
     >
@@ -236,10 +283,28 @@ const AIAssistantScreen: React.FC = () => {
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
       >
+        <View style={styles.actionBar}>
+          <TouchableOpacity 
+            style={styles.actionButton}
+            onPress={handleNewConversation}
+          >
+            <Ionicons name="add" size={22} color={theme.colors.primary} />
+            <Text style={styles.actionButtonText}>新对话</Text>
+          </TouchableOpacity>
+        </View>
+        
         <ScrollView
           ref={scrollViewRef}
           style={styles.messagesContainer}
           contentContainerStyle={styles.messagesContent}
+          refreshControl={
+            <RefreshControl
+              refreshing={isRefreshing}
+              onRefresh={handleRefresh}
+              colors={[theme.colors.primary]}
+              tintColor={theme.colors.primary}
+            />
+          }
         >
           {messages.map((message) => (
             <View 
@@ -278,37 +343,19 @@ const AIAssistantScreen: React.FC = () => {
                       {message.text}
                     </Text>
                     
-                    {message.attachments && message.attachments.length > 0 && (
-                      <View style={styles.attachmentsContainer}>
-                        {message.attachments.map((attachment, index) => (
-                          <View key={index} style={styles.attachment}>
-                            {attachment.type === 'image' && (
-                              <Image
-                                source={{ uri: attachment.thumbnail || attachment.url }}
-                                style={styles.attachmentImage}
-                                resizeMode="cover"
-                              />
-                            )}
-                            
-                            {attachment.type === 'file' && (
-                              <View style={styles.fileAttachment}>
-                                <Text style={styles.fileName}>{attachment.name}</Text>
-                              </View>
-                            )}
-                            
-                            {attachment.type === 'audio' && (
-                              <View style={styles.audioAttachment}>
-                                <Text style={styles.audioLabel}>语音记录</Text>
-                              </View>
-                            )}
-                          </View>
-                        ))}
-                      </View>
+                    {message.attachmentUrl && (
+                      <TouchableOpacity style={styles.attachmentContainer}>
+                        <Image 
+                          source={{ uri: message.attachmentUrl }} 
+                          style={styles.attachmentImage}
+                          resizeMode="cover"
+                        />
+                      </TouchableOpacity>
                     )}
+                    
+                    <Text style={styles.timestamp}>{message.timestamp}</Text>
                   </>
                 )}
-                
-                <Text style={styles.timestamp}>{message.timestamp}</Text>
               </View>
             </View>
           ))}
@@ -317,39 +364,62 @@ const AIAssistantScreen: React.FC = () => {
         <View style={styles.inputContainer}>
           {showInputOptions && (
             <View style={styles.inputOptionsContainer}>
-              <TouchableOpacity style={styles.inputOption} onPress={handleImageUpload}>
+              <TouchableOpacity 
+                style={styles.inputOptionButton}
+                onPress={handleImageUpload}
+              >
+                <Ionicons name="image-outline" size={24} color={theme.colors.textPrimary} />
                 <Text style={styles.inputOptionText}>图片</Text>
               </TouchableOpacity>
               
-              <TouchableOpacity style={styles.inputOption} onPress={handleFileUpload}>
+              <TouchableOpacity 
+                style={styles.inputOptionButton}
+                onPress={handleFileUpload}
+              >
+                <Ionicons name="document-outline" size={24} color={theme.colors.textPrimary} />
                 <Text style={styles.inputOptionText}>文件</Text>
               </TouchableOpacity>
             </View>
           )}
           
           <View style={styles.inputRow}>
-            <TouchableOpacity style={styles.inputButton} onPress={toggleInputOptions}>
-              <Text style={styles.inputButtonText}>+</Text>
+            <TouchableOpacity 
+              style={styles.inputIconButton}
+              onPress={() => setShowInputOptions(!showInputOptions)}
+            >
+              <Ionicons name="add-outline" size={24} color={theme.colors.primary} />
             </TouchableOpacity>
             
             <TextInput
               style={styles.input}
-              placeholder="输入消息..."
+              placeholder="发送消息..."
               value={inputText}
               onChangeText={setInputText}
               multiline
             />
             
             {inputText.trim() ? (
-              <TouchableOpacity style={styles.sendButton} onPress={handleSendMessage}>
-                <Text style={styles.sendButtonText}>发送</Text>
+              <TouchableOpacity 
+                style={[styles.sendButton, isSending && styles.sendButtonDisabled]}
+                onPress={handleSendMessage}
+                disabled={isSending}
+              >
+                {isSending ? (
+                  <ActivityIndicator size="small" color="#FFFFFF" />
+                ) : (
+                  <Ionicons name="send" size={20} color="#FFFFFF" />
+                )}
               </TouchableOpacity>
             ) : (
-              <TouchableOpacity
-                style={[styles.voiceButton, isRecording && styles.recordingButton]}
+              <TouchableOpacity 
+                style={styles.micButton}
                 onPress={handleVoiceInput}
               >
-                <Text style={styles.voiceButtonText}>{isRecording ? '停止' : '语音'}</Text>
+                <Ionicons 
+                  name={isRecording ? "stop-circle-outline" : "mic-outline"} 
+                  size={24} 
+                  color={theme.colors.primary} 
+                />
               </TouchableOpacity>
             )}
           </View>
@@ -362,204 +432,190 @@ const AIAssistantScreen: React.FC = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    backgroundColor: theme.colors.background,
+  },
+  loadingContainer: {
+    flex: 1, 
+    justifyContent: 'center', 
+    alignItems: 'center',
+  },
+  loadingText: {
+    marginTop: 16,
+    fontSize: 16,
+    color: theme.colors.textSecondary,
+  },
+  actionBar: {
+    flexDirection: 'row',
+    justifyContent: 'flex-start',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: theme.colors.divider,
+  },
+  actionButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 6,
+    borderRadius: 16,
+    backgroundColor: `${theme.colors.primary}10`,
+  },
+  actionButtonText: {
+    marginLeft: 4,
+    fontSize: 14,
+    color: theme.colors.primary,
+    fontWeight: '500',
   },
   messagesContainer: {
     flex: 1,
   },
   messagesContent: {
-    padding: theme.spacing.md,
-    paddingBottom: theme.spacing.xl * 2,
+    padding: 16,
+    paddingBottom: 24,
   },
   messageBubble: {
     flexDirection: 'row',
-    marginBottom: theme.spacing.md,
-    maxWidth: '100%',
+    marginBottom: 16,
+    maxWidth: '85%',
   },
   userMessage: {
-    justifyContent: 'flex-end',
     alignSelf: 'flex-end',
+    marginLeft: 'auto',
   },
   assistantMessage: {
-    justifyContent: 'flex-start',
     alignSelf: 'flex-start',
+    marginRight: 'auto',
   },
   processingMessage: {
-    opacity: 0.7,
+    opacity: 0.8,
   },
   avatarContainer: {
-    marginRight: theme.spacing.sm,
-    alignSelf: 'flex-end',
+    marginRight: 8,
+    alignSelf: 'flex-start',
   },
   avatar: {
-    width: 30,
-    height: 30,
-    borderRadius: 15,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
   },
   messageContent: {
-    borderRadius: theme.borderRadius.lg,
-    padding: theme.spacing.md,
-    maxWidth: '80%',
+    padding: 12,
+    borderRadius: 18,
+    maxWidth: '100%',
   },
   userMessageContent: {
     backgroundColor: theme.colors.primary,
-    borderBottomRightRadius: 4,
+    borderTopRightRadius: 4,
   },
   assistantMessageContent: {
-    backgroundColor: theme.colors.surface,
-    borderBottomLeftRadius: 4,
+    backgroundColor: theme.colors.cardBackground,
+    borderTopLeftRadius: 4,
   },
   processingMessageContent: {
-    backgroundColor: theme.colors.surface,
-    opacity: 0.8,
-  },
-  messageText: {
-    fontSize: theme.typography.fontSize.md,
-    lineHeight: 20,
-  },
-  userMessageText: {
-    color: theme.colors.onPrimary,
-  },
-  assistantMessageText: {
-    color: theme.colors.textPrimary,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   processingContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    padding: theme.spacing.sm,
   },
   processingText: {
     color: theme.colors.textSecondary,
-    fontSize: theme.typography.fontSize.sm,
-    marginRight: theme.spacing.sm,
+    fontSize: 14,
+    marginRight: 8,
   },
   loader: {
-    marginLeft: theme.spacing.xs,
+    marginLeft: 8,
   },
-  attachmentsContainer: {
-    marginTop: theme.spacing.sm,
-    flexDirection: 'row',
-    flexWrap: 'wrap',
+  messageText: {
+    fontSize: 16,
+    lineHeight: 22,
   },
-  attachment: {
-    marginRight: theme.spacing.sm,
-    marginBottom: theme.spacing.sm,
+  userMessageText: {
+    color: '#FFFFFF',
   },
-  attachmentContainer: {
-    marginTop: theme.spacing.sm,
-  },
-  attachmentImage: {
-    width: 150,
-    height: 150,
-    borderRadius: theme.borderRadius.md,
-  },
-  fileAttachment: {
-    backgroundColor: `${theme.colors.primary}10`,
-    padding: theme.spacing.sm,
-    borderRadius: theme.borderRadius.sm,
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  fileName: {
-    color: theme.colors.primary,
-    fontSize: theme.typography.fontSize.sm,
-  },
-  audioAttachment: {
-    backgroundColor: `${theme.colors.secondary}10`,
-    padding: theme.spacing.sm,
-    borderRadius: theme.borderRadius.sm,
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  audioLabel: {
-    color: theme.colors.secondary,
-    fontSize: theme.typography.fontSize.sm,
+  assistantMessageText: {
+    color: theme.colors.textPrimary,
   },
   timestamp: {
-    fontSize: theme.typography.fontSize.xs,
-    color: theme.colors.textSecondary,
+    fontSize: 12,
+    marginTop: 8,
+    opacity: 0.7,
     alignSelf: 'flex-end',
-    marginTop: theme.spacing.sm,
+    color: theme.colors.textSecondary,
+  },
+  attachmentContainer: {
+    marginTop: 8,
+    borderRadius: 8,
+    overflow: 'hidden',
+  },
+  attachmentImage: {
+    width: '100%',
+    height: 150,
+    backgroundColor: theme.colors.divider,
   },
   inputContainer: {
-    padding: theme.spacing.sm,
     borderTopWidth: 1,
     borderTopColor: theme.colors.divider,
-    backgroundColor: theme.colors.background,
-  },
-  inputRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    padding: 8,
+    paddingBottom: Platform.OS === 'ios' ? 24 : 16,
   },
   inputOptionsContainer: {
     flexDirection: 'row',
-    marginBottom: theme.spacing.sm,
-    backgroundColor: theme.colors.surface,
-    borderRadius: theme.borderRadius.md,
-    padding: theme.spacing.sm,
+    marginBottom: 8,
+    paddingHorizontal: 8,
   },
-  inputOption: {
+  inputOptionButton: {
     alignItems: 'center',
-    marginRight: theme.spacing.md,
+    marginRight: 16,
+    width: 56,
   },
   inputOptionText: {
-    fontSize: theme.typography.fontSize.sm,
+    marginTop: 4,
+    fontSize: 12,
     color: theme.colors.textPrimary,
-    marginTop: theme.spacing.xs,
   },
-  inputButton: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: theme.colors.surface,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: theme.spacing.sm,
+  inputRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-end',
   },
-  inputButtonText: {
-    fontSize: 24,
-    color: theme.colors.textSecondary,
-    lineHeight: 24,
+  inputIconButton: {
+    padding: 8,
+    marginRight: 8,
   },
   input: {
     flex: 1,
-    backgroundColor: theme.colors.surface,
-    borderRadius: theme.borderRadius.md,
-    padding: theme.spacing.sm,
-    paddingTop: theme.spacing.sm,
-    paddingBottom: theme.spacing.sm,
-    fontSize: theme.typography.fontSize.md,
+    backgroundColor: theme.colors.cardBackground,
+    borderRadius: 20,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    paddingRight: 48,
+    fontSize: 16,
     maxHeight: 100,
   },
   sendButton: {
-    width: 60,
-    height: 36,
-    borderRadius: 18,
+    position: 'absolute',
+    right: 8,
+    bottom: 8,
     backgroundColor: theme.colors.primary,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginLeft: theme.spacing.sm,
-  },
-  sendButtonText: {
-    color: theme.colors.onPrimary,
-    fontSize: theme.typography.fontSize.sm,
-  },
-  voiceButton: {
-    width: 60,
+    width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: theme.colors.secondary,
-    justifyContent: 'center',
     alignItems: 'center',
-    marginLeft: theme.spacing.sm,
+    justifyContent: 'center',
   },
-  recordingButton: {
-    backgroundColor: theme.colors.error,
+  sendButtonDisabled: {
+    opacity: 0.7,
   },
-  voiceButtonText: {
-    color: theme.colors.onPrimary,
-    fontSize: theme.typography.fontSize.sm,
-  }
+  micButton: {
+    position: 'absolute',
+    right: 12,
+    bottom: 12,
+    width: 32,
+    height: 32,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
 });
 
 export default AIAssistantScreen;

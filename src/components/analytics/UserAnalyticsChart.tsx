@@ -1,8 +1,9 @@
 import React from 'react';
-import { View, Text, StyleSheet, Dimensions, useColorScheme, Platform } from 'react-native';
-import { BarChart } from 'react-native-chart-kit';
+import { View, Text, StyleSheet, Dimensions } from 'react-native';
+import { LineChart, BarChart } from 'react-native-chart-kit';
+import Card from '../common/Card';
 import theme from '../../theme';
-import useTranslation from '../../hooks/useTranslation';
+import { useTheme } from '../../theme/ThemeContext';
 
 interface ActivityData {
   day: string;
@@ -12,95 +13,96 @@ interface ActivityData {
 interface UserAnalyticsChartProps {
   title: string;
   data: ActivityData[];
-  color?: string;
-  unit?: string;
+  color: string;
+  unit: string;
+  // 可选的图表类型，默认为柱状图
+  chartType?: 'bar' | 'line';
 }
 
-const UserAnalyticsChart: React.FC<UserAnalyticsChartProps> = ({
-  title,
-  data,
-  color = theme.colors.primary,
-  unit = '',
+const UserAnalyticsChart: React.FC<UserAnalyticsChartProps> = ({ 
+  title, 
+  data, 
+  color, 
+  unit,
+  chartType = 'bar'
 }) => {
-  const { t } = useTranslation();
-  const colorScheme = useColorScheme();
-  const isDarkMode = colorScheme === 'dark';
-  const screenWidth = Dimensions.get('window').width - (theme.spacing.md * 2);
-  
+  const { isDarkMode } = useTheme();
+  const screenWidth = Dimensions.get('window').width - 40; // 减去边距
+
+  // 准备图表数据
   const chartData = {
     labels: data.map(item => item.day),
     datasets: [
       {
         data: data.map(item => item.value),
-        color: (opacity = 1) => color, // 颜色
-        strokeWidth: 2, // 线宽
-      },
+        color: (opacity = 1) => color, 
+        strokeWidth: 2
+      }
     ],
+    legend: [unit]
   };
-  
+
+  // 图表配置
   const chartConfig = {
-    backgroundGradientFrom: isDarkMode ? theme.dark.colors.cardBackground : theme.colors.cardBackground,
-    backgroundGradientTo: isDarkMode ? theme.dark.colors.cardBackground : theme.colors.cardBackground,
+    backgroundColor: isDarkMode ? theme.dark.colors.cardBackground : theme.colors.surface,
+    backgroundGradientFrom: isDarkMode ? theme.dark.colors.cardBackground : theme.colors.surface,
+    backgroundGradientTo: isDarkMode ? theme.dark.colors.cardBackground : theme.colors.surface,
     decimalPlaces: 0,
-    color: (opacity = 1) => `rgba(${isDarkMode ? '255, 255, 255' : '0, 0, 0'}, ${opacity})`,
+    color: (opacity = 1) => `rgba(${color.replace(/[^\d,]/g, '') || '0,0,255'}, ${opacity})`,
     labelColor: (opacity = 1) => isDarkMode ? theme.dark.colors.textSecondary : theme.colors.textSecondary,
     style: {
-      borderRadius: theme.borderRadius.md,
+      borderRadius: 16
     },
     propsForDots: {
-      r: '6',
-      strokeWidth: '2',
-      stroke: color,
-    },
-    barPercentage: 0.6,
+      r: "6",
+      strokeWidth: "2",
+      stroke: color
+    }
   };
-  
+
   return (
-    <View style={[
-      styles.container,
-      isDarkMode && styles.containerDark
-    ]}>
-      <Text style={[styles.title, isDarkMode && styles.titleDark]}>{title}</Text>
-      
-      <BarChart
-        data={chartData}
-        width={screenWidth}
-        height={220}
-        chartConfig={chartConfig}
-        style={styles.chart}
-        yAxisSuffix={unit ? ` ${unit}` : ''}
-        verticalLabelRotation={30}
-        fromZero
-      />
-    </View>
+    <Card 
+      title={title} 
+      style={styles.card}
+      isDarkMode={isDarkMode}
+    >
+      <View style={styles.chartContainer}>
+        {chartType === 'bar' ? (
+          <BarChart
+            data={chartData}
+            width={screenWidth}
+            height={220}
+            yAxisLabel=""
+            yAxisSuffix={` ${unit}`}
+            chartConfig={chartConfig}
+            style={styles.chart}
+            showValuesOnTopOfBars
+            fromZero
+          />
+        ) : (
+          <LineChart
+            data={chartData}
+            width={screenWidth}
+            height={220}
+            yAxisLabel=""
+            yAxisSuffix={` ${unit}`}
+            chartConfig={chartConfig}
+            style={styles.chart}
+            bezier
+          />
+        )}
+      </View>
+    </Card>
   );
 };
 
 const styles = StyleSheet.create({
-  container: {
-    backgroundColor: theme.colors.cardBackground,
-    borderRadius: theme.borderRadius.md,
-    padding: theme.spacing.md,
-    marginBottom: theme.spacing.md,
-    ...Platform.select({
-      ios: theme.shadows.ios.sm,
-      android: theme.shadows.android.sm,
-      default: {
-        elevation: 2,
-      },
-    }),
-  },
-  containerDark: {
-    backgroundColor: theme.dark.colors.cardBackground,
-  },
-  title: {
-    fontSize: theme.typography.fontSize.lg,
-    fontWeight: 'bold',
-    color: theme.colors.textPrimary,
+  card: {
     marginBottom: theme.spacing.md,
   },
-  titleDark: {
-    color: theme.dark.colors.textPrimary,
+  chartContainer: {
+    alignItems: 'center',
+    paddingTop: theme.spacing.sm,
   },
   chart: {
     marginVertical: theme.spacing.sm,

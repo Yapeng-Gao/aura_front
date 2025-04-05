@@ -1,6 +1,7 @@
 import { NavigatorScreenParams } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { RouteProp } from '@react-navigation/native';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 
 // 根导航栈参数
 export type RootStackParamList = {
@@ -25,6 +26,16 @@ export type RootStackParamList = {
     RoomDetail: { roomId: string };
     AddRoom: undefined;
     DeviceSettings: { deviceId: string };
+    Home: undefined;
+    Analytics: undefined;
+    AIAssistant: undefined;
+    AISettings: undefined;
+    Calendar: undefined;
+    DeviceManagement: undefined;
+    EventDetail: { eventId: string };
+    ScheduleEvent: undefined;
+    TaskList: undefined;
+    SmartHome: undefined;
 };
 
 // 认证导航栈参数
@@ -79,13 +90,26 @@ export type CreativeStackParamList = {
     CreativeEditor: { id?: string };
 };
 
+// 助手导航参数
+export type AssistantStackParamList = {
+  AssistantHome: undefined;
+  AIAssistant: undefined;
+  AISettings: undefined;
+  MeetingAssistant: undefined;
+  WritingAssistant: undefined;
+  CodeAssistant: undefined;
+  ImageAssistant: undefined;
+  VoiceAssistant: undefined;
+};
+
 // 所有可能的路由名称
 export type RouteName = keyof RootStackParamList |
     keyof AuthStackParamList |
     keyof MainTabParamList |
     keyof SchedulerStackParamList |
     keyof IoTStackParamList |
-    keyof CreativeStackParamList;
+    keyof CreativeStackParamList |
+    keyof AssistantStackParamList;
 
 // 导航道具类型
 export type IoTNavigationProp<T extends keyof IoTStackParamList> = StackNavigationProp<IoTStackParamList, T>;
@@ -98,3 +122,8 @@ export interface IoTScreenProps<T extends keyof IoTStackParamList> {
   navigation: IoTNavigationProp<T>;
   route: IoTRouteProp<T>;
 }
+
+// AI助手导航类型
+export type AIAssistantScreenNavigationProp = NativeStackNavigationProp<AssistantStackParamList, 'AIAssistant'>;
+
+export type HomeScreenNavigationProp = StackNavigationProp<RootStackParamList, 'Home'>;

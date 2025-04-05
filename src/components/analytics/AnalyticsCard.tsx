@@ -51,7 +51,7 @@ const AnalyticsCard: React.FC<AnalyticsCardProps> = ({
     
     return (
       <View style={styles.trendContainer}>
-        <Ionicons name={iconName} size={16} color={iconColor} />
+        <Ionicons name={iconName as any} size={16} color={iconColor} />
         {percentage !== undefined && (
           <Text style={[styles.percentage, { color: iconColor }]}>
             {percentage}%
@@ -72,7 +72,7 @@ const AnalyticsCard: React.FC<AnalyticsCardProps> = ({
           {title}
         </Text>
         <View style={[styles.iconContainer, { backgroundColor: color + '20' }]}>
-          <Ionicons name={icon} size={20} color={color} />
+          <Ionicons name={icon as any} size={20} color={color} />
         </View>
       </View>
       
@@ -103,13 +103,9 @@ const styles = StyleSheet.create({
     borderRadius: theme.borderRadius.md,
     padding: theme.spacing.md,
     marginBottom: theme.spacing.md,
-    ...Platform.select({
-      ios: theme.shadows.ios.sm,
-      android: theme.shadows.android.sm,
-      default: {
-        elevation: 2,
-      },
-    }),
+    ...(Platform.OS === 'ios' ? theme.shadows.ios.sm :
+       Platform.OS === 'android' ? theme.shadows.android.sm :
+       { elevation: 2 }),
   },
   containerDark: {
     backgroundColor: theme.dark.colors.cardBackground,
@@ -163,4 +159,4 @@ const styles = StyleSheet.create({
   },
 });
 
-export default AnalyticsCard; 
+export default AnalyticsCard;

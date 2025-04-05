@@ -7,7 +7,7 @@ interface InsightItem {
   id: string;
   title: string;
   description: string;
-  icon: keyof typeof Ionicons.glyphMap;
+  icon: string;
   color?: string;
 }
 
@@ -46,7 +46,7 @@ const AnalyticsInsightCard: React.FC<AnalyticsInsightCardProps> = ({
             ]}
           >
             <Ionicons 
-              name={insight.icon} 
+              name={insight.icon as any} 
               size={20} 
               color={insight.color || theme.colors.primary} 
             />
@@ -72,13 +72,9 @@ const styles = StyleSheet.create({
     borderRadius: theme.borderRadius.md,
     padding: theme.spacing.md,
     marginBottom: theme.spacing.md,
-    ...Platform.select({
-      ios: theme.shadows.ios.sm,
-      android: theme.shadows.android.sm,
-      default: {
-        elevation: 2,
-      },
-    }),
+    ...(Platform.OS === 'ios' ? theme.shadows.ios.sm :
+       Platform.OS === 'android' ? theme.shadows.android.sm :
+       { elevation: 2 }),
   },
   containerDark: {
     backgroundColor: theme.dark.colors.cardBackground,
@@ -127,5 +123,4 @@ const styles = StyleSheet.create({
   },
 });
 
-export default AnalyticsInsightCard; 
- 
+export default AnalyticsInsightCard;
