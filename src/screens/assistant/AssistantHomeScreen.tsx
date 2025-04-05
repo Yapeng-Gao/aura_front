@@ -57,18 +57,10 @@ const AssistantHomeScreen: React.FC = () => {
     navigation.navigate(screen as never);
   };
 
-  const handleSettingsPress = () => {
-    navigation.navigate('AISettings' as never);
-  };
-
   return (
     <ScreenContainer
       title="智能助手"
       backgroundColor={theme.colors.background}
-      rightButton={{
-        icon: 'settings',
-        onPress: handleSettingsPress,
-      }}
     >
       <ScrollView style={styles.container}>
         <Card title="选择助手" style={styles.card}>

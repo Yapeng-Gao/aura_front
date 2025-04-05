@@ -1,7 +1,13 @@
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import NetInfo from '@react-native-community/netinfo';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import apiService from './api';
+import apiService, { OfflineApiService } from './api';
+
+// 在apiService中声明offline属性
+declare module './api' {
+  interface ApiService {
+    offline: typeof offlineApiService;
+  }
+}
 
 // 定义离线队列项类型
 interface QueueItem {
@@ -26,8 +32,25 @@ interface SyncContextType {
 // 创建同步上下文
 const SyncContext = createContext<SyncContextType | undefined>(undefined);
 
-// 同步提供者组件
-export const SyncProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
+// 简单的网络连接检查函数
+const checkNetworkConnection = async (): Promise<boolean> => {
+  try {
+    // 发送一个简单的GET请求到API服务器检查连接
+    await fetch(`${apiService.api.defaults.baseURL}/ping`, { 
+      method: 'GET',
+      headers: { 'Content-Type': 'application/json' },
+      // 短超时，避免长时间等待
+      signal: AbortSignal.timeout(3000)
+    });
+    return true;
+  } catch (error) {
+    console.log('Network connection check failed:', error);
+    return false;
+  }
+};
+
+// 同步提供者函数组件
+export function SyncProvider({ children }: { children: ReactNode }) {
   const [isOnline, setIsOnline] = useState(true);
   const [isSyncing, setIsSyncing] = useState(false);
   const [lastSyncTime, setLastSyncTime] = useState<Date | null>(null);
@@ -49,19 +72,40 @@ export const SyncProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     loadQueue();
   }, []);
   
-  // 监听网络状态变化
+  // 周期性检查网络状态
   useEffect(() => {
-    const unsubscribe = NetInfo.addEventListener(state => {
-      const online = state.isConnected ?? false;
+    const checkNetwork = async () => {
+      const online = await checkNetworkConnection();
       setIsOnline(online);
       
       // 当网络恢复时，尝试同步
       if (online && !isSyncing && queue.length > 0) {
         syncNow();
       }
-    });
+    };
     
-    return () => unsubscribe();
+    // 初始检查
+    checkNetwork();
+    
+    // 设置定期检查
+    const intervalId = setInterval(checkNetwork, 30000); // 每30秒检查一次
+    
+    // 在用户回到应用时检查
+    const handleAppStateChange = () => {
+      checkNetwork();
+    };
+    
+    // 注册事件监听
+    if (typeof document !== 'undefined') {
+      document.addEventListener('visibilitychange', handleAppStateChange);
+    }
+    
+    return () => {
+      clearInterval(intervalId);
+      if (typeof document !== 'undefined') {
+        document.removeEventListener('visibilitychange', handleAppStateChange);
+      }
+    };
   }, [queue, isSyncing]);
   
   // 保存队列到AsyncStorage
@@ -111,6 +155,13 @@ export const SyncProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     setIsSyncing(true);
     
     try {
+      // 再次检查网络连接
+      const online = await checkNetworkConnection();
+      if (!online) {
+        setIsOnline(false);
+        return;
+      }
+      
       // 按时间戳排序队列
       const sortedQueue = [...queue].sort((a, b) => a.timestamp - b.timestamp);
       
@@ -134,10 +185,15 @@ export const SyncProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
           
           // 成功后从队列中移除
           await removeFromQueue(item.id);
-        } catch (error) {
+        } catch (error: any) { // 显式类型标注为any
           console.error(`Failed to sync item ${item.id}:`, error);
-          // 如果是网络错误，停止同步
-          if (!navigator.onLine) {
+          // 检查是否为网络错误
+          const isNetworkError = 
+            (typeof navigator !== 'undefined' && !navigator.onLine) || 
+            (error.message && typeof error.message === 'string' && error.message.includes('network'));
+          
+          if (isNetworkError) {
+            setIsOnline(false);
             break;
           }
           // 其他错误继续处理下一个
@@ -164,12 +220,15 @@ export const SyncProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     removeFromQueue,
   };
   
-  return (
-    <SyncContext.Provider value={contextValue}>
-      {children}
-    </SyncContext.Provider>
-  );
-};
+  // 返回SyncContext.Provider，确保使用JSX原生语法，而不是条件判断
+  return {
+    type: SyncContext.Provider,
+    props: {
+      value: contextValue,
+      children: children
+    }
+  };
+}
 
 // 使用同步上下文的钩子
 export const useSync = (): SyncContextType => {
@@ -180,78 +239,63 @@ export const useSync = (): SyncContextType => {
   return context;
 };
 
-// 扩展API服务以支持离线操作
-const apiService = {
-  // 原始API服务
-  ...apiService,
-  
-  // 自定义方法，用于直接访问API
-  custom: {
-    get: (endpoint: string) => apiService.api.get(endpoint),
-    post: (endpoint: string, data?: any) => apiService.api.post(endpoint, data),
-    put: (endpoint: string, data?: any) => apiService.api.put(endpoint, data),
-    delete: (endpoint: string) => apiService.api.delete(endpoint),
+// 离线API模块 - 使用统一的apiService
+export const offlineApiService: OfflineApiService = {
+  // 使用方法：offlineApiService.get('/endpoint', { offlineEnabled: true })
+  get: async <T>(endpoint: string, options?: { offlineEnabled?: boolean }): Promise<T | undefined> => {
+    const { isOnline, addToQueue } = useSync();
+    
+    if (isOnline) {
+      return apiService.custom.get<T>(endpoint);
+    } else if (options?.offlineEnabled) {
+      await addToQueue(endpoint, 'GET');
+      throw new Error('操作已加入离线队列，将在网络恢复后执行');
+    } else {
+      throw new Error('网络连接不可用');
+    }
   },
   
-  // 离线支持的API方法
-  offline: {
-    // 使用方法：apiService.offline.post('/endpoint', data, { offlineEnabled: true })
-    get: async (endpoint: string, options?: { offlineEnabled?: boolean }) => {
-      const { useSync } = require('./sync');
-      const { isOnline, addToQueue } = useSync();
-      
-      if (isOnline) {
-        return apiService.custom.get(endpoint);
-      } else if (options?.offlineEnabled) {
-        await addToQueue(endpoint, 'GET');
-        throw new Error('操作已加入离线队列，将在网络恢复后执行');
-      } else {
-        throw new Error('网络连接不可用');
-      }
-    },
+  post: async <T>(endpoint: string, data?: any, options?: { offlineEnabled?: boolean }): Promise<T | undefined> => {
+    const { isOnline, addToQueue } = useSync();
     
-    post: async (endpoint: string, data?: any, options?: { offlineEnabled?: boolean }) => {
-      const { useSync } = require('./sync');
-      const { isOnline, addToQueue } = useSync();
-      
-      if (isOnline) {
-        return apiService.custom.post(endpoint, data);
-      } else if (options?.offlineEnabled) {
-        await addToQueue(endpoint, 'POST', data);
-        throw new Error('操作已加入离线队列，将在网络恢复后执行');
-      } else {
-        throw new Error('网络连接不可用');
-      }
-    },
-    
-    put: async (endpoint: string, data?: any, options?: { offlineEnabled?: boolean }) => {
-      const { useSync } = require('./sync');
-      const { isOnline, addToQueue } = useSync();
-      
-      if (isOnline) {
-        return apiService.custom.put(endpoint, data);
-      } else if (options?.offlineEnabled) {
-        await addToQueue(endpoint, 'PUT', data);
-        throw new Error('操作已加入离线队列，将在网络恢复后执行');
-      } else {
-        throw new Error('网络连接不可用');
-      }
-    },
-    
-    delete: async (endpoint: string, options?: { offlineEnabled?: boolean }) => {
-      const { useSync } = require('./sync');
-      const { isOnline, addToQueue } = useSync();
-      
-      if (isOnline) {
-        return apiService.custom.delete(endpoint);
-      } else if (options?.offlineEnabled) {
-        await addToQueue(endpoint, 'DELETE');
-        throw new Error('操作已加入离线队列，将在网络恢复后执行');
-      } else {
-        throw new Error('网络连接不可用');
-      }
-    },
+    if (isOnline) {
+      return apiService.custom.post<T>(endpoint, data);
+    } else if (options?.offlineEnabled) {
+      await addToQueue(endpoint, 'POST', data);
+      throw new Error('操作已加入离线队列，将在网络恢复后执行');
+    } else {
+      throw new Error('网络连接不可用');
+    }
   },
+  
+  put: async <T>(endpoint: string, data?: any, options?: { offlineEnabled?: boolean }): Promise<T | undefined> => {
+    const { isOnline, addToQueue } = useSync();
+    
+    if (isOnline) {
+      return apiService.custom.put<T>(endpoint, data);
+    } else if (options?.offlineEnabled) {
+      await addToQueue(endpoint, 'PUT', data);
+      throw new Error('操作已加入离线队列，将在网络恢复后执行');
+    } else {
+      throw new Error('网络连接不可用');
+    }
+  },
+  
+  delete: async <T>(endpoint: string, options?: { offlineEnabled?: boolean }): Promise<T | undefined> => {
+    const { isOnline, addToQueue } = useSync();
+    
+    if (isOnline) {
+      return apiService.custom.delete<T>(endpoint);
+    } else if (options?.offlineEnabled) {
+      await addToQueue(endpoint, 'DELETE');
+      throw new Error('操作已加入离线队列，将在网络恢复后执行');
+    } else {
+      throw new Error('网络连接不可用');
+    }
+  }
 };
+
+// 将离线API功能添加到apiService
+apiService.offline = offlineApiService;
 
 export default apiService;
