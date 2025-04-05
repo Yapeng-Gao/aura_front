@@ -1,728 +1,625 @@
-import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image } from 'react-native';
+import React, { useState, useCallback } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, FlatList, ScrollView, ActivityIndicator, Alert, RefreshControl } from 'react-native';
+import { useFocusEffect } from '@react-navigation/native';
+import { useTranslation } from 'react-i18next';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import Icon from 'react-native-vector-icons/Ionicons';
+import { useNavigation } from '@react-navigation/native';
+import useDarkMode from '../../hooks/useDarkMode';
+import theme from '../../theme';
 import ScreenContainer from '../../components/common/ScreenContainer';
-import Card from '../../components/common/Card';
-import Button from '../../components/common/Button';
-import { Platform } from 'react-native'; // 确保导入 Platform
-import theme from '../../theme'; // 确保导入 theme
+import RoomCard from '../../components/iot/RoomCard';
+import DeviceCard from '../../components/iot/DeviceCard';
+import SceneButton from '../../components/iot/SceneButton';
+import EmptyState from '../../components/common/EmptyState';
+import apiService from '../../services/api';
+import { IoTNavigationProp } from '../../types/navigation';
 
-// 房间类型定义
-interface Room {
-  id: string;
-  name: string;
-  devices: Device[];
-}
-
-// 设备类型定义
-interface Device {
-  id: string;
-  name: string;
-  type: 'light' | 'thermostat' | 'lock' | 'camera' | 'speaker' | 'curtain' | 'tv' | 'other';
-  status: 'on' | 'off' | 'locked' | 'unlocked' | string;
-  value?: number;
-  isConnected: boolean;
-}
-
-// 场景类型定义
-interface Scene {
-  id: string;
-  name: string;
-  icon: string;
-  devices: {
-    deviceId: string;
-    action: string;
-    value?: number;
-  }[];
-  isActive: boolean;
-}
+// 导航类型定义
+type SmartHomeNavigationProp = IoTNavigationProp<'SmartHome'>;
 
 const SmartHomeScreen: React.FC = () => {
-  // 房间状态
-  const [rooms, setRooms] = useState<Room[]>([
-    {
-      id: '1',
-      name: '客厅',
-      devices: [
-        { id: '101', name: '主灯', type: 'light', status: 'on', isConnected: true },
-        { id: '102', name: '电视', type: 'tv', status: 'off', isConnected: true },
-        { id: '103', name: '空调', type: 'thermostat', status: 'on', value: 24, isConnected: true },
-        { id: '104', name: '窗帘', type: 'curtain', status: 'closed', isConnected: true },
-        { id: '105', name: '智能音箱', type: 'speaker', status: 'off', isConnected: true },
-      ],
-    },
-    {
-      id: '2',
-      name: '卧室',
-      devices: [
-        { id: '201', name: '床头灯', type: 'light', status: 'off', isConnected: true },
-        { id: '202', name: '空调', type: 'thermostat', status: 'off', value: 22, isConnected: true },
-        { id: '203', name: '窗帘', type: 'curtain', status: 'open', isConnected: true },
-      ],
-    },
-    {
-      id: '3',
-      name: '厨房',
-      devices: [
-        { id: '301', name: '吊灯', type: 'light', status: 'off', isConnected: true },
-        { id: '302', name: '冰箱', type: 'other', status: 'on', isConnected: true },
-      ],
-    },
-    {
-      id: '4',
-      name: '门厅',
-      devices: [
-        { id: '401', name: '门锁', type: 'lock', status: 'locked', isConnected: true },
-        { id: '402', name: '监控摄像头', type: 'camera', status: 'on', isConnected: true },
-      ],
-    },
-  ]);
-  
-  // 场景状态
-  const [scenes, setScenes] = useState<Scene[]>([
-    {
-      id: '1',
-      name: '回家模式',
-      icon: '🏠',
-      devices: [
-        { deviceId: '101', action: 'on' },
-        { deviceId: '103', action: 'on', value: 24 },
-        { deviceId: '104', action: 'open' },
-      ],
-      isActive: false,
-    },
-    {
-      id: '2',
-      name: '离家模式',
-      icon: '🚶',
-      devices: [
-        { deviceId: '101', action: 'off' },
-        { deviceId: '102', action: 'off' },
-        { deviceId: '103', action: 'off' },
-        { deviceId: '104', action: 'closed' },
-        { deviceId: '105', action: 'off' },
-        { deviceId: '401', action: 'locked' },
-        { deviceId: '402', action: 'on' },
-      ],
-      isActive: false,
-    },
-    {
-      id: '3',
-      name: '睡眠模式',
-      icon: '🌙',
-      devices: [
-        { deviceId: '101', action: 'off' },
-        { deviceId: '102', action: 'off' },
-        { deviceId: '103', action: 'on', value: 22 },
-        { deviceId: '104', action: 'closed' },
-        { deviceId: '201', action: 'off' },
-        { deviceId: '202', action: 'on', value: 22 },
-        { deviceId: '203', action: 'closed' },
-        { deviceId: '401', action: 'locked' },
-      ],
-      isActive: false,
-    },
-    {
-      id: '4',
-      name: '影院模式',
-      icon: '🎬',
-      devices: [
-        { deviceId: '101', action: 'off' },
-        { deviceId: '102', action: 'on' },
-        { deviceId: '104', action: 'closed' },
-        { deviceId: '105', action: 'on' },
-      ],
-      isActive: false,
-    },
-  ]);
-  
-  // 当前选中的房间
-  const [selectedRoom, setSelectedRoom] = useState<Room | null>(rooms[0]);
-  
-  // 切换设备状态
-  const toggleDeviceStatus = (deviceId: string) => {
-    setRooms(rooms.map(room => {
-      const updatedDevices = room.devices.map(device => {
-        if (device.id === deviceId) {
-          let newStatus: string;
-          
-          switch (device.type) {
-            case 'light':
-            case 'tv':
-            case 'speaker':
-              newStatus = device.status === 'on' ? 'off' : 'on';
-              break;
-            case 'lock':
-              newStatus = device.status === 'locked' ? 'unlocked' : 'locked';
-              break;
-            case 'curtain':
-              newStatus = device.status === 'open' ? 'closed' : 'open';
-              break;
-            default:
-              newStatus = device.status;
-          }
-          
-          return { ...device, status: newStatus };
-        }
-        return device;
-      });
-      
-      return { ...room, devices: updatedDevices };
-    }));
-  };
-  
-  // 调整设备值
-  const adjustDeviceValue = (deviceId: string, newValue: number) => {
-    setRooms(rooms.map(room => {
-      const updatedDevices = room.devices.map(device => {
-        if (device.id === deviceId) {
-          return { ...device, value: newValue };
-        }
-        return device;
-      });
-      
-      return { ...room, devices: updatedDevices };
-    }));
-  };
-  
-  // 激活场景
-  const activateScene = (sceneId: string) => {
-    // 更新场景状态
-    setScenes(scenes.map(scene => ({
-      ...scene,
-      isActive: scene.id === sceneId,
-    })));
-    
-    // 获取要激活的场景
-    const targetScene = scenes.find(scene => scene.id === sceneId);
-    
-    if (targetScene) {
-      // 应用场景设置到设备
-      setRooms(rooms.map(room => {
-        const updatedDevices = room.devices.map(device => {
-          const deviceAction = targetScene.devices.find(d => d.deviceId === device.id);
-          
-          if (deviceAction) {
-            return {
-              ...device,
-              status: deviceAction.action,
-              ...(deviceAction.value !== undefined && { value: deviceAction.value }),
-            };
-          }
-          
-          return device;
-        });
+  // 使用导航
+  const navigation = useNavigation<SmartHomeNavigationProp>();
+  const { t } = useTranslation();
+  const insets = useSafeAreaInsets();
+  const isDarkMode = useDarkMode();
+
+  // 状态定义
+  const [rooms, setRooms] = useState<any[]>([]);
+  const [devices, setDevices] = useState<any[]>([]);
+  const [scenes, setScenes] = useState<any[]>([]);
+  const [selectedRoom, setSelectedRoom] = useState<string | null>(null);
+  const [isLoadingRooms, setIsLoadingRooms] = useState(true);
+  const [isLoadingDevices, setIsLoadingDevices] = useState(true);
+  const [isLoadingScenes, setIsLoadingScenes] = useState(true);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [executingSceneId, setExecutingSceneId] = useState<string | null>(null);
+
+  // 获取房间数据
+  const loadRooms = useCallback(async () => {
+    try {
+      const roomsData = await apiService.iot.getRooms();
+      if (roomsData) {
+        setRooms(roomsData);
         
-        return { ...room, devices: updatedDevices };
-      }));
+        // 如果有房间，默认选择第一个
+        if (roomsData.length > 0 && !selectedRoom) {
+          setSelectedRoom(roomsData[0].room_id);
+        }
+      }
+      
+      setIsLoadingRooms(false);
+      setIsRefreshing(false);
+    } catch (error) {
+      console.error('获取房间失败:', error);
+      setIsLoadingRooms(false);
+      setIsRefreshing(false);
+      Alert.alert(
+        t('common.error'),
+        t('iot.rooms.loadError'),
+        [{ text: t('common.confirm') }]
+      );
+    }
+  }, [selectedRoom, t]);
+
+  // 获取设备数据
+  const loadDevices = useCallback(async () => {
+    try {
+      const devicesData = await apiService.iot.getDevices();
+      if (devicesData) {
+        setDevices(devicesData);
+      }
+      setIsLoadingDevices(false);
+      setIsRefreshing(false);
+    } catch (error) {
+      console.error('获取设备失败:', error);
+      setIsLoadingDevices(false);
+      setIsRefreshing(false);
+      Alert.alert(
+        t('common.error'),
+        t('iot.devices.loadError'),
+        [{ text: t('common.confirm') }]
+      );
+    }
+  }, [t]);
+
+  // 获取场景数据
+  const loadScenes = useCallback(async () => {
+    try {
+      const scenesData = await apiService.iot.getScenes();
+      if (scenesData) {
+        setScenes(scenesData);
+      }
+      setIsLoadingScenes(false);
+      setIsRefreshing(false);
+    } catch (error) {
+      console.error('获取场景失败:', error);
+      setIsLoadingScenes(false);
+      setIsRefreshing(false);
+      Alert.alert(
+        t('common.error'),
+        t('iot.scenes.loadError'),
+        [{ text: t('common.confirm') }]
+      );
+    }
+  }, [t]);
+
+  // 记录用户访问页面活动
+  const recordPageVisit = useCallback(async () => {
+    try {
+      await apiService.analytics.recordActivity({
+        activity_type: '页面访问',
+        module: 'iot',
+        action: 'view',
+        resource_type: 'screen',
+        resource_id: 'smart_home',
+        details: {
+          screen: 'SmartHomeScreen'
+        }
+      });
+    } catch (error) {
+      console.error('记录活动失败:', error);
+    }
+  }, []);
+
+  // 首次加载和页面聚焦时获取数据
+  useFocusEffect(
+    useCallback(() => {
+      loadRooms();
+      loadDevices();
+      loadScenes();
+      recordPageVisit();
+    }, [loadRooms, loadDevices, loadScenes, recordPageVisit])
+  );
+
+  // 下拉刷新
+  const handleRefresh = () => {
+    setIsRefreshing(true);
+    loadRooms();
+    loadDevices();
+    loadScenes();
+  };
+
+  // 切换设备的电源状态
+  const toggleDevicePower = async (deviceId: string, currentPower: string) => {
+    try {
+      const newPower = currentPower === 'on' ? 'off' : 'on';
+      
+      await apiService.iot.updateDeviceState(deviceId, { power: newPower });
+      
+      // 记录设备控制活动
+      await apiService.analytics.recordActivity({
+        activity_type: '设备控制',
+        module: 'iot',
+        action: 'update_state',
+        resource_type: 'device',
+        resource_id: deviceId,
+        details: {
+          property: 'power',
+          value: newPower
+        }
+      });
+      
+      // 更新本地设备列表状态
+      setDevices(prevDevices => 
+        prevDevices.map(device => 
+          device.device_id === deviceId 
+            ? { ...device, state: { ...device.state, power: newPower } } 
+            : device
+        )
+      );
+    } catch (error) {
+      console.error('更新设备状态失败:', error);
+      Alert.alert(
+        t('common.error'),
+        t('iot.devices.controlError'),
+        [{ text: t('common.confirm') }]
+      );
     }
   };
-  
-  // 获取设备图标
-  const getDeviceIcon = (type: string, status: string) => {
-    switch (type) {
-      case 'light':
-        return status === 'on' ? '💡' : '🔦';
-      case 'thermostat':
-        return status === 'on' ? '🌡️' : '❄️';
-      case 'lock':
-        return status === 'locked' ? '🔒' : '🔓';
-      case 'camera':
-        return status === 'on' ? '📹' : '📷';
-      case 'speaker':
-        return status === 'on' ? '🔊' : '🔈';
-      case 'curtain':
-        return status === 'open' ? '🪟' : '🎦';
-      case 'tv':
-        return status === 'on' ? '📺' : '📴';
-      default:
-        return '📱';
+
+  // 执行场景
+  const executeScene = async (sceneId: string) => {
+    try {
+      setExecutingSceneId(sceneId);
+      await apiService.iot.executeScene(sceneId);
+      
+      // 记录场景执行活动
+      await apiService.analytics.recordActivity({
+        activity_type: '场景执行',
+        module: 'iot',
+        action: 'execute',
+        resource_type: 'scene',
+        resource_id: sceneId
+      });
+      
+      // 执行成功，更新设备状态
+      loadDevices();
+      
+      // 3秒后重置执行状态
+      setTimeout(() => {
+        setExecutingSceneId(null);
+      }, 3000);
+    } catch (error) {
+      console.error('执行场景失败:', error);
+      setExecutingSceneId(null);
+      Alert.alert(
+        t('common.error'),
+        t('iot.scenes.executeError'),
+        [{ text: t('common.confirm') }]
+      );
     }
   };
-  
-  // 获取设备状态文本
-  const getDeviceStatusText = (device: Device) => {
-    switch (device.type) {
-      case 'light':
-      case 'tv':
-      case 'speaker':
-      case 'camera':
-        return device.status === 'on' ? '开启' : '关闭';
-      case 'lock':
-        return device.status === 'locked' ? '已锁定' : '已解锁';
-      case 'curtain':
-        return device.status === 'open' ? '已打开' : '已关闭';
-      case 'thermostat':
-        return device.status === 'on' ? `${device.value}°C` : '关闭';
-      default:
-        return device.status;
-    }
+
+  // 获取当前房间的设备
+  const getCurrentRoomDevices = () => {
+    if (!selectedRoom) return [];
+    return devices.filter(device => device.room === selectedRoom);
   };
-  
-  // 渲染房间选择器
-  const renderRoomSelector = () => {
+
+  // 处理选择房间
+  const handleRoomSelect = (roomId: string) => {
+    setSelectedRoom(roomId);
+  };
+
+  // 渲染房间列表
+  const renderRooms = () => {
+    if (isLoadingRooms) {
+      return (
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator 
+            size="large" 
+            color={isDarkMode ? theme.dark.colors.primary : theme.colors.primary} 
+          />
+        </View>
+      );
+    }
+
+    if (rooms.length === 0) {
+      return (
+        <EmptyState
+          icon="home-outline"
+          title={t('iot.rooms.empty.title')}
+          message={t('iot.rooms.empty.message')}
+          actionLabel={t('iot.rooms.add')}
+          onAction={() => navigation.navigate('AddRoom')}
+          isDarkMode={isDarkMode}
+        />
+      );
+    }
+
     return (
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        style={styles.roomSelectorContainer}
-        contentContainerStyle={styles.roomSelectorContent}
-      >
-        {rooms.map(room => (
-          <TouchableOpacity
-            key={room.id}
-            style={[
-              styles.roomItem,
-              selectedRoom?.id === room.id && styles.selectedRoomItem
-            ]}
-            onPress={() => setSelectedRoom(room)}
-          >
+      <View style={styles.roomsContainer}>
+        <View style={styles.sectionHeader}>
+          <Text style={[
+            styles.sectionTitle,
+            isDarkMode && { color: theme.dark.colors.textPrimary }
+          ]}>
+            {t('iot.rooms.title')}
+          </Text>
+          <TouchableOpacity onPress={() => navigation.navigate('RoomManagement')}>
             <Text style={[
-              styles.roomName,
-              selectedRoom?.id === room.id && styles.selectedRoomName
+              styles.seeAllText,
+              { color: isDarkMode ? theme.dark.colors.primary : theme.colors.primary }
             ]}>
-              {room.name}
+              {t('common.seeAll')}
             </Text>
           </TouchableOpacity>
-        ))}
-      </ScrollView>
-    );
-  };
-  
-  // 渲染场景控制
-  const renderScenes = () => {
-    return (
-      <Card title="场景" style={styles.scenesCard}>
-        <ScrollView
+        </View>
+        
+        <FlatList
+          data={rooms}
+          keyExtractor={(item) => item.room_id}
           horizontal
           showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.scenesContainer}
+          renderItem={({ item }) => (
+            <View style={{ width: 160, marginRight: 12 }}>
+              <RoomCard
+                room={{
+                  room_id: item.room_id,
+                  name: item.name,
+                  icon: item.icon,
+                  image: item.image,
+                  devices_count: item.devices_count || 0,
+                  active_devices_count: item.active_devices_count || 0
+                }}
+                devices={devices.filter(device => device.room === item.room_id)}
+                onPress={() => handleRoomSelect(item.room_id)}
+                isDarkMode={isDarkMode}
+              />
+            </View>
+          )}
+          style={styles.roomList}
+        />
+      </View>
+    );
+  };
+
+  // 渲染场景列表
+  const renderScenes = () => {
+    if (isLoadingScenes) {
+      return null; // 不显示加载指示器，因为房间列表已经有了
+    }
+
+    if (scenes.length === 0) {
+      return (
+        <View style={styles.emptySceneContainer}>
+          <Text style={[
+            styles.emptySceneText,
+            isDarkMode && { color: theme.dark.colors.textSecondary }
+          ]}>
+            {t('iot.scenes.empty')}
+          </Text>
+          <TouchableOpacity 
+            style={[
+              styles.addSceneButton,
+              { backgroundColor: isDarkMode ? theme.dark.colors.primary : theme.colors.primary }
+            ]}
+            onPress={() => navigation.navigate('AddScene')}
+          >
+            <Icon name="add" size={16} color="#FFFFFF" />
+            <Text style={styles.addSceneButtonText}>
+              {t('iot.scenes.add')}
+            </Text>
+          </TouchableOpacity>
+        </View>
+      );
+    }
+
+    return (
+      <View style={styles.scenesContainer}>
+        <View style={styles.sectionHeader}>
+          <Text style={[
+            styles.sectionTitle,
+            isDarkMode && { color: theme.dark.colors.textPrimary }
+          ]}>
+            {t('iot.scenes.title')}
+          </Text>
+          <TouchableOpacity onPress={() => navigation.navigate('SceneManagement')}>
+            <Text style={[
+              styles.seeAllText,
+              { color: isDarkMode ? theme.dark.colors.primary : theme.colors.primary }
+            ]}>
+              {t('common.seeAll')}
+            </Text>
+          </TouchableOpacity>
+        </View>
+        
+        <ScrollView 
+          horizontal 
+          showsHorizontalScrollIndicator={false}
+          style={styles.sceneList}
         >
           {scenes.map(scene => (
-            <TouchableOpacity
-              key={scene.id}
-              style={[
-                styles.sceneItem,
-                scene.isActive && styles.activeSceneItem
-              ]}
-              onPress={() => activateScene(scene.id)}
-            >
-              <Text style={styles.sceneIcon}>{scene.icon}</Text>
-              <Text style={[
-                styles.sceneName,
-                scene.isActive && styles.activeSceneName
-              ]}>
-                {scene.name}
-              </Text>
-            </TouchableOpacity>
+            <SceneButton
+              key={scene.scene_id}
+              scene={scene}
+              onPress={executeScene}
+              isExecuting={executingSceneId === scene.scene_id}
+              isDarkMode={isDarkMode}
+            />
           ))}
-          
-          <TouchableOpacity style={styles.addSceneItem}>
-            <Text style={styles.addSceneIcon}>+</Text>
-            <Text style={styles.addSceneName}>添加场景</Text>
+          <TouchableOpacity 
+            style={[
+              styles.addSceneButton,
+              { backgroundColor: isDarkMode ? theme.dark.colors.cardBackground : theme.colors.cardBackground }
+            ]}
+            onPress={() => navigation.navigate('AddScene')}
+          >
+            <Icon 
+              name="add" 
+              size={16} 
+              color={isDarkMode ? theme.dark.colors.textPrimary : theme.colors.textPrimary} 
+            />
+            <Text style={[
+              styles.addButtonText,
+              { color: isDarkMode ? theme.dark.colors.textPrimary : theme.colors.textPrimary }
+            ]}>
+              {t('iot.scenes.add')}
+            </Text>
           </TouchableOpacity>
         </ScrollView>
-      </Card>
+      </View>
     );
   };
-  
-  // 渲染设备控制
-  const renderDevices = () => {
-    if (!selectedRoom) return null;
+
+  // 渲染房间设备
+  const renderRoomDevices = () => {
+    if (isLoadingDevices) {
+      return (
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator 
+            size="large" 
+            color={isDarkMode ? theme.dark.colors.primary : theme.colors.primary} 
+          />
+        </View>
+      );
+    }
+
+    const roomDevices = getCurrentRoomDevices();
     
+    if (roomDevices.length === 0) {
+      return (
+        <EmptyState
+          icon="bulb-outline"
+          title={t('iot.devices.empty.title')}
+          message={t('iot.devices.empty.message')}
+          actionLabel={t('iot.devices.add')}
+          onAction={() => navigation.navigate('AddDevice', { roomId: selectedRoom || undefined })}
+          isDarkMode={isDarkMode}
+        />
+      );
+    }
+
+    const selectedRoomData = rooms.find(room => room.room_id === selectedRoom);
+
     return (
-      <Card title={`${selectedRoom.name}设备`} style={styles.devicesCard}>
-        <View style={styles.devicesGrid}>
-          {selectedRoom.devices.map(device => (
-            <TouchableOpacity
-              key={device.id}
-              style={[
-                styles.deviceItem,
-                !device.isConnected && styles.disconnectedDevice
-              ]}
-              onPress={() => toggleDeviceStatus(device.id)}
-              disabled={!device.isConnected}
-            >
-              <Text style={styles.deviceIcon}>
-                {getDeviceIcon(device.type, device.status)}
-              </Text>
-              <Text style={styles.deviceName}>{device.name}</Text>
-              <Text style={[
-                styles.deviceStatus,
-                device.status === 'on' && styles.deviceStatusOn,
-                device.status === 'off' && styles.deviceStatusOff,
-                device.status === 'locked' && styles.deviceStatusLocked,
-                device.status === 'unlocked' && styles.deviceStatusUnlocked,
-              ]}>
-                {getDeviceStatusText(device)}
-              </Text>
-              
-              {device.type === 'thermostat' && device.status === 'on' && (
-                <View style={styles.thermostatControls}>
-                  <TouchableOpacity
-                    style={styles.thermostatButton}
-                    onPress={(e) => {
-                      e.stopPropagation();
-                      if (device.value && device.value > 16) {
-                        adjustDeviceValue(device.id, device.value - 1);
-                      }
-                    }}
-                  >
-                    <Text style={styles.thermostatButtonText}>-</Text>
-                  </TouchableOpacity>
-                  
-                  <Text style={styles.thermostatValue}>{device.value}°C</Text>
-                  
-                  <TouchableOpacity
-                    style={styles.thermostatButton}
-                    onPress={(e) => {
-                      e.stopPropagation();
-                      if (device.value && device.value < 30) {
-                        adjustDeviceValue(device.id, device.value + 1);
-                      }
-                    }}
-                  >
-                    <Text style={styles.thermostatButtonText}>+</Text>
-                  </TouchableOpacity>
-                </View>
-              )}
-            </TouchableOpacity>
-          ))}
-          
-          <TouchableOpacity style={styles.addDeviceItem}>
-            <Text style={styles.addDeviceIcon}>+</Text>
-            <Text style={styles.addDeviceName}>添加设备</Text>
+      <View style={styles.devicesContainer}>
+        <View style={styles.sectionHeader}>
+          <Text style={[
+            styles.sectionTitle,
+            isDarkMode && { color: theme.dark.colors.textPrimary }
+          ]}>
+            {selectedRoomData ? selectedRoomData.name : t('iot.devices.title')}
+          </Text>
+          <TouchableOpacity onPress={() => navigation.navigate('AddDevice', { roomId: selectedRoom || undefined })}>
+            <Text style={[
+              styles.addDeviceText,
+              { color: isDarkMode ? theme.dark.colors.primary : theme.colors.primary }
+            ]}>
+              {t('iot.devices.add')}
+            </Text>
           </TouchableOpacity>
         </View>
-      </Card>
+        
+        {roomDevices.map(device => (
+          <DeviceCard
+            key={device.device_id}
+            device={device}
+            onPress={() => navigation.navigate('DeviceDetail', { deviceId: device.device_id })}
+            onPowerToggle={() => toggleDevicePower(device.device_id, device.state?.power || 'off')}
+            isDarkMode={isDarkMode}
+          />
+        ))}
+      </View>
     );
   };
-  
-  // 渲染快速控制
-  const renderQuickControls = () => {
-    // 获取所有灯光设备
-    const allLights = rooms.flatMap(room => 
-      room.devices.filter(device => device.type === 'light')
-    );
-    
-    // 检查是否所有灯都开启
-    const allLightsOn = allLights.every(light => light.status === 'on');
-    
-    // 获取所有门锁
-    const allLocks = rooms.flatMap(room => 
-      room.devices.filter(device => device.type === 'lock')
-    );
-    
-    // 检查是否所有门锁都锁定
-    const allLocksLocked = allLocks.every(lock => lock.status === 'locked');
-    
+
+  // 添加设备按钮
+  const renderAddDeviceButton = () => {
     return (
-      <Card title="快速控制" style={styles.quickControlsCard}>
-        <View style={styles.quickControlsContainer}>
-          <TouchableOpacity
-            style={styles.quickControlItem}
-            onPress={() => {
-              // 切换所有灯光
-              setRooms(rooms.map(room => ({
-                ...room,
-                devices: room.devices.map(device => 
-                  device.type === 'light' 
-                    ? { ...device, status: allLightsOn ? 'off' : 'on' }
-                    : device
-                )
-              })));
-            }}
-          >
-            <Text style={styles.quickControlIcon}>
-              {allLightsOn ? '💡' : '🔦'}
-            </Text>
-            <Text style={styles.quickControlName}>
-              {allLightsOn ? '关闭所有灯' : '打开所有灯'}
-            </Text>
-          </TouchableOpacity>
-          
-          <TouchableOpacity
-            style={styles.quickControlItem}
-            onPress={() => {
-              // 切换所有门锁
-              setRooms(rooms.map(room => ({
-                ...room,
-                devices: room.devices.map(device => 
-                  device.type === 'lock' 
-                    ? { ...device, status: allLocksLocked ? 'unlocked' : 'locked' }
-                    : device
-                )
-              })));
-            }}
-          >
-            <Text style={styles.quickControlIcon}>
-              {allLocksLocked ? '🔒' : '🔓'}
-            </Text>
-            <Text style={styles.quickControlName}>
-              {allLocksLocked ? '解锁所有门' : '锁定所有门'}
-            </Text>
-          </TouchableOpacity>
-          
-          <TouchableOpacity
-            style={styles.quickControlItem}
-            onPress={() => {
-              // 关闭所有设备
-              setRooms(rooms.map(room => ({
-                ...room,
-                devices: room.devices.map(device => {
-                  if (device.type === 'lock') {
-                    return { ...device, status: 'locked' };
-                  } else if (device.type === 'curtain') {
-                    return { ...device, status: 'closed' };
-                  } else {
-                    return { ...device, status: 'off' };
-                  }
-                })
-              })));
-              
-              // 重置场景状态
-              setScenes(scenes.map(scene => ({
-                ...scene,
-                isActive: false,
-              })));
-            }}
-          >
-            <Text style={styles.quickControlIcon}>⚡</Text>
-            <Text style={styles.quickControlName}>关闭所有设备</Text>
-          </TouchableOpacity>
-        </View>
-      </Card>
+      <TouchableOpacity 
+        style={[
+          styles.addDeviceButton,
+          { backgroundColor: isDarkMode ? theme.dark.colors.primary : theme.colors.primary }
+        ]}
+        onPress={() => navigation.navigate('AddDevice')}
+      >
+        <Icon name="add" size={24} color="#FFFFFF" />
+      </TouchableOpacity>
     );
   };
+
+  // 设置页面右侧按钮
+  const headerRight = () => (
+    <View style={styles.headerRightContainer}>
+      <TouchableOpacity onPress={() => navigation.navigate('Notifications')}>
+        <Icon 
+          name="notifications-outline" 
+          size={24} 
+          color={isDarkMode ? theme.dark.colors.textPrimary : theme.colors.textPrimary} 
+          style={styles.headerIcon}
+        />
+      </TouchableOpacity>
+      <TouchableOpacity onPress={() => navigation.navigate('DeviceSearch')}>
+        <Icon 
+          name="search-outline" 
+          size={24} 
+          color={isDarkMode ? theme.dark.colors.textPrimary : theme.colors.textPrimary} 
+          style={styles.headerIcon}
+        />
+      </TouchableOpacity>
+    </View>
+  );
 
   return (
     <ScreenContainer
-      title="智能家居"
-      backgroundColor={theme.colors.background}
+      title={t('iot.title')}
+      backgroundColor={isDarkMode ? theme.dark.colors.background : theme.colors.background}
+      headerRight={headerRight()}
     >
-      <ScrollView style={styles.container}>
-        {renderRoomSelector()}
+      <ScrollView
+        style={styles.container}
+        contentContainerStyle={[
+          styles.contentContainer,
+          { paddingBottom: insets.bottom + 20 }
+        ]}
+        refreshControl={
+          <RefreshControl
+            refreshing={isRefreshing}
+            onRefresh={handleRefresh}
+            colors={[theme.colors.primary]}
+            tintColor={isDarkMode ? theme.dark.colors.primary : theme.colors.primary}
+          />
+        }
+      >
+        {renderRooms()}
         {renderScenes()}
-        {renderQuickControls()}
-        {renderDevices()}
+        {renderRoomDevices()}
       </ScrollView>
+      
+      {renderAddDeviceButton()}
     </ScreenContainer>
   );
 };
 
 const styles = StyleSheet.create({
-  // --- General Container ---
   container: {
     flex: 1,
   },
-
-  // --- Room Selector ---
-  roomSelectorContainer: {
-    marginVertical: theme.spacing.md, // 上下外边距
+  contentContainer: {
+    padding: 16,
   },
-  roomSelectorContent: {
-    paddingHorizontal: theme.spacing.md, // 水平内边距，让两端有空间
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingVertical: 50,
   },
-  roomItem: {
-    paddingHorizontal: theme.spacing.lg, // 房间项左右内边距
-    paddingVertical: theme.spacing.sm, // 房间项上下内边距
-    backgroundColor: theme.colors.surface, // 背景色
-    borderRadius: theme.borderRadius.md, // 圆角
-    marginRight: theme.spacing.sm, // 右侧外边距，分隔房间项
-  },
-  selectedRoomItem: {
-    backgroundColor: theme.colors.primary, // 选中时的背景色
-  },
-  roomName: {
-    fontSize: theme.typography.fontSize.md, // 字体大小
-    fontWeight: theme.typography.fontWeight.medium, // 字重
-    color: theme.colors.textPrimary, // 默认文字颜色
-  },
-  selectedRoomName: {
-    color: theme.colors.onPrimary, // 选中时的文字颜色 (对比色)
-  },
-
-  // --- Scenes ---
-  scenesCard: {
-    marginHorizontal: theme.spacing.md, // 场景卡片左右外边距
-    marginBottom: theme.spacing.md, // 场景卡片下外边距
+  roomsContainer: {
+    marginBottom: 20,
   },
   scenesContainer: {
-    paddingVertical: theme.spacing.sm, // 场景滚动区域上下内边距
-    paddingHorizontal: theme.spacing.sm, // 场景滚动区域左右内边距（让两端有空间）
+    marginBottom: 20,
   },
-  sceneItem: {
-    alignItems: 'center', // 居中对齐
-    padding: theme.spacing.sm, // 内边距
-    borderRadius: theme.borderRadius.md, // 圆角
-    borderWidth: 1, // 边框宽度
-    borderColor: theme.colors.border, // 边框颜色
-    marginRight: theme.spacing.md, // 右侧外边距
-    minWidth: 80, // 最小宽度
+  devicesContainer: {
+    flex: 1,
   },
-  activeSceneItem: {
-    borderColor: theme.colors.primary, // 激活场景的边框颜色
-    backgroundColor: `${theme.colors.primary}1A`, // 激活场景的背景色 (带透明度)
-  },
-  sceneIcon: {
-    fontSize: 24, // 图标大小
-    marginBottom: theme.spacing.xs, // 图标和文字间距
-  },
-  sceneName: {
-    fontSize: theme.typography.fontSize.sm, // 场景名称字体大小
-    color: theme.colors.textPrimary, // 文字颜色
-  },
-  activeSceneName: {
-    fontWeight: theme.typography.fontWeight.bold, // 激活场景的文字加粗
-    color: theme.colors.primary, // 激活场景的文字颜色
-  },
-  addSceneItem: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: theme.spacing.sm,
-    borderRadius: theme.borderRadius.md,
-    borderWidth: 1,
-    borderColor: theme.colors.border,
-    borderStyle: 'dashed', // 虚线边框
-    minWidth: 80,
-    height: '100%', // 让它和场景项高度一致
-    minHeight: 70, // 保证一个最小高度
-    alignSelf: 'stretch',
-  },
-  addSceneIcon: {
-    fontSize: 24,
-    color: theme.colors.primary,
-    marginBottom: theme.spacing.xs,
-  },
-  addSceneName: {
-    fontSize: theme.typography.fontSize.sm,
-    color: theme.colors.primary,
-  },
-
-  // --- Quick Controls ---
-  quickControlsCard: {
-    marginHorizontal: theme.spacing.md,
-    marginBottom: theme.spacing.md,
-  },
-  quickControlsContainer: {
+  sectionHeader: {
     flexDirection: 'row',
-    justifyContent: 'space-around',
-    paddingVertical: theme.spacing.sm,
-  },
-  quickControlItem: {
+    justifyContent: 'space-between',
     alignItems: 'center',
-    padding: theme.spacing.xs,
+    marginBottom: 12,
   },
-  quickControlIcon: {
-    fontSize: 28,
-    marginBottom: theme.spacing.xs,
-  },
-  quickControlName: {
-    fontSize: theme.typography.fontSize.sm,
-    color: theme.colors.textSecondary,
-    textAlign: 'center',
-  },
-
-  // --- Devices ---
-  devicesCard: {
-    marginHorizontal: theme.spacing.md,
-    marginBottom: theme.spacing.md,
-  },
-  devicesGrid: {
-    flexDirection: 'row', // 水平排列
-    flexWrap: 'wrap', // 自动换行
-    justifyContent: 'space-between', // 两端对齐，中间均匀分布
-    paddingTop: theme.spacing.sm, // 网格顶部内边距
-  },
-  deviceItem: {
-    width: '48%', // 每行大约放2个，留出间隙
-    backgroundColor: theme.colors.surface,
-    borderRadius: theme.borderRadius.lg, // 设备卡片圆角大一些
-    padding: theme.spacing.md,
-    marginBottom: theme.spacing.md,
-    alignItems: 'flex-start', // 内容左对齐
-    ...Platform.select({ // 添加阴影
-      ios: theme.shadows.ios.sm,
-      android: theme.shadows.android.sm,
-    }),
-    minHeight: 110, // 保证最小高度
-  },
-  disconnectedDevice: {
-    opacity: 0.5, // 离线设备降低透明度
-  },
-  deviceIcon: {
-    fontSize: 24,
-    marginBottom: theme.spacing.md, // 图标和名称间距
-  },
-  deviceName: {
-    fontSize: theme.typography.fontSize.md,
-    fontWeight: theme.typography.fontWeight.medium,
-    color: theme.colors.textPrimary,
-    marginBottom: theme.spacing.xs,
-  },
-  deviceStatus: {
-    fontSize: theme.typography.fontSize.sm,
-    color: theme.colors.textSecondary,
-  },
-  deviceStatusOn: {
-    color: theme.colors.success, // 开启状态用成功色
-    fontWeight: theme.typography.fontWeight.medium,
-  },
-  deviceStatusOff: {
-    // 保持默认 textSecondary
-  },
-  deviceStatusLocked: {
-    color: theme.colors.error, // 锁定状态用错误色
-    fontWeight: theme.typography.fontWeight.medium,
-  },
-  deviceStatusUnlocked: {
-    color: theme.colors.success, // 解锁用成功色
-    fontWeight: theme.typography.fontWeight.medium,
-  },
-  thermostatControls: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginTop: theme.spacing.sm,
-  },
-  thermostatButton: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    backgroundColor: theme.colors.background,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginHorizontal: theme.spacing.sm,
-  },
-  thermostatButtonText: {
+  sectionTitle: {
     fontSize: 18,
-    fontWeight: 'bold',
+    fontWeight: '600',
     color: theme.colors.textPrimary,
   },
-  thermostatValue: {
-    fontSize: theme.typography.fontSize.sm,
-    fontWeight: theme.typography.fontWeight.medium,
+  seeAllText: {
+    fontSize: 14,
+    color: theme.colors.primary,
+  },
+  addDeviceText: {
+    fontSize: 14,
+    color: theme.colors.primary,
+  },
+  roomList: {
+    flexGrow: 0,
+  },
+  sceneList: {
+    flexGrow: 0,
+    marginBottom: 8,
+  },
+  addSceneButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 15,
+    paddingVertical: 12,
+    borderRadius: 25,
+    marginRight: 10,
+    backgroundColor: theme.colors.cardBackground,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 1,
+    elevation: 1,
+  },
+  addSceneButtonText: {
+    color: '#FFFFFF',
+    marginLeft: 8,
+    fontSize: 14,
+  },
+  addButtonText: {
+    marginLeft: 8,
+    fontSize: 14,
     color: theme.colors.textPrimary,
   },
-  addDeviceItem: {
-    width: '48%',
-    backgroundColor: theme.colors.surface,
-    borderRadius: theme.borderRadius.lg,
-    padding: theme.spacing.md,
-    marginBottom: theme.spacing.md,
-    alignItems: 'center', // 内容居中
-    justifyContent: 'center', // 内容居中
-    borderWidth: 1,
-    borderColor: theme.colors.border,
-    borderStyle: 'dashed',
-    minHeight: 110,
+  emptySceneContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 20,
+    paddingHorizontal: 16,
   },
-  addDeviceIcon: {
-    fontSize: 28,
-    color: theme.colors.primary,
-    marginBottom: theme.spacing.sm,
+  emptySceneText: {
+    fontSize: 14,
+    color: theme.colors.textSecondary,
   },
-  addDeviceName: {
-    fontSize: theme.typography.fontSize.md,
-    color: theme.colors.primary,
+  addDeviceButton: {
+    position: 'absolute',
+    right: 20,
+    bottom: 20,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: theme.colors.primary,
+    justifyContent: 'center',
+    alignItems: 'center',
+    elevation: 5,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 3,
+  },
+  headerRightContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  headerIcon: {
+    marginLeft: 20,
   },
 });
+
 export default SmartHomeScreen;

@@ -1,4 +1,6 @@
 import { NavigatorScreenParams } from '@react-navigation/native';
+import { StackNavigationProp } from '@react-navigation/stack';
+import { RouteProp } from '@react-navigation/native';
 
 // 根导航栈参数
 export type RootStackParamList = {
@@ -52,18 +54,21 @@ export type SchedulerStackParamList = {
 
 // IoT管理栈参数
 export type IoTStackParamList = {
+    SmartHome: undefined;
     DeviceList: undefined;
     DeviceDetail: { deviceId: string };
-    AddDevice: undefined;
+    AddDevice: { roomId?: string } | undefined;
     EditDevice: { deviceId: string };
-    SceneList: undefined;
+    RoomDetail: { roomId: string };
+    AddRoom: undefined;
+    EditRoom: { roomId: string };
     SceneDetail: { sceneId: string };
     AddScene: undefined;
     EditScene: { sceneId: string };
-    RoomList: undefined;
-    RoomDetail: { roomId: string };
-    AddRoom: undefined;
-    DeviceSettings: { deviceId: string };
+    DeviceSearch: undefined;
+    Notifications: undefined;
+    RoomManagement: undefined;
+    SceneManagement: undefined;
 };
 
 // 创意内容栈参数
@@ -80,3 +85,15 @@ export type RouteName = keyof RootStackParamList |
     keyof SchedulerStackParamList |
     keyof IoTStackParamList |
     keyof CreativeStackParamList;
+
+// 导航道具类型
+export type IoTNavigationProp<T extends keyof IoTStackParamList> = StackNavigationProp<IoTStackParamList, T>;
+
+// 路由道具类型
+export type IoTRouteProp<T extends keyof IoTStackParamList> = RouteProp<IoTStackParamList, T>;
+
+// 导航和路由道具接口
+export interface IoTScreenProps<T extends keyof IoTStackParamList> {
+  navigation: IoTNavigationProp<T>;
+  route: IoTRouteProp<T>;
+}

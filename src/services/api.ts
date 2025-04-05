@@ -4,6 +4,25 @@ import { store } from '../store';
 import { logout } from '../store/slices/authSlice';
 import { API_BASE_URL } from '@env';
 
+// IoT模块相关类型导入
+import {
+  DeviceTypeResponse, DeviceResponse, DeviceCreate, DeviceUpdate,
+  DeviceStateResponse, DeviceStateUpdate, DeviceCommandResponse,
+  SceneResponse, SceneCreate, SceneUpdate, SceneExecutionResponse,
+  DeviceSearchQuery, DeviceSearchResponse, DeviceBatchUpdate,
+  DeviceBatchResponse, DeviceLogQuery, DeviceLogResponse,
+  DeviceDiagnosticResponse, FirmwareUpdateResponse,
+  RoomResponse, RoomCreate, RoomUpdate, RoomStats,
+  DeviceGroupResponse, DeviceGroupDetailResponse, DeviceGroupCreate, DeviceGroupUpdate,
+  DeviceSharingResponse, SharedDeviceResponse, MySharedDeviceResponse,
+  DeviceShareCreate, DeviceSharePermissionsUpdate,
+  DiscoveryParams, DiscoveredDeviceResponse, DiscoveredDeviceAdd,
+  DeviceAuthRequest, DeviceAuthResponse,
+  DeviceTokenRequest, DeviceTokenResponse, DeviceTokenInfo,
+  SceneTemplateResponse, SceneTemplateCreate,
+  DeviceUsageStats, SystemStats, SystemConfigUpdate
+} from '../types/iot';
+
 // Keys for storing tokens in AsyncStorage
 export const AUTH_TOKEN_KEY = 'aura_auth_token';
 export const REFRESH_TOKEN_KEY = 'aura_refresh_token';
@@ -312,6 +331,7 @@ export interface ApiService {
     getUsageStats: (period: string) => Promise<any | undefined>;
     getProductivityStats: (period: string) => Promise<any | undefined>;
     getIoTStats: (period: string) => Promise<any | undefined>;
+    recordActivity: (activityData: any) => Promise<any | undefined>;
   };
   custom: {
     get: <T>(endpoint: string, config?: AxiosRequestConfig) => Promise<T | undefined>;
@@ -415,76 +435,76 @@ const apiService: ApiService = {
   
   // IoT智能家居相关API
   iot: {
-    getDeviceTypes: () => apiClient.get('/iot/device-types'),
-    getDeviceType: (typeId: string) => apiClient.get(`/iot/device-types/${typeId}`),
-    getDevices: () => apiClient.get('/iot/devices'),
-    getDevice: (deviceId: string) => apiClient.get(`/iot/devices/${deviceId}`),
-    addDevice: (deviceData: any) => apiClient.post('/iot/devices', deviceData),
-    updateDevice: (deviceId: string, deviceData: any) => apiClient.patch(`/iot/devices/${deviceId}`, deviceData),
+    getDeviceTypes: () => apiClient.get<DeviceTypeResponse[]>('/iot/device-types'),
+    getDeviceType: (typeId: string) => apiClient.get<DeviceTypeResponse>(`/iot/device-types/${typeId}`),
+    getDevices: () => apiClient.get<DeviceResponse[]>('/iot/devices'),
+    getDevice: (deviceId: string) => apiClient.get<DeviceResponse>(`/iot/devices/${deviceId}`),
+    addDevice: (deviceData: DeviceCreate) => apiClient.post<DeviceResponse>('/iot/devices', deviceData),
+    updateDevice: (deviceId: string, deviceData: DeviceUpdate) => apiClient.patch<DeviceResponse>(`/iot/devices/${deviceId}`, deviceData),
     deleteDevice: (deviceId: string) => apiClient.delete(`/iot/devices/${deviceId}`),
-    getDeviceState: (deviceId: string) => apiClient.get(`/iot/devices/${deviceId}/state`),
-    updateDeviceState: (deviceId: string, stateData: any) => apiClient.patch(`/iot/devices/${deviceId}/state`, stateData),
+    getDeviceState: (deviceId: string) => apiClient.get<DeviceStateResponse>(`/iot/devices/${deviceId}/state`),
+    updateDeviceState: (deviceId: string, stateData: DeviceStateUpdate) => apiClient.patch<DeviceStateResponse>(`/iot/devices/${deviceId}/state`, stateData),
     getDeviceCommandHistory: (deviceId: string, limit?: number) => 
-      apiClient.get(`/iot/devices/${deviceId}/commands`, { params: { limit } }),
-    getScenes: () => apiClient.get('/iot/scenes'),
-    getScene: (sceneId: string) => apiClient.get(`/iot/scenes/${sceneId}`),
-    createScene: (sceneData: any) => apiClient.post('/iot/scenes', sceneData),
-    updateScene: (sceneId: string, sceneData: any) => apiClient.patch(`/iot/scenes/${sceneId}`, sceneData),
+      apiClient.get<DeviceCommandResponse[]>(`/iot/devices/${deviceId}/commands`, { params: { limit } }),
+    getScenes: () => apiClient.get<SceneResponse[]>('/iot/scenes'),
+    getScene: (sceneId: string) => apiClient.get<SceneResponse>(`/iot/scenes/${sceneId}`),
+    createScene: (sceneData: SceneCreate) => apiClient.post<SceneResponse>('/iot/scenes', sceneData),
+    updateScene: (sceneId: string, sceneData: SceneUpdate) => apiClient.patch<SceneResponse>(`/iot/scenes/${sceneId}`, sceneData),
     deleteScene: (sceneId: string) => apiClient.delete(`/iot/scenes/${sceneId}`),
-    executeScene: (sceneId: string) => apiClient.post(`/iot/scenes/${sceneId}/execute`),
+    executeScene: (sceneId: string) => apiClient.post<SceneExecutionResponse>(`/iot/scenes/${sceneId}/execute`),
     getSceneExecutionHistory: (sceneId?: string, limit?: number) => 
-      apiClient.get('/iot/scenes/executions', { params: { scene_id: sceneId, limit } }),
-    searchDevices: (query: any) => apiClient.post('/iot/devices/search', query),
-    batchUpdateDevices: (updateData: any) => apiClient.post('/iot/devices/batch', updateData),
-    getDeviceLogs: (deviceId: string, queryParams: any) => 
-      apiClient.get(`/iot/devices/${deviceId}/logs`, { params: queryParams }),
-    runDeviceDiagnostic: (deviceId: string) => apiClient.post(`/iot/devices/${deviceId}/diagnostic`),
-    checkFirmwareUpdate: (deviceId: string) => apiClient.get(`/iot/devices/${deviceId}/firmware/check`),
+      apiClient.get<SceneExecutionResponse[]>('/iot/scenes/executions', { params: { scene_id: sceneId, limit } }),
+    searchDevices: (query: DeviceSearchQuery) => apiClient.post<DeviceSearchResponse>('/iot/devices/search', query),
+    batchUpdateDevices: (updateData: DeviceBatchUpdate) => apiClient.post<DeviceBatchResponse>('/iot/devices/batch', updateData),
+    getDeviceLogs: (deviceId: string, queryParams: DeviceLogQuery) => 
+      apiClient.get<DeviceLogResponse[]>(`/iot/devices/${deviceId}/logs`, { params: queryParams }),
+    runDeviceDiagnostic: (deviceId: string) => apiClient.post<DeviceDiagnosticResponse>(`/iot/devices/${deviceId}/diagnostic`),
+    checkFirmwareUpdate: (deviceId: string) => apiClient.get<FirmwareUpdateResponse>(`/iot/devices/${deviceId}/firmware/check`),
     startFirmwareUpdate: (deviceId: string, updateId: string) => 
-      apiClient.post(`/iot/devices/${deviceId}/firmware/update/${updateId}`),
-    getRooms: () => apiClient.get('/iot/rooms'),
-    getRoom: (roomId: string) => apiClient.get(`/iot/rooms/${roomId}`),
-    createRoom: (roomData: any) => apiClient.post('/iot/rooms', roomData),
-    updateRoom: (roomId: string, roomData: any) => apiClient.put(`/iot/rooms/${roomId}`, roomData),
+      apiClient.post<FirmwareUpdateResponse>(`/iot/devices/${deviceId}/firmware/update/${updateId}`),
+    getRooms: () => apiClient.get<RoomResponse[]>('/iot/rooms'),
+    getRoom: (roomId: string) => apiClient.get<RoomResponse>(`/iot/rooms/${roomId}`),
+    createRoom: (roomData: RoomCreate) => apiClient.post<RoomResponse>('/iot/rooms', roomData),
+    updateRoom: (roomId: string, roomData: RoomUpdate) => apiClient.put<RoomResponse>(`/iot/rooms/${roomId}`, roomData),
     deleteRoom: (roomId: string) => apiClient.delete(`/iot/rooms/${roomId}`),
-    getRoomStats: (roomId: string) => apiClient.get(`/iot/rooms/${roomId}/stats`),
-    getDeviceGroups: () => apiClient.get('/iot/device-groups'),
-    getDeviceGroup: (groupId: string) => apiClient.get(`/iot/device-groups/${groupId}`),
-    createDeviceGroup: (groupData: any) => apiClient.post('/iot/device-groups', groupData),
-    updateDeviceGroup: (groupId: string, groupData: any) => apiClient.put(`/iot/device-groups/${groupId}`, groupData),
+    getRoomStats: (roomId: string) => apiClient.get<RoomStats>(`/iot/rooms/${roomId}/stats`),
+    getDeviceGroups: () => apiClient.get<DeviceGroupResponse[]>('/iot/device-groups'),
+    getDeviceGroup: (groupId: string) => apiClient.get<DeviceGroupDetailResponse>(`/iot/device-groups/${groupId}`),
+    createDeviceGroup: (groupData: DeviceGroupCreate) => apiClient.post<DeviceGroupResponse>('/iot/device-groups', groupData),
+    updateDeviceGroup: (groupId: string, groupData: DeviceGroupUpdate) => apiClient.put<DeviceGroupResponse>(`/iot/device-groups/${groupId}`, groupData),
     deleteDeviceGroup: (groupId: string) => apiClient.delete(`/iot/device-groups/${groupId}`),
     addDevicesToGroup: (groupId: string, deviceIds: string[]) => 
-      apiClient.post(`/iot/device-groups/${groupId}/devices`, deviceIds),
+      apiClient.post<DeviceGroupResponse>(`/iot/device-groups/${groupId}/devices`, deviceIds),
     removeDeviceFromGroup: (groupId: string, deviceId: string) => 
       apiClient.delete(`/iot/device-groups/${groupId}/devices/${deviceId}`),
-    shareDevice: (deviceId: string, shareData: any) => apiClient.post(`/iot/devices/${deviceId}/share`, shareData),
-    getSharedWithMe: () => apiClient.get('/iot/shared-with-me'),
-    getSharedByMe: () => apiClient.get('/iot/shared-by-me'),
-    acceptDeviceSharing: (shareId: string) => apiClient.post(`/iot/shared-with-me/${shareId}/accept`),
-    rejectDeviceSharing: (shareId: string) => apiClient.post(`/iot/shared-with-me/${shareId}/reject`),
-    revokeDeviceSharing: (shareId: string) => apiClient.delete(`/iot/shared-by-me/${shareId}`),
-    updateSharePermissions: (shareId: string, permissionsData: any) => 
-      apiClient.put(`/iot/shared-by-me/${shareId}/permissions`, permissionsData),
-    getDiscoveryProtocols: () => apiClient.get('/iot/discovery/protocols'),
-    discoverDevices: (discoveryParams: any) => apiClient.post('/iot/discovery/scan', discoveryParams),
+    shareDevice: (deviceId: string, shareData: DeviceShareCreate) => apiClient.post<DeviceSharingResponse>(`/iot/devices/${deviceId}/share`, shareData),
+    getSharedWithMe: () => apiClient.get<SharedDeviceResponse[]>('/iot/shared-with-me'),
+    getSharedByMe: () => apiClient.get<MySharedDeviceResponse[]>('/iot/shared-by-me'),
+    acceptDeviceSharing: (shareId: string) => apiClient.post<SharedDeviceResponse>(`/iot/shared-with-me/${shareId}/accept`),
+    rejectDeviceSharing: (shareId: string) => apiClient.post<void>(`/iot/shared-with-me/${shareId}/reject`),
+    revokeDeviceSharing: (shareId: string) => apiClient.delete<void>(`/iot/shared-by-me/${shareId}`),
+    updateSharePermissions: (shareId: string, permissionsData: DeviceSharePermissionsUpdate) => 
+      apiClient.put<MySharedDeviceResponse>(`/iot/shared-by-me/${shareId}/permissions`, permissionsData),
+    getDiscoveryProtocols: () => apiClient.get<string[]>('/iot/discovery/protocols'),
+    discoverDevices: (discoveryParams: DiscoveryParams) => apiClient.post<DiscoveredDeviceResponse[]>('/iot/discovery/scan', discoveryParams),
     getDiscoveryHistory: (protocol?: string, limit?: number) => 
-      apiClient.get('/iot/discovery/history', { params: { protocol, limit } }),
-    addDiscoveredDevice: (discoveryId: string, deviceData: any) => 
-      apiClient.post(`/iot/discovery/${discoveryId}/add`, deviceData),
-    authenticateDevice: (deviceId: string, authData: any) => 
-      apiClient.post(`/iot/devices/${deviceId}/authenticate`, authData),
-    generateDeviceToken: (deviceId: string, tokenData: any) => 
-      apiClient.post(`/iot/devices/${deviceId}/token`, tokenData),
-    getDeviceTokens: (deviceId: string) => apiClient.get(`/iot/devices/${deviceId}/tokens`),
+      apiClient.get<DiscoveredDeviceResponse[]>('/iot/discovery/history', { params: { protocol, limit } }),
+    addDiscoveredDevice: (discoveryId: string, deviceData: DiscoveredDeviceAdd) => 
+      apiClient.post<DeviceResponse>(`/iot/discovery/${discoveryId}/add`, deviceData),
+    authenticateDevice: (deviceId: string, authData: DeviceAuthRequest) => 
+      apiClient.post<DeviceAuthResponse>(`/iot/devices/${deviceId}/authenticate`, authData),
+    generateDeviceToken: (deviceId: string, tokenData: DeviceTokenRequest) => 
+      apiClient.post<DeviceTokenResponse>(`/iot/devices/${deviceId}/token`, tokenData),
+    getDeviceTokens: (deviceId: string) => apiClient.get<DeviceTokenInfo[]>(`/iot/devices/${deviceId}/tokens`),
     revokeDeviceToken: (deviceId: string, tokenId: string) => 
-      apiClient.delete(`/iot/devices/${deviceId}/tokens/${tokenId}`),
-    createSceneTemplate: (templateData: any) => apiClient.post('/iot/scene-templates', templateData),
+      apiClient.delete<void>(`/iot/devices/${deviceId}/tokens/${tokenId}`),
+    createSceneTemplate: (templateData: SceneTemplateCreate) => apiClient.post<SceneTemplateResponse>('/iot/scene-templates', templateData),
     getSceneTemplates: (category?: string) => 
-      apiClient.get('/iot/scene-templates', { params: { category } }),
-    getDeviceUsageStats: (deviceId: string) => apiClient.get(`/iot/devices/${deviceId}/stats`),
-    getSystemStats: () => apiClient.get('/iot/system/stats'),
-    getSystemConfig: (key: string) => apiClient.get(`/iot/system/config/${key}`),
-    updateSystemConfig: (key: string, configData: any) => apiClient.put(`/iot/system/config/${key}`, configData),
+      apiClient.get<SceneTemplateResponse[]>('/iot/scene-templates', { params: { category } }),
+    getDeviceUsageStats: (deviceId: string) => apiClient.get<DeviceUsageStats>(`/iot/devices/${deviceId}/stats`),
+    getSystemStats: () => apiClient.get<SystemStats>('/iot/system/stats'),
+    getSystemConfig: (key: string) => apiClient.get<any>(`/iot/system/config/${key}`),
+    updateSystemConfig: (key: string, configData: SystemConfigUpdate) => apiClient.put<any>(`/iot/system/config/${key}`, configData),
   },
   
   // 创意服务相关API
@@ -523,6 +543,7 @@ const apiService: ApiService = {
     getProductivityStats: (period: string) => 
       apiClient.get('/analytics/productivity', { params: { period } }),
     getIoTStats: (period: string) => apiClient.get('/analytics/iot', { params: { period } }),
+    recordActivity: (activityData: any) => apiClient.post('/analytics/activity', activityData),
   },
   
   // 自定义API请求

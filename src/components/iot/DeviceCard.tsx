@@ -2,6 +2,7 @@ import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import Icon from 'react-native-vector-icons/Ionicons';
 import theme from '../../theme';
+import { DeviceStateResponse } from '../../types/iot';
 
 interface DeviceCardProps {
   device: {
@@ -24,157 +25,120 @@ interface DeviceCardProps {
   isDarkMode?: boolean;
 }
 
-const DeviceCard: React.FC<DeviceCardProps> = ({ 
-  device, 
-  onPress, 
+const DeviceCard: React.FC<DeviceCardProps> = ({
+  device,
+  onPress,
   onPowerToggle,
   isDarkMode = false
 }) => {
   // 获取设备图标
   const getDeviceIcon = () => {
+    const defaultIcon = 'bulb-outline';
+    
     if (device.icon) return device.icon;
     
-    // 根据设备类型选择默认图标
-    switch (device.type_id) {
-      case 'light':
-        return 'bulb-outline';
-      case 'thermostat':
-        return 'thermometer-outline';
-      case 'lock':
-        return 'lock-closed-outline';
-      case 'camera':
-        return 'videocam-outline';
-      case 'speaker':
-        return 'volume-high-outline';
-      case 'switch':
-        return 'power-outline';
-      default:
-        return 'hardware-chip-outline';
+    const deviceType = device.type_id.toLowerCase();
+    if (deviceType.includes('light')) return 'bulb-outline';
+    if (deviceType.includes('fan')) return 'fan-outline';
+    if (deviceType.includes('ac') || deviceType.includes('air')) return 'thermometer-outline';
+    if (deviceType.includes('tv')) return 'tv-outline';
+    if (deviceType.includes('speaker') || deviceType.includes('audio')) return 'musical-notes-outline';
+    if (deviceType.includes('camera')) return 'videocam-outline';
+    if (deviceType.includes('lock')) return 'lock-closed-outline';
+    if (deviceType.includes('sensor')) return 'analytics-outline';
+    if (deviceType.includes('plug') || deviceType.includes('outlet')) return 'flash-outline';
+    
+    return defaultIcon;
+  };
+  
+  // 获取设备状态样式
+  const getStatusStyles = () => {
+    const isOn = device.state?.power === 'on';
+    const isOnline = device.state?.isOnline !== false; // 默认在线
+    
+    let statusColor = isOnline ? theme.colors.textSecondary : theme.colors.error;
+    let backgroundColor = 'transparent';
+    
+    if (isOnline && isOn) {
+      statusColor = theme.colors.success;
+      backgroundColor = `${theme.colors.success}15`; // 15% 透明度
     }
+    
+    return {
+      statusColor,
+      backgroundColor
+    };
   };
 
-  // 获取在线状态文字
-  const getStatusText = () => {
-    if (!device.state?.isOnline) {
-      return '离线';
-    }
-    
-    return device.state?.power === 'on' ? '开启' : '关闭';
-  };
-  
-  // 获取状态颜色
-  const getStatusColor = () => {
-    if (!device.state?.isOnline) {
-      return theme.colors.textSecondary;
-    }
-    
-    return device.state?.power === 'on' ? theme.colors.success : theme.colors.textSecondary;
-  };
-  
-  // 获取设备详情信息
-  const getDeviceDetails = () => {
-    if (!device.state?.isOnline) return null;
-    
-    const details = [];
-    
-    if (device.state.brightness !== undefined) {
-      details.push(`亮度: ${device.state.brightness}%`);
-    }
-    
-    if (device.state.temperature !== undefined) {
-      details.push(`温度: ${device.state.temperature}°C`);
-    }
-    
-    return details.length > 0 ? details.join(' | ') : null;
-  };
+  const { statusColor, backgroundColor } = getStatusStyles();
 
   return (
-    <TouchableOpacity
+    <TouchableOpacity 
       style={[
         styles.container,
-        isDarkMode && styles.containerDark
-      ]}
+        { backgroundColor: isDarkMode ? theme.dark.colors.cardBackground : theme.colors.cardBackground },
+        { borderColor: isDarkMode ? theme.dark.colors.border : theme.colors.border }
+      ]} 
       onPress={onPress}
       activeOpacity={0.7}
     >
-      {/* 设备图标 */}
-      <View style={[
-        styles.iconContainer,
-        device.state?.power === 'on' && styles.activeIconContainer,
-        isDarkMode && styles.iconContainerDark,
-        isDarkMode && device.state?.power === 'on' && styles.activeIconContainerDark
-      ]}>
-        <Icon 
-          name={getDeviceIcon()} 
-          size={24} 
-          color={
-            device.state?.power === 'on' 
-              ? (isDarkMode ? theme.dark.colors.primary : theme.colors.primary)
-              : (isDarkMode ? theme.dark.colors.textSecondary : theme.colors.textSecondary)
-          } 
+      <View style={[styles.iconContainer, { backgroundColor }]}>
+        <Icon
+          name={getDeviceIcon()}
+          size={24}
+          color={device.state?.power === 'on' ? theme.colors.primary : 
+            (isDarkMode ? theme.dark.colors.textSecondary : theme.colors.textSecondary)}
         />
       </View>
       
-      {/* 设备信息 */}
-      <View style={styles.infoContainer}>
-        <Text style={[
-          styles.deviceName,
-          isDarkMode && styles.textDark
-        ]}>
+      <View style={styles.contentContainer}>
+        <Text 
+          style={[
+            styles.deviceName,
+            isDarkMode && { color: theme.dark.colors.textPrimary }
+          ]}
+          numberOfLines={1}
+        >
           {device.name}
         </Text>
         
         <View style={styles.statusContainer}>
-          <View style={[
-            styles.statusIndicator, 
-            { backgroundColor: getStatusColor() }
-          ]} />
-          
-          <Text style={[
-            styles.statusText,
-            isDarkMode && { color: isDarkMode ? theme.dark.colors.textSecondary : theme.colors.textSecondary }
-          ]}>
-            {getStatusText()}
+          <View style={[styles.statusDot, { backgroundColor: statusColor }]} />
+          <Text 
+            style={[
+              styles.statusText,
+              isDarkMode && { color: theme.dark.colors.textSecondary }
+            ]}
+          >
+            {device.state?.isOnline === false 
+              ? '离线'
+              : device.state?.power === 'on' ? '开启' : '关闭'}
           </Text>
-          
-          {device.room && (
-            <Text style={[
-              styles.roomText,
-              isDarkMode && { color: isDarkMode ? theme.dark.colors.textSecondary : theme.colors.textSecondary }
-            ]}>
-              | {device.room}
-            </Text>
-          )}
         </View>
-        
-        {getDeviceDetails() && (
-          <Text style={[
-            styles.detailsText,
-            isDarkMode && { color: isDarkMode ? theme.dark.colors.textSecondary : theme.colors.textSecondary }
-          ]}>
-            {getDeviceDetails()}
-          </Text>
-        )}
       </View>
       
-      {/* 电源开关 */}
-      {device.state?.isOnline && (
-        <TouchableOpacity
-          style={styles.powerButton}
-          onPress={onPowerToggle}
-          disabled={!device.state?.isOnline}
-        >
-          <Icon 
-            name={device.state?.power === 'on' ? 'power' : 'power-outline'} 
-            size={22} 
-            color={
-              device.state?.power === 'on' 
-                ? (isDarkMode ? theme.dark.colors.primary : theme.colors.primary)
-                : (isDarkMode ? theme.dark.colors.textSecondary : theme.colors.textSecondary)
-            } 
+      <TouchableOpacity 
+        style={styles.powerButton} 
+        onPress={onPowerToggle}
+        disabled={device.state?.isOnline === false}
+      >
+        <View style={[
+          styles.powerButtonInner,
+          device.state?.power === 'on' && styles.powerButtonOn,
+          isDarkMode && device.state?.power !== 'on' && styles.powerButtonDark,
+          device.state?.isOnline === false && styles.powerButtonDisabled,
+        ]}>
+          <Icon
+            name="power"
+            size={16}
+            color={device.state?.power === 'on' ? '#FFFFFF' : (
+              device.state?.isOnline === false 
+                ? theme.colors.textSecondary
+                : (isDarkMode ? theme.dark.colors.textPrimary : theme.colors.textPrimary)
+            )}
           />
-        </TouchableOpacity>
-      )}
+        </View>
+      </TouchableOpacity>
     </TouchableOpacity>
   );
 };
@@ -183,38 +147,21 @@ const styles = StyleSheet.create({
   container: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: theme.spacing.md,
-    backgroundColor: theme.colors.background,
-    borderRadius: theme.borderRadius.md,
-    marginBottom: theme.spacing.md,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
-    elevation: 2,
-  },
-  containerDark: {
-    backgroundColor: theme.dark.colors.background,
+    padding: 12,
+    borderRadius: 12,
+    marginBottom: 10,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
   },
   iconContainer: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
-    backgroundColor: 'rgba(0, 0, 0, 0.05)',
+    width: 46,
+    height: 46,
+    borderRadius: 23,
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: theme.spacing.md,
+    marginRight: 12,
   },
-  iconContainerDark: {
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
-  },
-  activeIconContainer: {
-    backgroundColor: 'rgba(0, 120, 255, 0.1)',
-  },
-  activeIconContainerDark: {
-    backgroundColor: 'rgba(0, 120, 255, 0.2)',
-  },
-  infoContainer: {
+  contentContainer: {
     flex: 1,
   },
   deviceName: {
@@ -223,35 +170,40 @@ const styles = StyleSheet.create({
     color: theme.colors.textPrimary,
     marginBottom: 4,
   },
-  textDark: {
-    color: theme.dark.colors.textPrimary,
-  },
   statusContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 2,
   },
-  statusIndicator: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
+  statusDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
     marginRight: 6,
   },
   statusText: {
-    fontSize: 14,
-    color: theme.colors.textSecondary,
-  },
-  roomText: {
-    fontSize: 14,
-    color: theme.colors.textSecondary,
-    marginLeft: 6,
-  },
-  detailsText: {
     fontSize: 12,
     color: theme.colors.textSecondary,
   },
   powerButton: {
-    padding: theme.spacing.sm,
+    padding: 6,
+  },
+  powerButtonInner: {
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#E0E0E0',
+  },
+  powerButtonOn: {
+    backgroundColor: theme.colors.primary,
+  },
+  powerButtonDark: {
+    backgroundColor: '#424242',
+  },
+  powerButtonDisabled: {
+    backgroundColor: '#E0E0E0',
+    opacity: 0.5,
   },
 });
 

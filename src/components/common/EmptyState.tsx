@@ -8,6 +8,7 @@ interface EmptyStateProps {
   title: string;
   message: string;
   actionLabel?: string;
+  buttonText?: string; // 与actionLabel功能相同，兼容旧代码
   onAction?: () => void;
   isDarkMode?: boolean;
 }
@@ -17,9 +18,13 @@ const EmptyState: React.FC<EmptyStateProps> = ({
   title,
   message,
   actionLabel,
+  buttonText,
   onAction,
   isDarkMode = false
 }) => {
+  // 使用buttonText或actionLabel
+  const buttonLabel = buttonText || actionLabel;
+  
   return (
     <View style={styles.container}>
       <Icon 
@@ -42,7 +47,7 @@ const EmptyState: React.FC<EmptyStateProps> = ({
         {message}
       </Text>
       
-      {actionLabel && onAction && (
+      {buttonLabel && onAction && (
         <TouchableOpacity 
           style={[
             styles.actionButton,
@@ -51,7 +56,7 @@ const EmptyState: React.FC<EmptyStateProps> = ({
           onPress={onAction}
         >
           <Text style={styles.actionButtonText}>
-            {actionLabel}
+            {buttonLabel}
           </Text>
         </TouchableOpacity>
       )}

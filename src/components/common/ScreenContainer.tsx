@@ -15,6 +15,8 @@ interface ScreenContainerProps {
   };
   rightIcon?: React.ReactNode;
   onRightPress?: () => void;
+  headerRight?: React.ReactNode;
+  buttonText?: string; // 为兼容性添加，但实际未使用
 }
 
 const ScreenContainer: React.FC<ScreenContainerProps> = ({
@@ -25,6 +27,7 @@ const ScreenContainer: React.FC<ScreenContainerProps> = ({
   rightButton,
   rightIcon,
   onRightPress,
+  headerRight,
 }) => {
   const navigation = useNavigation();
 
@@ -63,6 +66,11 @@ const ScreenContainer: React.FC<ScreenContainerProps> = ({
             >
               {rightIcon}
             </TouchableOpacity>
+          )}
+          {headerRight && (
+            <View style={styles.headerRightContainer}>
+              {headerRight}
+            </View>
           )}
         </View>
         {children}
@@ -105,6 +113,10 @@ const styles = StyleSheet.create({
     fontSize: theme.typography.fontSize.md,
     color: theme.colors.primary,
     fontWeight: theme.typography.fontWeight.medium as any,
+  },
+  headerRightContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
   },
 });
 
