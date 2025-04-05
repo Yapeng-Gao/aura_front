@@ -304,9 +304,11 @@ export interface ApiService {
     createSceneTemplate: (templateData: any) => Promise<any | undefined>;
     getSceneTemplates: (category?: string) => Promise<any | undefined>;
     getDeviceUsageStats: (deviceId: string) => Promise<any | undefined>;
+    getSystemHealth: () => Promise<any | undefined>;
+    getSystemMetrics: () => Promise<any | undefined>;
     getSystemStats: () => Promise<any | undefined>;
     getSystemConfig: (key: string) => Promise<any | undefined>;
-    updateSystemConfig: (key: string, configData: any) => Promise<any | undefined>;
+    updateSystemConfig: (key: string, configData: SystemConfigUpdate) => Promise<any | undefined>;
   };
   creative: {
     generateText: (prompt: string) => Promise<any | undefined>;
@@ -502,6 +504,8 @@ const apiService: ApiService = {
     getSceneTemplates: (category?: string) => 
       apiClient.get<SceneTemplateResponse[]>('/iot/scene-templates', { params: { category } }),
     getDeviceUsageStats: (deviceId: string) => apiClient.get<DeviceUsageStats>(`/iot/devices/${deviceId}/stats`),
+    getSystemHealth: () => apiClient.get<any>('/iot/system/health'),
+    getSystemMetrics: () => apiClient.get<any>('/iot/system/metrics'),
     getSystemStats: () => apiClient.get<SystemStats>('/iot/system/stats'),
     getSystemConfig: (key: string) => apiClient.get<any>(`/iot/system/config/${key}`),
     updateSystemConfig: (key: string, configData: SystemConfigUpdate) => apiClient.put<any>(`/iot/system/config/${key}`, configData),

@@ -87,7 +87,7 @@ const TabNavigator = () => (
             name="Assistant"
             component={AssistantStackNavigator}
             options={{
-                tabBarIcon: ({ color }) => <TabBarIcon name="robot" color={color} />,
+                tabBarIcon: ({ color }) => <TabBarIcon name="magic" color={color} />,
                 tabBarLabel: '助手'
             }}
         />
@@ -103,7 +103,7 @@ const TabNavigator = () => (
             name="IoT"
             component={IoTStackNavigator}
             options={{
-                tabBarIcon: ({ color }) => <TabBarIcon name="smartphone" color={color} />,
+                tabBarIcon: ({ color }) => <TabBarIcon name="mobile" color={color} />,
                 tabBarLabel: '物联网'
             }}
         />

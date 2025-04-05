@@ -464,6 +464,14 @@ const SmartHomeScreen: React.FC = () => {
   // 设置页面右侧按钮
   const headerRight = () => (
     <View style={styles.headerRightContainer}>
+      <TouchableOpacity onPress={() => navigation.navigate('SystemStatus')}>
+        <Icon 
+          name="pulse-outline" 
+          size={24} 
+          color={isDarkMode ? theme.dark.colors.textPrimary : theme.colors.textPrimary} 
+          style={styles.headerIcon}
+        />
+      </TouchableOpacity>
       <TouchableOpacity onPress={() => navigation.navigate('Notifications')}>
         <Icon 
           name="notifications-outline" 

@@ -69,6 +69,7 @@ export type IoTStackParamList = {
     Notifications: undefined;
     RoomManagement: undefined;
     SceneManagement: undefined;
+    SystemStatus: undefined;
 };
 
 // 创意内容栈参数
