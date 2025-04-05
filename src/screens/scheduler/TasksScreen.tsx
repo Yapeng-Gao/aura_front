@@ -1,13 +1,27 @@
-import React, { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, ActivityIndicator } from 'react-native';
 import ScreenContainer from '../../components/common/ScreenContainer';
 import Card from '../../components/common/Card';
 import Button from '../../components/common/Button';
 import InputField from '../../components/common/InputField';
 import ListItem from '../../components/common/ListItem';
 import theme from '../../theme';
+import apiService from '../../services/api';
 
-// 任务类型定义
+// 后端任务类型
+interface ApiTask {
+  task_id: string;
+  title: string;
+  description?: string;
+  due_date?: string;
+  priority: 'high' | 'medium' | 'low';
+  completed: boolean;
+  category?: string;
+  created_at: string;
+  updated_at: string;
+}
+
+// 前端展示用任务类型
 interface Task {
   id: string;
   title: string;
@@ -20,12 +34,8 @@ interface Task {
 
 const TasksScreen: React.FC = () => {
   // 任务状态
-  const [tasks, setTasks] = useState<Task[]>([
-    { id: '1', title: '完成产品设计文档', description: '包括用户流程和界面原型', dueDate: '2025-03-28', priority: 'high', completed: false, category: '工作' },
-    { id: '2', title: '购买生日礼物', description: '为妈妈挑选生日礼物', dueDate: '2025-04-05', priority: 'medium', completed: false, category: '个人' },
-    { id: '3', title: '预约牙医', priority: 'low', completed: true, category: '健康' },
-    { id: '4', title: '准备团队会议', description: '整理上周进度和本周计划', dueDate: '2025-03-27', priority: 'high', completed: false, category: '工作' },
-  ]);
+  const [tasks, setTasks] = useState<Task[]>([]);
+  const [loading, setLoading] = useState(false);
   
   // 新任务表单状态
   const [showAddForm, setShowAddForm] = useState(false);
@@ -38,41 +48,153 @@ const TasksScreen: React.FC = () => {
   // 筛选状态
   const [filter, setFilter] = useState<'all' | 'active' | 'completed'>('active');
   
+  // 加载任务
+  useEffect(() => {
+    fetchTasks();
+  }, []);
+  
+  // 获取任务列表
+  const fetchTasks = async () => {
+    setLoading(true);
+    try {
+      const response = await apiService.scheduler.getTasks();
+      if (response) {
+        // 转换API数据为本地格式
+        const displayTasks: Task[] = response.map((apiTask: ApiTask) => ({
+          id: apiTask.task_id,
+          title: apiTask.title,
+          description: apiTask.description,
+          dueDate: apiTask.due_date,
+          priority: apiTask.priority,
+          completed: apiTask.completed,
+          category: apiTask.category
+        }));
+        setTasks(displayTasks);
+      }
+    } catch (error) {
+      console.error('获取任务失败:', error);
+      Alert.alert('错误', '获取任务列表失败，请稍后重试');
+      // 使用模拟数据
+      setTasks([
+        { id: '1', title: '完成产品设计文档', description: '包括用户流程和界面原型', dueDate: '2025-03-28', priority: 'high', completed: false, category: '工作' },
+        { id: '2', title: '购买生日礼物', description: '为妈妈挑选生日礼物', dueDate: '2025-04-05', priority: 'medium', completed: false, category: '个人' },
+        { id: '3', title: '预约牙医', priority: 'low', completed: true, category: '健康' },
+        { id: '4', title: '准备团队会议', description: '整理上周进度和本周计划', dueDate: '2025-03-27', priority: 'high', completed: false, category: '工作' },
+      ]);
+    } finally {
+      setLoading(false);
+    }
+  };
+  
   // 添加新任务
-  const handleAddTask = () => {
+  const handleAddTask = async () => {
     if (newTaskTitle.trim()) {
-      const newTask: Task = {
-        id: Date.now().toString(),
-        title: newTaskTitle,
-        description: newTaskDescription || undefined,
-        dueDate: newTaskDueDate || undefined,
-        priority: newTaskPriority,
-        completed: false,
-        category: newTaskCategory || undefined,
-      };
-      
-      setTasks([...tasks, newTask]);
-      
-      // 重置表单
-      setNewTaskTitle('');
-      setNewTaskDescription('');
-      setNewTaskDueDate('');
-      setNewTaskPriority('medium');
-      setNewTaskCategory('');
-      setShowAddForm(false);
+      setLoading(true);
+      try {
+        const newTaskData = {
+          title: newTaskTitle,
+          description: newTaskDescription || undefined,
+          due_date: newTaskDueDate || undefined,
+          priority: newTaskPriority,
+          category: newTaskCategory || undefined,
+        };
+        
+        const response = await apiService.scheduler.createTask(newTaskData);
+        if (response) {
+          // 添加新任务到列表
+          const newTask: Task = {
+            id: response.task_id,
+            title: response.title,
+            description: response.description,
+            dueDate: response.due_date,
+            priority: response.priority,
+            completed: false,
+            category: response.category,
+          };
+          
+          setTasks([...tasks, newTask]);
+        }
+        
+        // 重置表单
+        setNewTaskTitle('');
+        setNewTaskDescription('');
+        setNewTaskDueDate('');
+        setNewTaskPriority('medium');
+        setNewTaskCategory('');
+        setShowAddForm(false);
+      } catch (error) {
+        console.error('创建任务失败:', error);
+        Alert.alert('错误', '创建任务失败，请稍后重试');
+        
+        // 本地创建（备用方案）
+        const newTask: Task = {
+          id: Date.now().toString(),
+          title: newTaskTitle,
+          description: newTaskDescription || undefined,
+          dueDate: newTaskDueDate || undefined,
+          priority: newTaskPriority,
+          completed: false,
+          category: newTaskCategory || undefined,
+        };
+        
+        setTasks([...tasks, newTask]);
+        
+        // 重置表单
+        setNewTaskTitle('');
+        setNewTaskDescription('');
+        setNewTaskDueDate('');
+        setNewTaskPriority('medium');
+        setNewTaskCategory('');
+        setShowAddForm(false);
+      } finally {
+        setLoading(false);
+      }
     }
   };
   
   // 切换任务完成状态
-  const toggleTaskCompletion = (id: string) => {
-    setTasks(tasks.map(task => 
-      task.id === id ? { ...task, completed: !task.completed } : task
-    ));
+  const toggleTaskCompletion = async (id: string) => {
+    setLoading(true);
+    try {
+      const task = tasks.find(task => task.id === id);
+      if (!task) return;
+      
+      const updatedData = {
+        completed: !task.completed
+      };
+      
+      const response = await apiService.scheduler.updateTask(id, updatedData);
+      if (response) {
+        // 更新本地任务
+        setTasks(tasks.map(task => 
+          task.id === id ? { ...task, completed: !task.completed } : task
+        ));
+      }
+    } catch (error) {
+      console.error('更新任务状态失败:', error);
+      Alert.alert('错误', '更新任务状态失败，请稍后重试');
+      
+      // 本地更新（备用方案）
+      setTasks(tasks.map(task => 
+        task.id === id ? { ...task, completed: !task.completed } : task
+      ));
+    } finally {
+      setLoading(false);
+    }
   };
   
   // 删除任务
-  const deleteTask = (id: string) => {
-    setTasks(tasks.filter(task => task.id !== id));
+  const deleteTask = async (id: string) => {
+    setLoading(true);
+    try {
+      await apiService.scheduler.deleteTask(id);
+      setTasks(tasks.filter(task => task.id !== id));
+    } catch (error) {
+      console.error('删除任务失败:', error);
+      Alert.alert('错误', '删除任务失败，请稍后重试');
+    } finally {
+      setLoading(false);
+    }
   };
   
   // 获取优先级颜色
@@ -131,171 +253,186 @@ const TasksScreen: React.FC = () => {
     
     return 0;
   });
+  
+  // 渲染加载指示器
+  const renderLoading = () => {
+    if (!loading) return null;
+    
+    return (
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color={theme.colors.primary} />
+        <Text style={styles.loadingText}>加载中...</Text>
+      </View>
+    );
+  };
 
   return (
     <ScreenContainer
-      title="任务"
+      title="任务清单"
       backgroundColor={theme.colors.background}
     >
-      <View style={styles.container}>
+      {renderLoading()}
+      
+      <View style={styles.header}>
+        <Text style={styles.title}>任务清单</Text>
+        
         <View style={styles.filterContainer}>
-          <TouchableOpacity
-            style={[styles.filterButton, filter === 'all' && styles.activeFilter]}
+          <TouchableOpacity 
+            style={[styles.filterButton, filter === 'all' && styles.activeFilter]} 
             onPress={() => setFilter('all')}
           >
             <Text style={[styles.filterText, filter === 'all' && styles.activeFilterText]}>全部</Text>
           </TouchableOpacity>
           
-          <TouchableOpacity
-            style={[styles.filterButton, filter === 'active' && styles.activeFilter]}
+          <TouchableOpacity 
+            style={[styles.filterButton, filter === 'active' && styles.activeFilter]} 
             onPress={() => setFilter('active')}
           >
-            <Text style={[styles.filterText, filter === 'active' && styles.activeFilterText]}>进行中</Text>
+            <Text style={[styles.filterText, filter === 'active' && styles.activeFilterText]}>待办</Text>
           </TouchableOpacity>
           
-          <TouchableOpacity
-            style={[styles.filterButton, filter === 'completed' && styles.activeFilter]}
+          <TouchableOpacity 
+            style={[styles.filterButton, filter === 'completed' && styles.activeFilter]} 
             onPress={() => setFilter('completed')}
           >
             <Text style={[styles.filterText, filter === 'completed' && styles.activeFilterText]}>已完成</Text>
           </TouchableOpacity>
         </View>
-        
-        <ScrollView style={styles.tasksContainer}>
-          {sortedTasks.length > 0 ? (
-            sortedTasks.map((task) => (
-              <Card key={task.id} style={styles.taskCard}>
-                <View style={styles.taskHeader}>
-                  <TouchableOpacity
-                    style={[styles.checkbox, task.completed && styles.checkboxChecked]}
-                    onPress={() => toggleTaskCompletion(task.id)}
-                  >
-                    {task.completed && <Text style={styles.checkmark}>✓</Text>}
+      </View>
+      
+      <ScrollView style={styles.scrollView}>
+        {sortedTasks.length === 0 ? (
+          <Card style={styles.emptyContainer}>
+            <Text style={styles.emptyText}>
+              {filter === 'all' ? '没有任务' : filter === 'active' ? '没有待办任务' : '没有已完成任务'}
+            </Text>
+          </Card>
+        ) : (
+          sortedTasks.map(task => (
+            <Card key={task.id} style={styles.taskCard}>
+              <ListItem
+                title={task.title}
+                subtitle={task.description}
+                leftIcon={
+                  <TouchableOpacity onPress={() => toggleTaskCompletion(task.id)}>
+                    <View style={[styles.checkbox, task.completed && styles.checkboxChecked]}>
+                      {task.completed && <Text style={styles.checkmark}>✓</Text>}
+                    </View>
                   </TouchableOpacity>
-                  
-                  <View style={styles.taskTitleContainer}>
-                    <Text style={[
-                      styles.taskTitle,
-                      task.completed && styles.completedTaskTitle
-                    ]}>
-                      {task.title}
-                    </Text>
-                    
-                    {task.category && (
-                      <View style={styles.categoryBadge}>
-                        <Text style={styles.categoryText}>{task.category}</Text>
-                      </View>
-                    )}
+                }
+                rightIcon={
+                  <TouchableOpacity onPress={() => deleteTask(task.id)}>
+                    <Text style={styles.deleteButton}>删除</Text>
+                  </TouchableOpacity>
+                }
+                style={task.completed ? styles.completedTask : undefined}
+                onPress={() => toggleTaskCompletion(task.id)}
+              />
+              
+              <View style={styles.taskDetails}>
+                {task.dueDate && (
+                  <View style={styles.taskDetail}>
+                    <Text style={styles.taskDetailLabel}>截止日期:</Text>
+                    <Text style={styles.taskDetailValue}>{task.dueDate}</Text>
                   </View>
-                  
-                  <View style={[styles.priorityBadge, { backgroundColor: getPriorityColor(task.priority) + '20' }]}>
-                    <Text style={[styles.priorityText, { color: getPriorityColor(task.priority) }]}>
-                      {getPriorityText(task.priority)}
-                    </Text>
-                  </View>
-                </View>
-                
-                {task.description && (
-                  <Text style={[
-                    styles.taskDescription,
-                    task.completed && styles.completedTaskText
-                  ]}>
-                    {task.description}
-                  </Text>
                 )}
                 
-                <View style={styles.taskFooter}>
-                  {task.dueDate && (
-                    <Text style={[
-                      styles.dueDate,
-                      task.completed && styles.completedTaskText
-                    ]}>
-                      截止日期: {task.dueDate}
-                    </Text>
-                  )}
-                  
-                  <TouchableOpacity
-                    style={styles.deleteButton}
-                    onPress={() => deleteTask(task.id)}
-                  >
-                    <Text style={styles.deleteButtonText}>删除</Text>
-                  </TouchableOpacity>
+                <View style={styles.taskDetail}>
+                  <Text style={styles.taskDetailLabel}>优先级:</Text>
+                  <Text style={[styles.taskDetailValue, { color: getPriorityColor(task.priority) }]}>
+                    {getPriorityText(task.priority)}
+                  </Text>
                 </View>
-              </Card>
-            ))
-          ) : (
-            <Text style={styles.noTasksText}>
-              {filter === 'all' ? '没有任务' : filter === 'active' ? '没有进行中的任务' : '没有已完成的任务'}
-            </Text>
-          )}
-        </ScrollView>
-        
+                
+                {task.category && (
+                  <View style={styles.taskDetail}>
+                    <Text style={styles.taskDetailLabel}>分类:</Text>
+                    <Text style={styles.taskDetailValue}>{task.category}</Text>
+                  </View>
+                )}
+              </View>
+            </Card>
+          ))
+        )}
+      </ScrollView>
+      
+      <View style={styles.addContainer}>
         {showAddForm ? (
-          <Card style={styles.addTaskForm}>
-            <Text style={styles.formTitle}>添加新任务</Text>
+          <Card style={styles.addForm}>
+            <Text style={styles.addFormTitle}>新建任务</Text>
             
             <InputField
               label="标题"
-              placeholder="输入任务标题"
               value={newTaskTitle}
               onChangeText={setNewTaskTitle}
+              placeholder="任务标题"
             />
             
             <InputField
               label="描述"
-              placeholder="输入任务描述（可选）"
               value={newTaskDescription}
               onChangeText={setNewTaskDescription}
+              placeholder="任务描述（可选）"
               multiline
-              numberOfLines={3}
             />
             
             <InputField
               label="截止日期"
-              placeholder="YYYY-MM-DD"
               value={newTaskDueDate}
               onChangeText={setNewTaskDueDate}
+              placeholder="YYYY-MM-DD（可选）"
             />
             
-            <Text style={styles.formLabel}>优先级</Text>
             <View style={styles.prioritySelector}>
-              {(['high', 'medium', 'low'] as const).map((priority) => (
+              <Text style={styles.priorityLabel}>优先级:</Text>
+              <View style={styles.priorityButtons}>
                 <TouchableOpacity
-                  key={priority}
-                  style={[
-                    styles.priorityOption,
-                    { backgroundColor: getPriorityColor(priority) + '20' },
-                    newTaskPriority === priority && { borderColor: getPriorityColor(priority), borderWidth: 2 }
-                  ]}
-                  onPress={() => setNewTaskPriority(priority)}
+                  style={[styles.priorityButton, newTaskPriority === 'low' && styles.priorityButtonActive]}
+                  onPress={() => setNewTaskPriority('low')}
                 >
-                  <Text style={[styles.priorityOptionText, { color: getPriorityColor(priority) }]}>
-                    {getPriorityText(priority)}
-                  </Text>
+                  <Text style={styles.priorityButtonText}>低</Text>
                 </TouchableOpacity>
-              ))}
+                
+                <TouchableOpacity
+                  style={[styles.priorityButton, newTaskPriority === 'medium' && styles.priorityButtonActive]}
+                  onPress={() => setNewTaskPriority('medium')}
+                >
+                  <Text style={styles.priorityButtonText}>中</Text>
+                </TouchableOpacity>
+                
+                <TouchableOpacity
+                  style={[styles.priorityButton, newTaskPriority === 'high' && styles.priorityButtonActive]}
+                  onPress={() => setNewTaskPriority('high')}
+                >
+                  <Text style={styles.priorityButtonText}>高</Text>
+                </TouchableOpacity>
+              </View>
             </View>
             
             <InputField
               label="分类"
-              placeholder="输入任务分类（可选）"
               value={newTaskCategory}
               onChangeText={setNewTaskCategory}
+              placeholder="分类（可选）"
             />
             
             <View style={styles.formButtons}>
               <Button
                 title="取消"
+                onPress={() => {
+                  setShowAddForm(false);
+                  setNewTaskTitle('');
+                  setNewTaskDescription('');
+                  setNewTaskDueDate('');
+                  setNewTaskPriority('medium');
+                  setNewTaskCategory('');
+                }}
                 variant="outline"
-                size="medium"
-                onPress={() => setShowAddForm(false)}
                 style={styles.formButton}
               />
               
               <Button
                 title="添加"
-                variant="primary"
-                size="medium"
                 onPress={handleAddTask}
                 disabled={!newTaskTitle.trim()}
                 style={styles.formButton}
@@ -305,11 +442,7 @@ const TasksScreen: React.FC = () => {
         ) : (
           <Button
             title="添加任务"
-            variant="primary"
-            size="large"
             onPress={() => setShowAddForm(true)}
-            style={styles.addButton}
-            fullWidth
           />
         )}
       </View>
@@ -318,172 +451,170 @@ const TasksScreen: React.FC = () => {
 };
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    padding: theme.spacing.md,
+  header: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: theme.spacing.md,
+    marginBottom: theme.spacing.md,
+  },
+  title: {
+    fontSize: theme.typography.fontSize.xl,
+    fontWeight: '700',
+    color: theme.colors.textPrimary,
   },
   filterContainer: {
     flexDirection: 'row',
-    marginBottom: theme.spacing.md,
-    backgroundColor: theme.colors.surface,
-    borderRadius: theme.borderRadius.md,
-    overflow: 'hidden',
   },
   filterButton: {
-    flex: 1,
-    paddingVertical: theme.spacing.sm,
-    alignItems: 'center',
+    paddingHorizontal: theme.spacing.sm,
+    paddingVertical: theme.spacing.xs,
+    marginLeft: theme.spacing.xs,
+    borderRadius: theme.borderRadius.sm,
   },
   activeFilter: {
-    backgroundColor: theme.colors.primary,
+    backgroundColor: theme.colors.primaryLight,
   },
   filterText: {
-    fontSize: theme.typography.fontSize.md,
-    color: theme.colors.textPrimary,
+    fontSize: theme.typography.fontSize.sm,
+    color: theme.colors.textSecondary,
+    fontWeight: '500',
   },
   activeFilterText: {
-    color: theme.colors.onPrimary,
-    fontWeight: theme.typography.fontWeight.bold,
+    color: theme.colors.primary,
+    fontWeight: '700',
   },
-  tasksContainer: {
+  scrollView: {
     flex: 1,
-    marginBottom: theme.spacing.md,
   },
   taskCard: {
     marginBottom: theme.spacing.sm,
+    overflow: 'hidden',
   },
-  taskHeader: {
-    flexDirection: 'row',
+  emptyContainer: {
+    padding: theme.spacing.lg,
     alignItems: 'center',
-    marginBottom: theme.spacing.sm,
+    justifyContent: 'center',
+  },
+  emptyText: {
+    fontSize: theme.typography.fontSize.md,
+    color: theme.colors.textSecondary,
+    fontWeight: '500',
   },
   checkbox: {
     width: 24,
     height: 24,
-    borderRadius: 12,
+    borderRadius: 4,
     borderWidth: 2,
     borderColor: theme.colors.primary,
-    marginRight: theme.spacing.sm,
     alignItems: 'center',
     justifyContent: 'center',
+    marginRight: theme.spacing.sm,
   },
   checkboxChecked: {
     backgroundColor: theme.colors.primary,
   },
   checkmark: {
-    color: theme.colors.onPrimary,
-    fontSize: 16,
-    fontWeight: 'bold',
-  },
-  taskTitleContainer: {
-    flex: 1,
-  },
-  taskTitle: {
+    color: '#ffffff',
     fontSize: theme.typography.fontSize.md,
-    fontWeight: theme.typography.fontWeight.bold,
-    color: theme.colors.textPrimary,
-    marginBottom: 2,
+    fontWeight: '700',
   },
-  completedTaskTitle: {
+  completedTask: {
+    opacity: 0.7,
+  },
+  completedTitle: {
     textDecorationLine: 'line-through',
-    color: theme.colors.textSecondary,
   },
-  completedTaskText: {
-    color: theme.colors.textSecondary,
+  taskDetails: {
+    paddingHorizontal: theme.spacing.md,
+    paddingBottom: theme.spacing.sm,
+    paddingTop: 0,
   },
-  categoryBadge: {
-    backgroundColor: theme.colors.background,
-    paddingHorizontal: theme.spacing.sm,
-    paddingVertical: 2,
-    borderRadius: theme.borderRadius.sm,
-    alignSelf: 'flex-start',
-  },
-  categoryText: {
-    fontSize: theme.typography.fontSize.xs,
-    color: theme.colors.textSecondary,
-  },
-  priorityBadge: {
-    paddingHorizontal: theme.spacing.sm,
-    paddingVertical: 4,
-    borderRadius: theme.borderRadius.sm,
-    marginLeft: theme.spacing.sm,
-  },
-  priorityText: {
-    fontSize: theme.typography.fontSize.sm,
-    fontWeight: theme.typography.fontWeight.medium,
-  },
-  taskDescription: {
-    fontSize: theme.typography.fontSize.sm,
-    color: theme.colors.textSecondary,
-    marginBottom: theme.spacing.sm,
-    paddingLeft: 32, // 对齐标题
-  },
-  taskFooter: {
+  taskDetail: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingLeft: 32, // 对齐标题
+    marginTop: theme.spacing.xs,
   },
-  dueDate: {
+  taskDetailLabel: {
     fontSize: theme.typography.fontSize.sm,
     color: theme.colors.textSecondary,
+    fontWeight: '500',
+    marginRight: theme.spacing.xs,
+  },
+  taskDetailValue: {
+    fontSize: theme.typography.fontSize.sm,
+    color: theme.colors.textPrimary,
+    fontWeight: '400',
   },
   deleteButton: {
-    padding: theme.spacing.sm,
-  },
-  deleteButtonText: {
-    fontSize: theme.typography.fontSize.sm,
     color: theme.colors.error,
+    fontSize: theme.typography.fontSize.sm,
+    fontWeight: '500',
   },
-  noTasksText: {
-    fontSize: theme.typography.fontSize.md,
-    color: theme.colors.textSecondary,
-    textAlign: 'center',
-    marginTop: theme.spacing.xl,
-  },
-  addButton: {
-    marginTop: theme.spacing.md,
-  },
-  addTaskForm: {
+  addContainer: {
     padding: theme.spacing.md,
-    marginTop: theme.spacing.md,
   },
-  formTitle: {
+  addForm: {
+    padding: theme.spacing.md,
+  },
+  addFormTitle: {
     fontSize: theme.typography.fontSize.lg,
-    fontWeight: theme.typography.fontWeight.bold,
+    fontWeight: '700',
     color: theme.colors.textPrimary,
     marginBottom: theme.spacing.md,
   },
-  formLabel: {
+  prioritySelector: {
+    marginBottom: theme.spacing.md,
+  },
+  priorityLabel: {
     fontSize: theme.typography.fontSize.sm,
-    fontWeight: theme.typography.fontWeight.medium,
+    fontWeight: '500',
     color: theme.colors.textPrimary,
     marginBottom: theme.spacing.xs,
   },
-  prioritySelector: {
+  priorityButtons: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: theme.spacing.md,
   },
-  priorityOption: {
+  priorityButton: {
     flex: 1,
     paddingVertical: theme.spacing.sm,
-    alignItems: 'center',
+    paddingHorizontal: theme.spacing.md,
+    marginRight: theme.spacing.xs,
+    backgroundColor: theme.colors.surface,
     borderRadius: theme.borderRadius.sm,
-    marginHorizontal: theme.spacing.xs,
+    alignItems: 'center',
   },
-  priorityOptionText: {
-    fontSize: theme.typography.fontSize.md,
-    fontWeight: theme.typography.fontWeight.medium,
+  priorityButtonActive: {
+    backgroundColor: theme.colors.primaryLight,
+  },
+  priorityButtonText: {
+    fontSize: theme.typography.fontSize.sm,
+    fontWeight: '500',
+    color: theme.colors.textPrimary,
   },
   formButtons: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
+    justifyContent: 'flex-end',
     marginTop: theme.spacing.md,
   },
   formButton: {
-    flex: 1,
-    marginHorizontal: theme.spacing.xs,
+    marginLeft: theme.spacing.sm,
+  },
+  loadingContainer: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(255, 255, 255, 0.7)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 999,
+  },
+  loadingText: {
+    fontSize: theme.typography.fontSize.md,
+    color: theme.colors.textPrimary,
+    marginTop: theme.spacing.md,
+    fontWeight: '500',
   },
 });
 

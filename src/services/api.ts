@@ -227,6 +227,7 @@ export interface ApiService {
     endMeeting: (meetingId: string) => Promise<any | undefined>;
     getMeetingSummary: (meetingId: string) => Promise<any | undefined>;
     getMeetings: () => Promise<any | undefined>;
+    getMeeting: (meetingId: string) => Promise<any | undefined>;
   };
   iot: {
     getDevices: () => Promise<any | undefined>;
@@ -276,7 +277,7 @@ export interface ApiService {
 }
 
 // API服务模块 - 不包含offline属性，会在sync.ts中添加
-const apiService = {
+const apiService: ApiService = {
   // 通用API客户端
   client: apiClient,
   
@@ -361,6 +362,7 @@ const apiService = {
     endMeeting: (meetingId: string) => apiClient.post(`/productivity/meeting/${meetingId}/end`),
     getMeetingSummary: (meetingId: string) => apiClient.get(`/productivity/meeting/${meetingId}/summary`),
     getMeetings: () => apiClient.get('/productivity/meetings'),
+    getMeeting: (meetingId: string) => apiClient.get(`/productivity/meeting/${meetingId}`),
   },
   
   // IoT智能家居相关API

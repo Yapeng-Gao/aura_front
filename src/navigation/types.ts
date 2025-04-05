@@ -12,6 +12,7 @@ export type RootStackParamList = {
     HelpSupport: undefined;
     About: undefined;
     MembershipUpgrade: undefined;
+    MeetingDetail: { meetingId: string };
 };
 
 export type AuthStackParamList = {

@@ -1,13 +1,27 @@
-import React, {useState} from 'react';
-import {View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput} from 'react-native';
+import React, {useState, useEffect} from 'react';
+import {View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, ActivityIndicator, Alert} from 'react-native';
 import ScreenContainer from '../../components/common/ScreenContainer';
 import Card from '../../components/common/Card';
 import Button from '../../components/common/Button';
 import ListItem from '../../components/common/ListItem';
 import theme from '../../theme';
+import apiService from '../../services/api';
 
-// 笔记类型定义
+// 笔记类型定义 - 对齐后端 API
 interface Note {
+    note_id: string;
+    title: string;
+    content: string;
+    created_at: string;
+    updated_at: string;
+    tags: string[];
+    is_pinned: boolean;
+    folder?: string;
+    metadata?: any;
+}
+
+// 本地显示用的类型
+interface DisplayNote {
     id: string;
     title: string;
     content: string;
@@ -19,38 +33,11 @@ interface Note {
 
 const NotesScreen: React.FC = () => {
     // 笔记状态
-    const [notes, setNotes] = useState<Note[]>([
-        {
-            id: '1',
-            title: '产品会议记录',
-            content: '讨论了新功能的优先级和实施计划。\n\n主要决定：\n1. 首先实现AI助手功能\n2. 其次开发日程管理\n3. 最后添加智能家居集成',
-            createdAt: '2025-03-20',
-            updatedAt: '2025-03-20',
-            tags: ['工作', '会议'],
-            isFavorite: true,
-        },
-        {
-            id: '2',
-            title: '购物清单',
-            content: '- 牛奶\n- 鸡蛋\n- 面包\n- 水果\n- 蔬菜',
-            createdAt: '2025-03-22',
-            updatedAt: '2025-03-22',
-            tags: ['个人', '购物'],
-            isFavorite: false,
-        },
-        {
-            id: '3',
-            title: '学习计划',
-            content: '本周学习目标：\n- React Native高级组件\n- Redux状态管理\n- TypeScript类型系统\n\n每天至少学习2小时',
-            createdAt: '2025-03-25',
-            updatedAt: '2025-03-26',
-            tags: ['学习', '技术'],
-            isFavorite: true,
-        },
-    ]);
+    const [notes, setNotes] = useState<DisplayNote[]>([]);
+    const [loading, setLoading] = useState(false);
 
     // 当前选中的笔记
-    const [selectedNote, setSelectedNote] = useState<Note | null>(null);
+    const [selectedNote, setSelectedNote] = useState<DisplayNote | null>(null);
 
     // 编辑模式
     const [isEditing, setIsEditing] = useState(false);
@@ -66,8 +53,69 @@ const NotesScreen: React.FC = () => {
     // 筛选状态
     const [activeFilter, setActiveFilter] = useState<'all' | 'favorites'>('all');
 
+    // 获取笔记列表
+    useEffect(() => {
+        fetchNotes();
+    }, []);
+
+    // 获取笔记列表
+    const fetchNotes = async () => {
+        setLoading(true);
+        try {
+            const response = await apiService.productivity.getNotes();
+            if (response && response.items) {
+                // 转换为本地显示格式
+                const displayNotes: DisplayNote[] = response.items.map((note: Note) => ({
+                    id: note.note_id,
+                    title: note.title,
+                    content: note.content,
+                    createdAt: note.created_at,
+                    updatedAt: note.updated_at,
+                    tags: note.tags,
+                    isFavorite: note.is_pinned
+                }));
+                setNotes(displayNotes);
+            }
+        } catch (error) {
+            console.error('获取笔记失败:', error);
+            Alert.alert('错误', '获取笔记列表失败，请稍后重试');
+            // 使用模拟数据
+            setNotes([
+                {
+                    id: '1',
+                    title: '产品会议记录',
+                    content: '讨论了新功能的优先级和实施计划。\n\n主要决定：\n1. 首先实现AI助手功能\n2. 其次开发日程管理\n3. 最后添加智能家居集成',
+                    createdAt: '2025-03-20',
+                    updatedAt: '2025-03-20',
+                    tags: ['工作', '会议'],
+                    isFavorite: true,
+                },
+                {
+                    id: '2',
+                    title: '购物清单',
+                    content: '- 牛奶\n- 鸡蛋\n- 面包\n- 水果\n- 蔬菜',
+                    createdAt: '2025-03-22',
+                    updatedAt: '2025-03-22',
+                    tags: ['个人', '购物'],
+                    isFavorite: false,
+                },
+                {
+                    id: '3',
+                    title: '学习计划',
+                    content: '本周学习目标：\n- React Native高级组件\n- Redux状态管理\n- TypeScript类型系统\n\n每天至少学习2小时',
+                    createdAt: '2025-03-25',
+                    updatedAt: '2025-03-26',
+                    tags: ['学习', '技术'],
+                    isFavorite: true,
+                },
+            ]);
+        } finally {
+            setLoading(false);
+        }
+    };
+
     // 选择笔记
-    const handleSelectNote = (note: Note) => {
+    const handleSelectNote = (note: DisplayNote) => {
         setSelectedNote(note);
         setIsEditing(false);
     };
@@ -83,66 +131,150 @@ const NotesScreen: React.FC = () => {
     };
 
     // 保存编辑的笔记
-    const handleSaveNote = () => {
+    const handleSaveNote = async () => {
         if (selectedNote && editTitle.trim()) {
-            const updatedNote: Note = {
-                ...selectedNote,
-                title: editTitle,
-                content: editContent,
-                updatedAt: new Date().toISOString().split('T')[0],
-                tags: editTags.split(',').map(tag => tag.trim()).filter(tag => tag),
-            };
-
-            setNotes(notes.map(note =>
-                note.id === selectedNote.id ? updatedNote : note
-            ));
-
-            setSelectedNote(updatedNote);
-            setIsEditing(false);
+            setLoading(true);
+            try {
+                const noteData = {
+                    title: editTitle,
+                    content: editContent,
+                    tags: editTags.split(',').map(tag => tag.trim()).filter(tag => tag),
+                    is_pinned: selectedNote.isFavorite
+                };
+                
+                const response = await apiService.productivity.updateNote(selectedNote.id, noteData);
+                
+                if (response) {
+                    // 更新本地笔记
+                    const updatedDisplayNote: DisplayNote = {
+                        id: response.note_id,
+                        title: response.title,
+                        content: response.content,
+                        createdAt: response.created_at,
+                        updatedAt: response.updated_at,
+                        tags: response.tags,
+                        isFavorite: response.is_pinned
+                    };
+                    
+                    setNotes(notes.map(note =>
+                        note.id === selectedNote.id ? updatedDisplayNote : note
+                    ));
+                    
+                    setSelectedNote(updatedDisplayNote);
+                    setIsEditing(false);
+                }
+            } catch (error) {
+                console.error('保存笔记失败:', error);
+                Alert.alert('错误', '保存笔记失败，请稍后重试');
+            } finally {
+                setLoading(false);
+            }
         }
     };
 
     // 创建新笔记
-    const handleCreateNote = () => {
-        const newNote: Note = {
-            id: Date.now().toString(),
-            title: '新笔记',
-            content: '',
-            createdAt: new Date().toISOString().split('T')[0],
-            updatedAt: new Date().toISOString().split('T')[0],
-            tags: [],
-            isFavorite: false,
-        };
-
-        setNotes([...notes, newNote]);
-        setSelectedNote(newNote);
-        setEditTitle(newNote.title);
-        setEditContent(newNote.content);
-        setEditTags('');
-        setIsEditing(true);
+    const handleCreateNote = async () => {
+        setLoading(true);
+        try {
+            const newNoteData = {
+                title: '新笔记',
+                content: '',
+                tags: [],
+                is_pinned: false
+            };
+            
+            const response = await apiService.productivity.createNote(newNoteData);
+            
+            if (response) {
+                const newDisplayNote: DisplayNote = {
+                    id: response.note_id,
+                    title: response.title,
+                    content: response.content,
+                    createdAt: response.created_at,
+                    updatedAt: response.updated_at,
+                    tags: response.tags,
+                    isFavorite: response.is_pinned
+                };
+                
+                setNotes([...notes, newDisplayNote]);
+                setSelectedNote(newDisplayNote);
+                setEditTitle(newDisplayNote.title);
+                setEditContent(newDisplayNote.content);
+                setEditTags('');
+                setIsEditing(true);
+            }
+        } catch (error) {
+            console.error('创建笔记失败:', error);
+            Alert.alert('错误', '创建笔记失败，请稍后重试');
+            
+            // 创建本地笔记
+            const newNote: DisplayNote = {
+                id: Date.now().toString(),
+                title: '新笔记',
+                content: '',
+                createdAt: new Date().toISOString().split('T')[0],
+                updatedAt: new Date().toISOString().split('T')[0],
+                tags: [],
+                isFavorite: false,
+            };
+            
+            setNotes([...notes, newNote]);
+            setSelectedNote(newNote);
+            setEditTitle(newNote.title);
+            setEditContent(newNote.content);
+            setEditTags('');
+            setIsEditing(true);
+        } finally {
+            setLoading(false);
+        }
     };
 
     // 删除笔记
-    const handleDeleteNote = () => {
+    const handleDeleteNote = async () => {
         if (selectedNote) {
-            setNotes(notes.filter(note => note.id !== selectedNote.id));
-            setSelectedNote(null);
+            setLoading(true);
+            try {
+                await apiService.productivity.deleteNote(selectedNote.id);
+                setNotes(notes.filter(note => note.id !== selectedNote.id));
+                setSelectedNote(null);
+            } catch (error) {
+                console.error('删除笔记失败:', error);
+                Alert.alert('错误', '删除笔记失败，请稍后重试');
+            } finally {
+                setLoading(false);
+            }
         }
     };
 
     // 切换收藏状态
-    const handleToggleFavorite = () => {
+    const handleToggleFavorite = async () => {
         if (selectedNote) {
-            const updatedNote = {
-                ...selectedNote,
-                isFavorite: !selectedNote.isFavorite,
-            };
-
-            setNotes(notes.map(note =>
-                note.id === selectedNote.id ? updatedNote : note
-            ));
-
-            setSelectedNote(updatedNote);
+            setLoading(true);
+            try {
+                const updatedData = {
+                    is_pinned: !selectedNote.isFavorite
+                };
+                
+                const response = await apiService.productivity.updateNote(selectedNote.id, updatedData);
+                
+                if (response) {
+                    const updatedDisplayNote: DisplayNote = {
+                        ...selectedNote,
+                        isFavorite: !selectedNote.isFavorite
+                    };
+                    
+                    setNotes(notes.map(note =>
+                        note.id === selectedNote.id ? updatedDisplayNote : note
+                    ));
+                    
+                    setSelectedNote(updatedDisplayNote);
+                }
+            } catch (error) {
+                console.error('更新笔记收藏状态失败:', error);
+                Alert.alert('错误', '更新笔记收藏状态失败，请稍后重试');
+            } finally {
+                setLoading(false);
+            }
         }
     };
 
@@ -347,7 +479,7 @@ const NotesScreen: React.FC = () => {
                             variant="outline"
                             size="small"
                             onPress={handleDeleteNote}
-                            style={[styles.actionButton, styles.deleteButton]}
+                            style={styles.actionButton}
                         />
                     </View>
                 </View>
@@ -382,38 +514,12 @@ const NotesScreen: React.FC = () => {
             <View style={styles.container}>
                 {/* 左侧笔记列表 */}
                 <View style={styles.notesListContainer}>
-                    {/* 搜索和筛选部分 */}
-                    <View style={styles.searchContainer}>
-                        <TextInput
-                            style={styles.searchInput}
-                            placeholder="搜索笔记..."
-                            value={searchQuery}
-                            onChangeText={setSearchQuery}
-                        />
-                    </View>
-                    {/* 其他列表内容... */}
+                    {renderNotesList()}
                 </View>
 
                 {/* 右侧笔记详情 */}
                 <View style={styles.noteDetailContainer}>
-                    {selectedNote ? (
-                        isEditing ? (
-                            // 编辑模式
-                            <View style={styles.editingContainer}>
-                                {/* 编辑表单... */}
-                            </View>
-                        ) : (
-                            // 详情模式
-                            <ScrollView style={styles.detailScrollView}>
-                                {/* 笔记详情... */}
-                            </ScrollView>
-                        )
-                    ) : (
-                        // 空状态
-                        <View style={styles.emptyDetailContainer}>
-                            <Text style={styles.emptyDetailText}>选择一个笔记查看详情</Text>
-                        </View>
-                    )}
+                    {renderNoteDetail()}
                 </View>
             </View>
         </ScreenContainer>
@@ -464,7 +570,7 @@ const styles = StyleSheet.create({
         },
         activeFilterText: {
             color: theme.colors.onPrimary,
-            fontWeight: theme.typography.fontWeight.bold,
+            fontWeight: '700',
         },
         notesList: {
             flex: 1,
@@ -487,7 +593,7 @@ const styles = StyleSheet.create({
         },
         noteTitle: {
             fontSize: theme.typography.fontSize.md,
-            fontWeight: theme.typography.fontWeight.bold,
+            fontWeight: '700',
             color: theme.colors.textPrimary,
             flex: 1,
         },
@@ -562,7 +668,7 @@ const styles = StyleSheet.create({
         },
         noteDetailTitle: {
             fontSize: theme.typography.fontSize.xl,
-            fontWeight: theme.typography.fontWeight.bold,
+            fontWeight: '700',
             color: theme.colors.textPrimary,
             flex: 1,
         },
@@ -572,7 +678,7 @@ const styles = StyleSheet.create({
             borderRadius: theme.borderRadius.md,
             padding: theme.spacing.md,
             fontSize: theme.typography.fontSize.xl,
-            fontWeight: theme.typography.fontWeight.bold,
+            fontWeight: '700',
             color: theme.colors.textPrimary,
             borderWidth: 1,
             borderColor: theme.colors.border,
@@ -657,6 +763,13 @@ const styles = StyleSheet.create({
         noteDetailDate: {
             fontSize: theme.typography.fontSize.sm,
             color: theme.colors.textSecondary,
+        },
+        editingContainer: {
+            flex: 1,
+            padding: theme.spacing.md,
+        },
+        detailScrollView: {
+            flex: 1,
         },
     });
 

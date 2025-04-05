@@ -13,6 +13,7 @@ import PrivacySettingsScreen from '../screens/profile/PrivacySettingsScreen';
 import HelpSupportScreen from '../screens/profile/HelpSupportScreen';
 import AboutScreen from '../screens/profile/AboutScreen';
 import MembershipUpgradeScreen from '../screens/profile/MembershipUpgradeScreen';
+import MeetingDetailScreen from '../screens/assistant/MeetingDetailScreen';
 
 const RootStack = createStackNavigator<RootStackParamList>();
 
@@ -87,6 +88,13 @@ const AppNavigator = () => {
                             options={{
                                 headerShown: true,
                                 title: '会员升级',
+                            }}
+                        />
+                        <RootStack.Screen 
+                            name="MeetingDetail" 
+                            component={MeetingDetailScreen}
+                            options={{
+                                headerShown: false,
                             }}
                         />
                     </>

@@ -1,10 +1,23 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
 import { Platform } from 'react-native';
 import ScreenContainer from '../../components/common/ScreenContainer';
 import Card from '../../components/common/Card';
 import Button from '../../components/common/Button';
 import theme from '../../theme';
+import apiService from '../../services/api';
+
+// 添加事件接口定义
+interface Event {
+  id: string;
+  title: string;
+  time: string;
+  location: string;
+  color: string;
+  event_id?: string;
+  start_time?: string;
+  end_time?: string;
+}
 
 // 日历组件
 const CalendarScreen: React.FC = () => {
@@ -13,12 +26,32 @@ const CalendarScreen: React.FC = () => {
   // 选中的日期
   const [selectedDate, setSelectedDate] = useState(new Date());
   
-  // 模拟事件数据
-  const events = [
-    { id: '1', title: '产品团队会议', time: '10:00 - 11:30', location: '会议室A', color: theme.colors.primary },
-    { id: '2', title: '客户演示', time: '14:30 - 15:30', location: '线上会议', color: theme.colors.secondary },
-    { id: '3', title: '健身', time: '18:00 - 19:00', location: '健身中心', color: theme.colors.success },
-  ];
+  // 添加到组件内部
+  const [events, setEvents] = useState<Event[]>([]);
+  const [loading, setLoading] = useState(false);
+  
+  useEffect(() => {
+    fetchEvents();
+  }, [currentDate]);
+  
+  const fetchEvents = async () => {
+    setLoading(true);
+    try {
+      const year = currentDate.getFullYear();
+      const month = currentDate.getMonth();
+      const startDate = new Date(year, month, 1).toISOString().split('T')[0];
+      const endDate = new Date(year, month + 1, 0).toISOString().split('T')[0];
+      
+      const response = await apiService.scheduler.getEvents(startDate, endDate);
+      if (response) {
+        setEvents(response);
+      }
+    } catch (error) {
+      console.error('获取日程失败:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
   
   // 获取月份名称
   const getMonthName = (date: Date) => {
@@ -73,10 +106,23 @@ const CalendarScreen: React.FC = () => {
            date.getFullYear() === selectedDate.getFullYear();
   };
   
-  // 检查日期是否有事件
+  // 检查日期是否有事件 - 根据实际事件数据而不是模拟
   const hasEvents = (date: number) => {
-    // 这里简化处理，实际应用中需要检查具体日期
-    return date % 3 === 0;
+    const fullDate = new Date(currentDate.getFullYear(), currentDate.getMonth(), date);
+    const dateString = fullDate.toISOString().split('T')[0];
+    
+    return events.some(event => {
+      // 处理后端返回的日期格式
+      if (event.start_time) {
+        const eventDate = new Date(event.start_time).toISOString().split('T')[0];
+        return eventDate === dateString;
+      }
+      // 兼容现有格式
+      const [eventHour] = event.time.split(':');
+      const eventDate = new Date(fullDate);
+      eventDate.setHours(parseInt(eventHour, 10) || 0);
+      return eventDate.toISOString().split('T')[0] === dateString;
+    });
   };
   
   // 渲染日历
@@ -155,7 +201,7 @@ const CalendarScreen: React.FC = () => {
     );
   };
   
-  // 渲染事件列表
+  // 渲染事件列表 - 格式化来自API的数据
   const renderEvents = () => {
     return (
       <View style={styles.eventsContainer}>
@@ -164,15 +210,31 @@ const CalendarScreen: React.FC = () => {
         </Text>
         
         {events.length > 0 ? (
-          events.map((event) => (
-            <Card key={event.id} style={[styles.eventCard, { borderLeftColor: event.color, borderLeftWidth: 4 }]}>
-              <View style={styles.eventContent}>
-                <Text style={styles.eventTitle}>{event.title}</Text>
-                <Text style={styles.eventTime}>{event.time}</Text>
-                <Text style={styles.eventLocation}>{event.location}</Text>
-              </View>
-            </Card>
-          ))
+          events.map((event) => {
+            const cardStyle = {
+              ...styles.eventCard,
+              borderLeftColor: event.color || theme.colors.primary
+            };
+            
+            return (
+              <Card 
+                key={event.id || event.event_id} 
+                style={cardStyle}
+              >
+                <View style={styles.eventContent}>
+                  <Text style={styles.eventTitle}>{event.title}</Text>
+                  <Text style={styles.eventTime}>
+                    {event.time || 
+                      (event.start_time && event.end_time) 
+                        ? `${new Date(event.start_time || '').toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})} - 
+                           ${new Date(event.end_time || '').toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}`
+                        : ''}
+                  </Text>
+                  <Text style={styles.eventLocation}>{event.location}</Text>
+                </View>
+              </Card>
+            );
+          })
         ) : (
           <Text style={styles.noEventsText}>今天没有日程安排</Text>
         )}
@@ -211,8 +273,15 @@ const styles = StyleSheet.create({
     padding: theme.spacing.md,
     margin: theme.spacing.md,
     ...Platform.select({
-      ios: theme.shadows.ios.md,
-      android: theme.shadows.android.md,
+      ios: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.1,
+        shadowRadius: 4
+      },
+      android: {
+        elevation: 3
+      },
     }),
   },
   calendarHeader: {
@@ -223,7 +292,7 @@ const styles = StyleSheet.create({
   },
   calendarTitle: {
     fontSize: theme.typography.fontSize.lg,
-    fontWeight: theme.typography.fontWeight.bold,
+    fontWeight: 700,
     color: theme.colors.textPrimary,
   },
   calendarNavButton: {
@@ -238,7 +307,7 @@ const styles = StyleSheet.create({
   },
   weekdayText: {
     fontSize: theme.typography.fontSize.sm,
-    fontWeight: theme.typography.fontWeight.medium,
+    fontWeight: 500,
     color: theme.colors.textSecondary,
     width: 36,
     textAlign: 'center',
@@ -263,7 +332,7 @@ const styles = StyleSheet.create({
     borderRadius: 20,
   },
   todayText: {
-    fontWeight: theme.typography.fontWeight.bold,
+    fontWeight: 700,
   },
   selectedDay: {
     backgroundColor: theme.colors.primary,
@@ -271,7 +340,7 @@ const styles = StyleSheet.create({
   },
   selectedDayText: {
     color: theme.colors.onPrimary,
-    fontWeight: theme.typography.fontWeight.bold,
+    fontWeight: 700,
   },
   eventDot: {
     width: 4,
@@ -286,19 +355,21 @@ const styles = StyleSheet.create({
   },
   eventsTitle: {
     fontSize: theme.typography.fontSize.lg,
-    fontWeight: theme.typography.fontWeight.bold,
+    fontWeight: 700,
     color: theme.colors.textPrimary,
     marginBottom: theme.spacing.md,
   },
   eventCard: {
     marginBottom: theme.spacing.sm,
+    borderLeftColor: theme.colors.primary,
+    borderLeftWidth: 4
   },
   eventContent: {
     padding: theme.spacing.sm,
   },
   eventTitle: {
     fontSize: theme.typography.fontSize.md,
-    fontWeight: theme.typography.fontWeight.bold,
+    fontWeight: 700,
     color: theme.colors.textPrimary,
     marginBottom: theme.spacing.xs,
   },
