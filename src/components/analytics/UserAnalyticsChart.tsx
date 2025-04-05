@@ -1,216 +1,110 @@
 import React from 'react';
-import { View, Text, StyleSheet, Dimensions, useColorScheme } from 'react-native';
-import Card from '../common/Card';
+import { View, Text, StyleSheet, Dimensions, useColorScheme, Platform } from 'react-native';
+import { BarChart } from 'react-native-chart-kit';
 import theme from '../../theme';
 import useTranslation from '../../hooks/useTranslation';
 
-interface DataPoint {
+interface ActivityData {
   day: string;
   value: number;
 }
 
 interface UserAnalyticsChartProps {
   title: string;
-  data: DataPoint[];
-  maxValue?: number;
+  data: ActivityData[];
   color?: string;
   unit?: string;
 }
 
-// 定义图表高度常量
-const CHART_HEIGHT = 140;
-
 const UserAnalyticsChart: React.FC<UserAnalyticsChartProps> = ({
   title,
   data,
-  maxValue: propMaxValue,
   color = theme.colors.primary,
-  unit = ''
+  unit = '',
 }) => {
   const { t } = useTranslation();
   const colorScheme = useColorScheme();
   const isDarkMode = colorScheme === 'dark';
+  const screenWidth = Dimensions.get('window').width - (theme.spacing.md * 2);
   
-  // 计算最大值，如果没有提供则从数据中找出
-  const maxValue = propMaxValue || Math.max(...data.map(point => point.value), 1);
+  const chartData = {
+    labels: data.map(item => item.day),
+    datasets: [
+      {
+        data: data.map(item => item.value),
+        color: (opacity = 1) => color, // 颜色
+        strokeWidth: 2, // 线宽
+      },
+    ],
+  };
   
-  // 计算图表宽度 (根据屏幕宽度减去边距)
-  const screenWidth = Dimensions.get('window').width;
-  const chartWidth = screenWidth - (theme.spacing.md * 4);
-  
-  // 计算每个数据点的宽度
-  const pointWidth = chartWidth / data.length;
+  const chartConfig = {
+    backgroundGradientFrom: isDarkMode ? theme.dark.colors.cardBackground : theme.colors.cardBackground,
+    backgroundGradientTo: isDarkMode ? theme.dark.colors.cardBackground : theme.colors.cardBackground,
+    decimalPlaces: 0,
+    color: (opacity = 1) => `rgba(${isDarkMode ? '255, 255, 255' : '0, 0, 0'}, ${opacity})`,
+    labelColor: (opacity = 1) => isDarkMode ? theme.dark.colors.textSecondary : theme.colors.textSecondary,
+    style: {
+      borderRadius: theme.borderRadius.md,
+    },
+    propsForDots: {
+      r: '6',
+      strokeWidth: '2',
+      stroke: color,
+    },
+    barPercentage: 0.6,
+  };
   
   return (
-    <Card 
-      title={title} 
-      style={styles.card}
-    >
-      <View style={styles.container}>
-        <View style={styles.chartContainer}>
-          {/* Y轴标签 */}
-          <View style={styles.yAxis}>
-            <Text style={[styles.yAxisLabel, isDarkMode && styles.textDark]}>
-              {maxValue}{unit}
-            </Text>
-            <Text style={[styles.yAxisLabel, isDarkMode && styles.textDark]}>
-              {Math.floor(maxValue / 2)}{unit}
-            </Text>
-            <Text style={[styles.yAxisLabel, isDarkMode && styles.textDark]}>
-              0{unit}
-            </Text>
-          </View>
-          
-          <View style={styles.chartArea}>
-            {/* 柱状图/折线图 */}
-            <View style={styles.chart}>
-              {data.map((point, index) => {
-                const barHeight = (point.value / maxValue) * CHART_HEIGHT;
-                return (
-                  <View key={index} style={[styles.barContainer, { width: pointWidth - 4 }]}>
-                    <View 
-                      style={[
-                        styles.bar, 
-                        { 
-                          height: barHeight, 
-                          backgroundColor: color 
-                        }
-                      ]} 
-                    />
-                  </View>
-                );
-              })}
-            </View>
-            
-            {/* X轴标签 */}
-            <View style={styles.xAxis}>
-              {data.map((point, index) => (
-                <Text 
-                  key={index} 
-                  style={[
-                    styles.xAxisLabel, 
-                    { width: pointWidth },
-                    isDarkMode && styles.textDark
-                  ]}
-                >
-                  {point.day}
-                </Text>
-              ))}
-            </View>
-          </View>
-        </View>
-        
-        {/* 图表总结 */}
-        <View style={styles.summaryContainer}>
-          <View style={styles.summaryItem}>
-            <Text style={[styles.summaryValue, { color }, isDarkMode && styles.textLightDark]}>
-              {data.reduce((sum, point) => sum + point.value, 0)}{unit}
-            </Text>
-            <Text style={[styles.summaryLabel, isDarkMode && styles.textDark]}>
-              {t('analytics.total')}
-            </Text>
-          </View>
-          
-          <View style={styles.summaryItem}>
-            <Text style={[styles.summaryValue, { color }, isDarkMode && styles.textLightDark]}>
-              {Math.max(...data.map(point => point.value))}{unit}
-            </Text>
-            <Text style={[styles.summaryLabel, isDarkMode && styles.textDark]}>
-              {t('analytics.max')}
-            </Text>
-          </View>
-          
-          <View style={styles.summaryItem}>
-            <Text style={[styles.summaryValue, { color }, isDarkMode && styles.textLightDark]}>
-              {Math.round(data.reduce((sum, point) => sum + point.value, 0) / data.length)}{unit}
-            </Text>
-            <Text style={[styles.summaryLabel, isDarkMode && styles.textDark]}>
-              {t('analytics.avg')}
-            </Text>
-          </View>
-        </View>
-      </View>
-    </Card>
+    <View style={[
+      styles.container,
+      isDarkMode && styles.containerDark
+    ]}>
+      <Text style={[styles.title, isDarkMode && styles.titleDark]}>{title}</Text>
+      
+      <BarChart
+        data={chartData}
+        width={screenWidth}
+        height={220}
+        chartConfig={chartConfig}
+        style={styles.chart}
+        yAxisSuffix={unit ? ` ${unit}` : ''}
+        verticalLabelRotation={30}
+        fromZero
+      />
+    </View>
   );
 };
 
 const styles = StyleSheet.create({
-  card: {
-    marginBottom: theme.spacing.md,
-  },
   container: {
-    padding: theme.spacing.sm,
+    backgroundColor: theme.colors.cardBackground,
+    borderRadius: theme.borderRadius.md,
+    padding: theme.spacing.md,
+    marginBottom: theme.spacing.md,
+    ...Platform.select({
+      ios: theme.shadows.ios.sm,
+      android: theme.shadows.android.sm,
+      default: {
+        elevation: 2,
+      },
+    }),
   },
-  chartContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
+  containerDark: {
+    backgroundColor: theme.dark.colors.cardBackground,
+  },
+  title: {
+    fontSize: theme.typography.fontSize.lg,
+    fontWeight: 'bold',
+    color: theme.colors.textPrimary,
     marginBottom: theme.spacing.md,
   },
-  yAxis: {
-    width: 30,
-    height: 150,
-    justifyContent: 'space-between',
-    alignItems: 'flex-end',
-    paddingRight: theme.spacing.xs,
-  },
-  yAxisLabel: {
-    fontSize: theme.typography.fontSize.xs,
-    color: theme.colors.textSecondary,
-  },
-  chartArea: {
-    flex: 1,
+  titleDark: {
+    color: theme.dark.colors.textPrimary,
   },
   chart: {
-    height: 150,
-    flexDirection: 'row',
-    alignItems: 'flex-end',
-    borderLeftWidth: 1,
-    borderBottomWidth: 1,
-    borderColor: theme.colors.border,
-  },
-  barContainer: {
-    alignItems: 'center',
-    paddingHorizontal: 2,
-  },
-  bar: {
-    width: '80%',
-    borderTopLeftRadius: 3,
-    borderTopRightRadius: 3,
-  },
-  xAxis: {
-    flexDirection: 'row',
-    height: 20,
-    alignItems: 'center',
-  },
-  xAxisLabel: {
-    fontSize: theme.typography.fontSize.xs,
-    color: theme.colors.textSecondary,
-    textAlign: 'center',
-  },
-  summaryContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    borderTopWidth: 1,
-    borderColor: theme.colors.border,
-    paddingTop: theme.spacing.md,
-  },
-  summaryItem: {
-    alignItems: 'center',
-  },
-  summaryValue: {
-    fontSize: theme.typography.fontSize.xl,
-    fontWeight: 'bold',
-    marginBottom: 2,
-  },
-  summaryLabel: {
-    fontSize: theme.typography.fontSize.sm,
-    color: theme.colors.textSecondary,
-  },
-  textDark: {
-    color: theme.dark.colors.textSecondary,
-  },
-  textLightDark: {
-    opacity: 0.9,
+    marginVertical: theme.spacing.sm,
+    borderRadius: theme.borderRadius.md,
   },
 });
 

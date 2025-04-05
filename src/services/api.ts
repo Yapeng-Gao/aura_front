@@ -231,17 +231,63 @@ export interface ApiService {
     getMeeting: (meetingId: string) => Promise<any | undefined>;
   };
   iot: {
+    getDeviceTypes: () => Promise<any | undefined>;
+    getDeviceType: (typeId: string) => Promise<any | undefined>;
     getDevices: () => Promise<any | undefined>;
     getDevice: (deviceId: string) => Promise<any | undefined>;
-    updateDeviceStatus: (deviceId: string, status: any) => Promise<any | undefined>;
     addDevice: (deviceData: any) => Promise<any | undefined>;
-    removeDevice: (deviceId: string) => Promise<any | undefined>;
+    updateDevice: (deviceId: string, deviceData: any) => Promise<any | undefined>;
+    deleteDevice: (deviceId: string) => Promise<any | undefined>;
+    getDeviceState: (deviceId: string) => Promise<any | undefined>;
+    updateDeviceState: (deviceId: string, stateData: any) => Promise<any | undefined>;
+    getDeviceCommandHistory: (deviceId: string, limit?: number) => Promise<any | undefined>;
     getScenes: () => Promise<any | undefined>;
     getScene: (sceneId: string) => Promise<any | undefined>;
-    activateScene: (sceneId: string) => Promise<any | undefined>;
     createScene: (sceneData: any) => Promise<any | undefined>;
     updateScene: (sceneId: string, sceneData: any) => Promise<any | undefined>;
     deleteScene: (sceneId: string) => Promise<any | undefined>;
+    executeScene: (sceneId: string) => Promise<any | undefined>;
+    getSceneExecutionHistory: (sceneId?: string, limit?: number) => Promise<any | undefined>;
+    searchDevices: (query: any) => Promise<any | undefined>;
+    batchUpdateDevices: (updateData: any) => Promise<any | undefined>;
+    getDeviceLogs: (deviceId: string, queryParams: any) => Promise<any | undefined>;
+    runDeviceDiagnostic: (deviceId: string) => Promise<any | undefined>;
+    checkFirmwareUpdate: (deviceId: string) => Promise<any | undefined>;
+    startFirmwareUpdate: (deviceId: string, updateId: string) => Promise<any | undefined>;
+    getRooms: () => Promise<any | undefined>;
+    getRoom: (roomId: string) => Promise<any | undefined>;
+    createRoom: (roomData: any) => Promise<any | undefined>;
+    updateRoom: (roomId: string, roomData: any) => Promise<any | undefined>;
+    deleteRoom: (roomId: string) => Promise<any | undefined>;
+    getRoomStats: (roomId: string) => Promise<any | undefined>;
+    getDeviceGroups: () => Promise<any | undefined>;
+    getDeviceGroup: (groupId: string) => Promise<any | undefined>;
+    createDeviceGroup: (groupData: any) => Promise<any | undefined>;
+    updateDeviceGroup: (groupId: string, groupData: any) => Promise<any | undefined>;
+    deleteDeviceGroup: (groupId: string) => Promise<any | undefined>;
+    addDevicesToGroup: (groupId: string, deviceIds: string[]) => Promise<any | undefined>;
+    removeDeviceFromGroup: (groupId: string, deviceId: string) => Promise<any | undefined>;
+    shareDevice: (deviceId: string, shareData: any) => Promise<any | undefined>;
+    getSharedWithMe: () => Promise<any | undefined>;
+    getSharedByMe: () => Promise<any | undefined>;
+    acceptDeviceSharing: (shareId: string) => Promise<any | undefined>;
+    rejectDeviceSharing: (shareId: string) => Promise<any | undefined>;
+    revokeDeviceSharing: (shareId: string) => Promise<any | undefined>;
+    updateSharePermissions: (shareId: string, permissionsData: any) => Promise<any | undefined>;
+    getDiscoveryProtocols: () => Promise<any | undefined>;
+    discoverDevices: (discoveryParams: any) => Promise<any | undefined>;
+    getDiscoveryHistory: (protocol?: string, limit?: number) => Promise<any | undefined>;
+    addDiscoveredDevice: (discoveryId: string, deviceData: any) => Promise<any | undefined>;
+    authenticateDevice: (deviceId: string, authData: any) => Promise<any | undefined>;
+    generateDeviceToken: (deviceId: string, tokenData: any) => Promise<any | undefined>;
+    getDeviceTokens: (deviceId: string) => Promise<any | undefined>;
+    revokeDeviceToken: (deviceId: string, tokenId: string) => Promise<any | undefined>;
+    createSceneTemplate: (templateData: any) => Promise<any | undefined>;
+    getSceneTemplates: (category?: string) => Promise<any | undefined>;
+    getDeviceUsageStats: (deviceId: string) => Promise<any | undefined>;
+    getSystemStats: () => Promise<any | undefined>;
+    getSystemConfig: (key: string) => Promise<any | undefined>;
+    updateSystemConfig: (key: string, configData: any) => Promise<any | undefined>;
   };
   creative: {
     generateText: (prompt: string) => Promise<any | undefined>;
@@ -266,41 +312,6 @@ export interface ApiService {
     getUsageStats: (period: string) => Promise<any | undefined>;
     getProductivityStats: (period: string) => Promise<any | undefined>;
     getIoTStats: (period: string) => Promise<any | undefined>;
-    getFeatureUsageStats: (featureType?: string, period?: string) => Promise<any | undefined>;
-    getUserActivity: (startDate?: string, endDate?: string) => Promise<any | undefined>;
-    getAnalyticsInsights: () => Promise<any | undefined>;
-    recordActivity: (data: {
-      activity_type: string;
-      module: string;
-      action: string;
-      resource_type?: string;
-      resource_id?: string;
-      session_id?: string;
-      details?: any;
-    }) => Promise<any | undefined>;
-  };
-  feedback: {
-    createFeedback: (feedbackData: {
-      type: 'bug' | 'feature' | 'question' | 'other';
-      title: string;
-      content: string;
-      contactInfo?: string;
-    }) => Promise<any | undefined>;
-    listFeedback: (params?: {
-      feedback_type?: string;
-      status?: string;
-      limit?: number;
-      offset?: number;
-    }) => Promise<any | undefined>;
-    getFeedback: (feedbackId: string) => Promise<any | undefined>;
-    updateFeedback: (feedbackId: string, feedbackData: {
-      type: 'bug' | 'feature' | 'question' | 'other';
-      title: string;
-      content: string;
-      contactInfo?: string;
-    }) => Promise<any | undefined>;
-    deleteFeedback: (feedbackId: string) => Promise<any | undefined>;
-    submitAppRating: (rating: number, comment?: string) => Promise<any | undefined>;
   };
   custom: {
     get: <T>(endpoint: string, config?: AxiosRequestConfig) => Promise<T | undefined>;
@@ -404,19 +415,76 @@ const apiService: ApiService = {
   
   // IoT智能家居相关API
   iot: {
+    getDeviceTypes: () => apiClient.get('/iot/device-types'),
+    getDeviceType: (typeId: string) => apiClient.get(`/iot/device-types/${typeId}`),
     getDevices: () => apiClient.get('/iot/devices'),
-    getDevice: (deviceId: string) => apiClient.get(`/iot/device/${deviceId}`),
-    updateDeviceStatus: (deviceId: string, status: any) => 
-      apiClient.put(`/iot/device/${deviceId}/status`, { status }),
-    addDevice: (deviceData: any) => apiClient.post('/iot/device', deviceData),
-    removeDevice: (deviceId: string) => apiClient.delete(`/iot/device/${deviceId}`),
-    
+    getDevice: (deviceId: string) => apiClient.get(`/iot/devices/${deviceId}`),
+    addDevice: (deviceData: any) => apiClient.post('/iot/devices', deviceData),
+    updateDevice: (deviceId: string, deviceData: any) => apiClient.patch(`/iot/devices/${deviceId}`, deviceData),
+    deleteDevice: (deviceId: string) => apiClient.delete(`/iot/devices/${deviceId}`),
+    getDeviceState: (deviceId: string) => apiClient.get(`/iot/devices/${deviceId}/state`),
+    updateDeviceState: (deviceId: string, stateData: any) => apiClient.patch(`/iot/devices/${deviceId}/state`, stateData),
+    getDeviceCommandHistory: (deviceId: string, limit?: number) => 
+      apiClient.get(`/iot/devices/${deviceId}/commands`, { params: { limit } }),
     getScenes: () => apiClient.get('/iot/scenes'),
-    getScene: (sceneId: string) => apiClient.get(`/iot/scene/${sceneId}`),
-    activateScene: (sceneId: string) => apiClient.post(`/iot/scene/${sceneId}/activate`),
-    createScene: (sceneData: any) => apiClient.post('/iot/scene', sceneData),
-    updateScene: (sceneId: string, sceneData: any) => apiClient.put(`/iot/scene/${sceneId}`, sceneData),
-    deleteScene: (sceneId: string) => apiClient.delete(`/iot/scene/${sceneId}`),
+    getScene: (sceneId: string) => apiClient.get(`/iot/scenes/${sceneId}`),
+    createScene: (sceneData: any) => apiClient.post('/iot/scenes', sceneData),
+    updateScene: (sceneId: string, sceneData: any) => apiClient.patch(`/iot/scenes/${sceneId}`, sceneData),
+    deleteScene: (sceneId: string) => apiClient.delete(`/iot/scenes/${sceneId}`),
+    executeScene: (sceneId: string) => apiClient.post(`/iot/scenes/${sceneId}/execute`),
+    getSceneExecutionHistory: (sceneId?: string, limit?: number) => 
+      apiClient.get('/iot/scenes/executions', { params: { scene_id: sceneId, limit } }),
+    searchDevices: (query: any) => apiClient.post('/iot/devices/search', query),
+    batchUpdateDevices: (updateData: any) => apiClient.post('/iot/devices/batch', updateData),
+    getDeviceLogs: (deviceId: string, queryParams: any) => 
+      apiClient.get(`/iot/devices/${deviceId}/logs`, { params: queryParams }),
+    runDeviceDiagnostic: (deviceId: string) => apiClient.post(`/iot/devices/${deviceId}/diagnostic`),
+    checkFirmwareUpdate: (deviceId: string) => apiClient.get(`/iot/devices/${deviceId}/firmware/check`),
+    startFirmwareUpdate: (deviceId: string, updateId: string) => 
+      apiClient.post(`/iot/devices/${deviceId}/firmware/update/${updateId}`),
+    getRooms: () => apiClient.get('/iot/rooms'),
+    getRoom: (roomId: string) => apiClient.get(`/iot/rooms/${roomId}`),
+    createRoom: (roomData: any) => apiClient.post('/iot/rooms', roomData),
+    updateRoom: (roomId: string, roomData: any) => apiClient.put(`/iot/rooms/${roomId}`, roomData),
+    deleteRoom: (roomId: string) => apiClient.delete(`/iot/rooms/${roomId}`),
+    getRoomStats: (roomId: string) => apiClient.get(`/iot/rooms/${roomId}/stats`),
+    getDeviceGroups: () => apiClient.get('/iot/device-groups'),
+    getDeviceGroup: (groupId: string) => apiClient.get(`/iot/device-groups/${groupId}`),
+    createDeviceGroup: (groupData: any) => apiClient.post('/iot/device-groups', groupData),
+    updateDeviceGroup: (groupId: string, groupData: any) => apiClient.put(`/iot/device-groups/${groupId}`, groupData),
+    deleteDeviceGroup: (groupId: string) => apiClient.delete(`/iot/device-groups/${groupId}`),
+    addDevicesToGroup: (groupId: string, deviceIds: string[]) => 
+      apiClient.post(`/iot/device-groups/${groupId}/devices`, deviceIds),
+    removeDeviceFromGroup: (groupId: string, deviceId: string) => 
+      apiClient.delete(`/iot/device-groups/${groupId}/devices/${deviceId}`),
+    shareDevice: (deviceId: string, shareData: any) => apiClient.post(`/iot/devices/${deviceId}/share`, shareData),
+    getSharedWithMe: () => apiClient.get('/iot/shared-with-me'),
+    getSharedByMe: () => apiClient.get('/iot/shared-by-me'),
+    acceptDeviceSharing: (shareId: string) => apiClient.post(`/iot/shared-with-me/${shareId}/accept`),
+    rejectDeviceSharing: (shareId: string) => apiClient.post(`/iot/shared-with-me/${shareId}/reject`),
+    revokeDeviceSharing: (shareId: string) => apiClient.delete(`/iot/shared-by-me/${shareId}`),
+    updateSharePermissions: (shareId: string, permissionsData: any) => 
+      apiClient.put(`/iot/shared-by-me/${shareId}/permissions`, permissionsData),
+    getDiscoveryProtocols: () => apiClient.get('/iot/discovery/protocols'),
+    discoverDevices: (discoveryParams: any) => apiClient.post('/iot/discovery/scan', discoveryParams),
+    getDiscoveryHistory: (protocol?: string, limit?: number) => 
+      apiClient.get('/iot/discovery/history', { params: { protocol, limit } }),
+    addDiscoveredDevice: (discoveryId: string, deviceData: any) => 
+      apiClient.post(`/iot/discovery/${discoveryId}/add`, deviceData),
+    authenticateDevice: (deviceId: string, authData: any) => 
+      apiClient.post(`/iot/devices/${deviceId}/authenticate`, authData),
+    generateDeviceToken: (deviceId: string, tokenData: any) => 
+      apiClient.post(`/iot/devices/${deviceId}/token`, tokenData),
+    getDeviceTokens: (deviceId: string) => apiClient.get(`/iot/devices/${deviceId}/tokens`),
+    revokeDeviceToken: (deviceId: string, tokenId: string) => 
+      apiClient.delete(`/iot/devices/${deviceId}/tokens/${tokenId}`),
+    createSceneTemplate: (templateData: any) => apiClient.post('/iot/scene-templates', templateData),
+    getSceneTemplates: (category?: string) => 
+      apiClient.get('/iot/scene-templates', { params: { category } }),
+    getDeviceUsageStats: (deviceId: string) => apiClient.get(`/iot/devices/${deviceId}/stats`),
+    getSystemStats: () => apiClient.get('/iot/system/stats'),
+    getSystemConfig: (key: string) => apiClient.get(`/iot/system/config/${key}`),
+    updateSystemConfig: (key: string, configData: any) => apiClient.put(`/iot/system/config/${key}`, configData),
   },
   
   // 创意服务相关API
@@ -455,46 +523,6 @@ const apiService: ApiService = {
     getProductivityStats: (period: string) => 
       apiClient.get('/analytics/productivity', { params: { period } }),
     getIoTStats: (period: string) => apiClient.get('/analytics/iot', { params: { period } }),
-    getFeatureUsageStats: (featureType?: string, period?: string) => 
-      apiClient.get('/analytics/feature-usage', { params: { feature_type: featureType, period: period || 'week' } }),
-    getUserActivity: (startDate?: string, endDate?: string) => 
-      apiClient.get('/analytics/user-activity', { params: { start_date: startDate, end_date: endDate } }),
-    getAnalyticsInsights: () => apiClient.get('/analytics/insights'),
-    recordActivity: (data: {
-      activity_type: string;
-      module: string;
-      action: string;
-      resource_type?: string;
-      resource_id?: string;
-      session_id?: string;
-      details?: any;
-    }) => apiClient.post('/analytics/record-activity', data),
-  },
-  
-  // 反馈相关API
-  feedback: {
-    createFeedback: (feedbackData: {
-      type: 'bug' | 'feature' | 'question' | 'other';
-      title: string;
-      content: string;
-      contactInfo?: string;
-    }) => apiClient.post('/feedback', feedbackData),
-    listFeedback: (params?: {
-      feedback_type?: string;
-      status?: string;
-      limit?: number;
-      offset?: number;
-    }) => apiClient.get('/feedback', { params }),
-    getFeedback: (feedbackId: string) => apiClient.get(`/feedback/${feedbackId}`),
-    updateFeedback: (feedbackId: string, feedbackData: {
-      type: 'bug' | 'feature' | 'question' | 'other';
-      title: string;
-      content: string;
-      contactInfo?: string;
-    }) => apiClient.put(`/feedback/${feedbackId}`, feedbackData),
-    deleteFeedback: (feedbackId: string) => apiClient.delete(`/feedback/${feedbackId}`),
-    submitAppRating: (rating: number, comment?: string) => 
-      apiClient.post('/feedback/app-rating', { rating, comment }),
   },
   
   // 自定义API请求

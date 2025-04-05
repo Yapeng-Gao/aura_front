@@ -4,7 +4,8 @@ import { useNavigation } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import ScreenContainer from '../../components/common/ScreenContainer';
 import UserAnalyticsChart from '../../components/analytics/UserAnalyticsChart';
-import Card from '../../components/common/Card';
+import AnalyticsCard from '../../components/analytics/AnalyticsCard';
+import AnalyticsInsightCard from '../../components/analytics/AnalyticsInsightCard';
 import theme from '../../theme';
 import useTranslation from '../../hooks/useTranslation';
 import { RootStackParamList } from '../../navigation/types';
@@ -13,6 +14,14 @@ import apiService from '../../services/api';
 interface ActivityData {
   day: string;
   value: number;
+}
+
+interface InsightData {
+  id: string;
+  title: string;
+  description: string;
+  icon: string;
+  color?: string;
 }
 
 type AnalyticsScreenNavigationProp = StackNavigationProp<RootStackParamList>;
@@ -32,12 +41,18 @@ const UserAnalyticsScreen: React.FC = () => {
     weeklyStats: ActivityData[];
     mostActiveDay: string;
     mostUsedFeature: string;
+    totalTimeSpent: number;
+    growthRate: number;
+    averageDailyUsage: number;
   }>({
     dailyActivity: [],
     featureUsage: [],
     weeklyStats: [],
     mostActiveDay: '',
     mostUsedFeature: '',
+    totalTimeSpent: 0,
+    growthRate: 0,
+    averageDailyUsage: 0,
   });
   
   // 获取数据
@@ -57,6 +72,9 @@ const UserAnalyticsScreen: React.FC = () => {
             weeklyStats: usageStats.weeklyStats || [],
             mostActiveDay: usageStats.mostActiveDay || t('common.friday'),
             mostUsedFeature: usageStats.mostUsedFeature || t('analytics.assistant'),
+            totalTimeSpent: usageStats.totalTimeSpent || 0,
+            growthRate: usageStats.growthRate || 0,
+            averageDailyUsage: usageStats.averageDailyUsage || 0,
           });
         }
         
@@ -97,6 +115,9 @@ const UserAnalyticsScreen: React.FC = () => {
           weeklyStats: mockWeeklyStats,
           mostActiveDay: t('common.friday'),
           mostUsedFeature: t('analytics.assistant'),
+          totalTimeSpent: 250,
+          growthRate: 12,
+          averageDailyUsage: 35,
         });
       } finally {
         setLoading(false);
@@ -107,24 +128,73 @@ const UserAnalyticsScreen: React.FC = () => {
   }, [t, currentLanguage]);
   
   // 获取分析洞察
-  const [insights, setInsights] = useState<any>(null);
+  const [insightsData, setInsightsData] = useState<InsightData[]>([]);
   
   useEffect(() => {
     const fetchInsights = async () => {
       try {
-        const insightsData = await apiService.analytics.getAnalyticsInsights();
-        if (insightsData && insightsData.insights) {
-          setInsights(insightsData);
+        const insightsResult = await apiService.analytics.getAnalyticsInsights();
+        if (insightsResult && insightsResult.insights) {
+          setInsightsData(insightsResult.insights);
+        } else {
+          // 使用模拟数据
+          setInsightsData([
+            {
+              id: 'insight1',
+              title: t('analytics.productivityTrend'),
+              description: t('analytics.productivityDescription'),
+              icon: 'trending-up',
+              color: theme.colors.success,
+            },
+            {
+              id: 'insight2',
+              title: t('analytics.usagePattern'),
+              description: t('analytics.usagePatternDescription'),
+              icon: 'time-outline',
+              color: theme.colors.info,
+            },
+            {
+              id: 'insight3',
+              title: t('analytics.suggestion'),
+              description: t('analytics.suggestionDescription'),
+              icon: 'bulb-outline',
+              color: theme.colors.warning,
+            },
+          ]);
         }
       } catch (err) {
         console.error('Failed to load insights:', err);
+        // 使用模拟数据
+        setInsightsData([
+          {
+            id: 'insight1',
+            title: t('analytics.productivityTrend'),
+            description: t('analytics.productivityDescription'),
+            icon: 'trending-up',
+            color: theme.colors.success,
+          },
+          {
+            id: 'insight2',
+            title: t('analytics.usagePattern'),
+            description: t('analytics.usagePatternDescription'),
+            icon: 'time-outline',
+            color: theme.colors.info,
+          },
+          {
+            id: 'insight3',
+            title: t('analytics.suggestion'),
+            description: t('analytics.suggestionDescription'),
+            icon: 'bulb-outline',
+            color: theme.colors.warning,
+          },
+        ]);
       }
     };
     
     if (!loading && !error) {
       fetchInsights();
     }
-  }, [loading, error]);
+  }, [loading, error, t]);
   
   if (loading) {
     return (
@@ -164,6 +234,30 @@ const UserAnalyticsScreen: React.FC = () => {
       showBackButton
     >
       <ScrollView style={styles.container}>
+        {/* 核心指标卡片 */}
+        <View style={styles.metricsContainer}>
+          <AnalyticsCard
+            title={t('analytics.totalUsage')}
+            value={usageData.totalTimeSpent}
+            unit={t('analytics.minutes')}
+            icon="time-outline"
+            color={theme.colors.primary}
+            percentage={usageData.growthRate}
+            trend="up"
+            style={styles.metricCard}
+          />
+          
+          <AnalyticsCard
+            title={t('analytics.dailyAverage')}
+            value={usageData.averageDailyUsage}
+            unit={t('analytics.minutes')}
+            icon="calendar-outline"
+            color={theme.colors.info}
+            style={styles.metricCard}
+          />
+        </View>
+        
+        {/* 图表 */}
         <UserAnalyticsChart
           title={t('analytics.dailyActivity')}
           data={usageData.dailyActivity}
@@ -185,26 +279,11 @@ const UserAnalyticsScreen: React.FC = () => {
           unit={t('analytics.times')}
         />
         
-        <Card title={t('analytics.insights')} style={styles.card}>
-          <View style={styles.insightsContainer}>
-            <Text style={[styles.insightText, isDarkMode && styles.textDark]}>
-              {t('analytics.mostActiveDay')}: {usageData.mostActiveDay}
-            </Text>
-            <Text style={[styles.insightText, isDarkMode && styles.textDark]}>
-              {t('analytics.mostUsedFeature')}: {usageData.mostUsedFeature}
-            </Text>
-            
-            {insights && insights.insights && insights.insights.map((insight: any, index: number) => (
-              <Text key={index} style={[styles.insightText, isDarkMode && styles.textDark]}>
-                {insight.title}: {insight.description}
-              </Text>
-            ))}
-            
-            <Text style={[styles.insightText, isDarkMode && styles.textDark]}>
-              {t('analytics.progressTrend')}: {t('analytics.upward')}
-            </Text>
-          </View>
-        </Card>
+        {/* 洞察卡片 */}
+        <AnalyticsInsightCard
+          title={t('analytics.insights')}
+          insights={insightsData}
+        />
       </ScrollView>
     </ScreenContainer>
   );
@@ -225,6 +304,9 @@ const styles = StyleSheet.create({
     fontSize: theme.typography.fontSize.md,
     color: theme.colors.textSecondary,
   },
+  textDark: {
+    color: theme.dark.colors.textSecondary,
+  },
   errorContainer: {
     flex: 1,
     padding: theme.spacing.lg,
@@ -236,19 +318,14 @@ const styles = StyleSheet.create({
     color: theme.colors.error,
     textAlign: 'center',
   },
-  card: {
-    marginBottom: theme.spacing.md,
-  },
-  insightsContainer: {
-    padding: theme.spacing.md,
-  },
-  insightText: {
-    fontSize: theme.typography.fontSize.md,
-    color: theme.colors.textPrimary,
+  metricsContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
     marginBottom: theme.spacing.sm,
   },
-  textDark: {
-    color: theme.dark.colors.textPrimary,
+  metricCard: {
+    flex: 1,
+    marginHorizontal: theme.spacing.xs,
   },
 });
 

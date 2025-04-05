@@ -19,6 +19,7 @@ export const colors = {
   // 中性色
   background: '#F5F5F5',   // 背景色
   surface: '#FFFFFF',      // 表面色
+  cardBackground: '#FFFFFF', // 卡片背景色
   onPrimary: '#FFFFFF',    // 主色调上的文字颜色
   onSecondary: '#000000',  // 次要色调上的文字颜色
   onBackground: '#000000', // 背景上的文字颜色
@@ -62,6 +63,7 @@ export const colors = {
   dark: {
     background: '#121212',
     surface: '#1E1E1E',
+    cardBackground: '#1E1E1E', // 卡片背景色
     primary: '#BB86FC',
     secondary: '#03DAC6',
     onBackground: '#FFFFFF',

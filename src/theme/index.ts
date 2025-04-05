@@ -19,6 +19,7 @@ const borderRadius = {
   lg: 16,
   xl: 24,
   round: 9999,
+  full: 100,
 };
 
 // 阴影 (iOS)
@@ -72,6 +73,50 @@ const animation = {
   slow: 500,
 };
 
+// Colors - 颜色
+const colors = {
+  // 基本颜色
+  primary: '#1890ff',
+  primaryLight: '#69c0ff',
+  primaryDark: '#096dd9',
+  secondary: '#722ed1',
+  secondaryLight: '#b37feb',
+  secondaryDark: '#531dab',
+  error: '#f5222d',
+  warning: '#faad14',
+  success: '#52c41a',
+  info: '#13c2c2',
+  
+  // 背景
+  background: '#f5f5f5',
+  cardBackground: '#ffffff', // 卡片背景色
+  surface: '#ffffff',
+  
+  // 文本
+  textPrimary: '#000000',
+  textSecondary: 'rgba(0, 0, 0, 0.65)',
+  textDisabled: 'rgba(0, 0, 0, 0.25)',
+  textInverse: '#ffffff',
+  
+  // 边框
+  border: '#d9d9d9',
+  divider: '#e8e8e8',
+  
+  // 深色模式
+  dark: {
+    background: '#121212',
+    cardBackground: '#1E1E1E', // 深色模式卡片背景色
+    surface: '#1E1E1E',
+    primary: '#1890ff',
+    secondary: '#722ed1',
+    textPrimary: '#ffffff',
+    textSecondary: 'rgba(255, 255, 255, 0.65)',
+    textDisabled: 'rgba(255, 255, 255, 0.3)',
+    border: '#303030',
+    divider: '#303030',
+  },
+};
+
 // 主题对象
 const theme = {
   colors,
@@ -97,6 +142,7 @@ const theme = {
       textSecondary: colors.dark.textSecondary,
       border: colors.dark.border,
       divider: colors.dark.divider,
+      cardBackground: '#1A1A1A',
     },
     // 其他深色模式特定样式...
   }

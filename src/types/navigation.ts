@@ -11,6 +11,18 @@ export type RootStackParamList = {
     EditProfile: undefined;
     UserAnalytics: undefined;
     LanguageSettings: undefined;
+    DeviceList: undefined;
+    DeviceDetail: { deviceId: string };
+    AddDevice: undefined;
+    EditDevice: { deviceId: string };
+    SceneList: undefined;
+    SceneDetail: { sceneId: string };
+    AddScene: undefined;
+    EditScene: { sceneId: string };
+    RoomList: undefined;
+    RoomDetail: { roomId: string };
+    AddRoom: undefined;
+    DeviceSettings: { deviceId: string };
 };
 
 // 认证导航栈参数
@@ -40,9 +52,18 @@ export type SchedulerStackParamList = {
 
 // IoT管理栈参数
 export type IoTStackParamList = {
-    IoTDevices: undefined;
-    IoTDeviceDetail: { id: string };
-    IoTDeviceSetup: undefined;
+    DeviceList: undefined;
+    DeviceDetail: { deviceId: string };
+    AddDevice: undefined;
+    EditDevice: { deviceId: string };
+    SceneList: undefined;
+    SceneDetail: { sceneId: string };
+    AddScene: undefined;
+    EditScene: { sceneId: string };
+    RoomList: undefined;
+    RoomDetail: { roomId: string };
+    AddRoom: undefined;
+    DeviceSettings: { deviceId: string };
 };
 
 // 创意内容栈参数
