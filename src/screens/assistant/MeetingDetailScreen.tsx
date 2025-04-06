@@ -51,10 +51,19 @@ const MeetingDetailScreen: React.FC = () => {
   const fetchMeetingDetails = async () => {
     setLoading(true);
     try {
-      // 假设API提供了根据ID获取会议详情的方法
-      const response = await apiService.productivity.getMeeting(meetingId);
+      // 使用会议服务API获取会议详情
+      const response = await apiService.meeting.getMeeting(meetingId);
       if (response) {
-        setMeeting(response);
+        setMeeting({
+          meeting_id: response.meeting_id,
+          title: response.title,
+          status: response.status === 'completed' ? 'completed' : 'active',
+          start_time: response.start_time,
+          end_time: response.end_time,
+          participants: response.participants || [],
+          summary: response.summary,
+          action_items: response.action_items,
+        });
       }
     } catch (error) {
       console.error('获取会议详情失败:', error);
@@ -78,7 +87,7 @@ const MeetingDetailScreen: React.FC = () => {
   const handleEndMeeting = async () => {
     setLoading(true);
     try {
-      await apiService.productivity.endMeeting(meetingId);
+      await apiService.meeting.updateMeeting(meetingId, { status: 'completed' });
       
       // 更新会议状态
       if (meeting) {
@@ -101,7 +110,7 @@ const MeetingDetailScreen: React.FC = () => {
   const handleGenerateSummary = async () => {
     setGeneratingSummary(true);
     try {
-      const response = await apiService.productivity.getMeetingSummary(meetingId);
+      const response = await apiService.meeting.generateMeetingSummary(meetingId);
       
       if (response && response.summary) {
         // 更新会议摘要

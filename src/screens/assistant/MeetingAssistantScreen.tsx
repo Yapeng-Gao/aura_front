@@ -29,9 +29,16 @@ const MeetingAssistantScreen: React.FC = () => {
   const fetchMeetings = async () => {
     setLoading(true);
     try {
-      const response = await apiService.productivity.getMeetings();
-      if (response) {
-        setMeetings(response);
+      const response = await apiService.meeting.getMeetings();
+      if (response && response.length > 0) {
+        setMeetings(response.map(meeting => ({
+          id: meeting.meeting_id, // 映射meeting_id到id
+          title: meeting.title,
+          time: new Date(meeting.start_time).toLocaleString('zh-CN', { hour: '2-digit', minute: '2-digit' }),
+          duration: `${meeting.duration_minutes || 60}分钟`,
+          participants: meeting.participants ? meeting.participants.length : 0,
+          status: meeting.status === 'completed' ? 'completed' : 'upcoming'
+        })));
       }
     } catch (error) {
       console.error('获取会议列表失败:', error);
@@ -78,10 +85,13 @@ const MeetingAssistantScreen: React.FC = () => {
       const meetingData = {
         title: '新会议',
         start_time: new Date().toISOString(),
-        participants: []
+        duration_minutes: 60,
+        participants: [],
+        description: '新创建的会议',
+        location: '线上会议'
       };
       
-      const response = await apiService.productivity.startMeeting(meetingData);
+      const response = await apiService.meeting.createMeeting(meetingData);
       
       if (response && response.meeting_id) {
         navigation.navigate('MeetingDetail', { meetingId: response.meeting_id });
@@ -157,22 +167,34 @@ const MeetingAssistantScreen: React.FC = () => {
         </Card>
 
         <Card title="会议助手功能" style={styles.card}>
-          <TouchableOpacity style={styles.assistantFeature}>
+          <TouchableOpacity 
+            style={styles.assistantFeature}
+            onPress={() => Alert.alert('会议纪要生成', '请在会议详情页面上传会议音频或文本来生成会议纪要')}
+          >
             <Text style={styles.featureTitle}>会议纪要生成</Text>
             <Text style={styles.featureDescription}>自动生成会议纪要，包含关键讨论点和行动项目</Text>
           </TouchableOpacity>
           
-          <TouchableOpacity style={styles.assistantFeature}>
+          <TouchableOpacity 
+            style={styles.assistantFeature}
+            onPress={() => Alert.alert('会议提醒', '会议开始前将自动向参会者发送提醒')}
+          >
             <Text style={styles.featureTitle}>会议提醒</Text>
             <Text style={styles.featureDescription}>智能提醒会议时间，自动发送会议链接</Text>
           </TouchableOpacity>
           
-          <TouchableOpacity style={styles.assistantFeature}>
+          <TouchableOpacity 
+            style={styles.assistantFeature}
+            onPress={() => Alert.alert('参会确认', '创建会议时添加参与者邮箱可发送参会确认邮件')}
+          >
             <Text style={styles.featureTitle}>参会确认</Text>
             <Text style={styles.featureDescription}>自动收集参会确认，统计参会人数</Text>
           </TouchableOpacity>
           
-          <TouchableOpacity style={styles.assistantFeature}>
+          <TouchableOpacity 
+            style={styles.assistantFeature}
+            onPress={() => Alert.alert('会议总结', '会议结束后可生成会议总结报告')}
+          >
             <Text style={styles.featureTitle}>会议总结</Text>
             <Text style={styles.featureDescription}>生成会议总结报告，包含重要决策和后续任务</Text>
           </TouchableOpacity>

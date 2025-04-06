@@ -378,22 +378,60 @@ export interface Meeting {
 
 export interface MeetingRequest {
   title: string;
-  date: string;
   start_time: string;
-  end_time: string;
-  participants: string[];
-  agenda?: string[];
+  duration_minutes: number;
+  participants: Array<{
+    user_id: string;
+    name: string;
+    role?: string;
+  }>;
+  description?: string;
+  location?: string;
+  meeting_type?: string;
 }
 
 export interface MeetingResponse {
-  meeting: Meeting;
+  meeting_id: string;
+  title: string;
+  start_time: string;
+  end_time?: string;
+  duration_minutes: number;
+  status: 'scheduled' | 'in_progress' | 'completed' | 'cancelled';
+  creator_id: string;
+  participants: Array<{
+    user_id: string;
+    name: string;
+    role?: string;
+  }>;
+  description?: string;
+  location?: string;
+  meeting_type?: string;
+  created_at: string;
+  updated_at: string;
+  notes?: {
+    notes_id: string;
+    content: string;
+    key_points: string[];
+    action_items: Array<{
+      id: string;
+      description: string;
+      assignee?: string;
+      due_date?: string;
+    }>;
+  };
+  summary?: string;
 }
 
 export interface MeetingSummaryResponse {
-  meeting_id: UUID;
+  meeting_id: string;
   summary: string;
   key_points: string[];
-  action_items: string[];
+  action_items: Array<{
+    id: string;
+    description: string;
+    assignee?: string;
+    due_date?: string;
+  }>;
   created_at: string;
 }
 
