@@ -64,21 +64,17 @@ const CodeAssistantScreen: React.FC = () => {
     const fetchLanguages = async () => {
       setIsLoading(true);
       try {
-        const supportedLanguages = await codeAssistantApi.getLanguages();
+        // 改为使用getLanguageDetails API获取语言详情
+        const languageDetails = await codeAssistantApi.getLanguageDetails();
         
-        if (supportedLanguages && supportedLanguages.length > 0) {
-          // 为每种语言配置图标和描述
-          const languageInfo = supportedLanguages.map(lang => {
-            // 根据语言名称配置图标和描述
-            const icon = getLanguageIcon(lang);
-            const name = getLanguageDisplayName(lang);
-            const description = getLanguageDescription(lang);
-            
+        if (languageDetails && languageDetails.length > 0) {
+          // 使用API返回的语言详情
+          const languageInfo = languageDetails.map(lang => {
             return {
-              id: lang,
-              name,
-              icon,
-              description
+              id: lang.id,
+              name: lang.name,
+              icon: lang.icon || getLanguageIcon(lang.id),
+              description: lang.description || getLanguageDescription(lang.id)
             };
           });
           
@@ -297,40 +293,18 @@ const CodeAssistantScreen: React.FC = () => {
     ];
   }, [languages, recentLanguages]);
 
-  // 处理语言选择
-  const handleLanguageSelect = (languageId: string) => {
+  // 处理语言选择并更新最近使用的语言记录
+  const handleLanguageSelect = async (languageId: string) => {
     setSelectedLanguage(languageId);
     
-    // 更新最近使用的语言到后端
     try {
-      codeAssistantApi.updateRecentLanguage(languageId)
-        .then(updatedLanguages => {
-          // 更新本地状态
-          setRecentLanguages(updatedLanguages);
-        })
-        .catch(error => {
-          console.error('更新最近使用的语言失败:', error);
-          
-          // 即使请求失败，也更新本地状态以提供良好的用户体验
-          if (!recentLanguages.includes(languageId)) {
-            const updatedRecentLanguages = [languageId, ...recentLanguages].slice(0, 5);
-            setRecentLanguages(updatedRecentLanguages);
-          }
-        });
-    } catch (error) {
-      console.error('更新最近使用的语言失败:', error);
-      
-      // 本地状态更新
-      if (!recentLanguages.includes(languageId)) {
-        const updatedRecentLanguages = [languageId, ...recentLanguages].slice(0, 5);
+      // 更新最近使用的语言记录
+      const updatedRecentLanguages = await codeAssistantApi.updateRecentLanguage(languageId);
+      if (updatedRecentLanguages) {
         setRecentLanguages(updatedRecentLanguages);
       }
-    }
-    
-    // 找到选中的语言名称
-    const selectedLang = languages.find(lang => lang.id === languageId);
-    if (selectedLang) {
-      showToast(`已选择 ${selectedLang.name}`);
+    } catch (error) {
+      console.error('更新最近使用的语言记录失败:', error);
     }
   };
 

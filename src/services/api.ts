@@ -624,6 +624,128 @@ const retryOperation = async <T>(
 
 // 代码助手 API
 export const codeAssistantApi = {
+  // 获取支持的编程语言列表
+  getLanguages: async (): Promise<string[]> => {
+    return retryOperation(async () => {
+      try {
+        const token = await AsyncStorage.getItem('token');
+        const headers = { Authorization: `Bearer ${token}` };
+        
+        const response = await axios.get<LanguagesResponse>(
+          `${API_BASE_URL}/assistant/code/languages`,
+          { headers }
+        );
+        
+        return response.data.languages;
+      } catch (error) {
+        handleApiError(error);
+        throw error;
+      }
+    });
+  },
+  
+  // 获取支持的编程语言详情
+  getLanguageDetails: async (): Promise<any[]> => {
+    return retryOperation(async () => {
+      try {
+        const token = await AsyncStorage.getItem('token');
+        const headers = { Authorization: `Bearer ${token}` };
+        
+        const response = await axios.get(
+          `${API_BASE_URL}/assistant/code/languages/details`,
+          { headers }
+        );
+        
+        return response.data;
+      } catch (error) {
+        handleApiError(error);
+        throw error;
+      }
+    });
+  },
+  
+  // 获取用户最近使用的编程语言
+  getRecentLanguages: async (): Promise<string[]> => {
+    return retryOperation(async () => {
+      try {
+        const token = await AsyncStorage.getItem('token');
+        const headers = { Authorization: `Bearer ${token}` };
+        
+        const response = await axios.get<RecentLanguagesResponse>(
+          `${API_BASE_URL}/assistant/code/languages/recent`,
+          { headers }
+        );
+        
+        return response.data.languages;
+      } catch (error) {
+        handleApiError(error);
+        throw error;
+      }
+    });
+  },
+  
+  // 更新用户最近使用的编程语言
+  updateRecentLanguage: async (language: string): Promise<string[]> => {
+    return retryOperation(async () => {
+      try {
+        const token = await AsyncStorage.getItem('token');
+        const headers = { Authorization: `Bearer ${token}` };
+        
+        const response = await axios.post<RecentLanguagesResponse>(
+          `${API_BASE_URL}/assistant/code/languages/recent`,
+          { language },
+          { headers }
+        );
+        
+        return response.data.languages;
+      } catch (error) {
+        handleApiError(error);
+        throw error;
+      }
+    });
+  },
+  
+  // 获取用户收藏的编程语言
+  getFavoriteLanguages: async (): Promise<string[]> => {
+    return retryOperation(async () => {
+      try {
+        const token = await AsyncStorage.getItem('token');
+        const headers = { Authorization: `Bearer ${token}` };
+        
+        const response = await axios.get<FavoriteLanguagesResponse>(
+          `${API_BASE_URL}/assistant/code/languages/favorite`,
+          { headers }
+        );
+        
+        return response.data.languages;
+      } catch (error) {
+        handleApiError(error);
+        throw error;
+      }
+    });
+  },
+  
+  // 更新用户收藏的编程语言
+  updateFavoriteLanguage: async (language: string, isFavorite: boolean): Promise<string[]> => {
+    return retryOperation(async () => {
+      try {
+        const token = await AsyncStorage.getItem('token');
+        const headers = { Authorization: `Bearer ${token}` };
+        
+        const response = await axios.post<FavoriteLanguagesResponse>(
+          `${API_BASE_URL}/assistant/code/languages/favorite`,
+          { language, is_favorite: isFavorite },
+          { headers }
+        );
+        
+        return response.data.languages;
+      } catch (error) {
+        handleApiError(error);
+        throw error;
+      }
+    });
+  },
+
   generateCode: async (
     language: string,
     prompt: string
@@ -723,29 +845,6 @@ export const codeAssistantApi = {
         );
         
         return response.data;
-      } catch (error) {
-        if (error.response?.status >= 500) {
-          throw new ApiError(500, '服务器处理请求时发生错误，请稍后再试', error.response.data);
-        }
-        
-        handleApiError(error);
-        throw error;
-      }
-    });
-  },
-
-  getLanguages: async (): Promise<string[]> => {
-    return retryOperation(async () => {
-      try {
-        const token = await AsyncStorage.getItem('token');
-        const headers = { Authorization: `Bearer ${token}` };
-        
-        const response = await axios.get<{ languages: string[] }>(
-          `${API_BASE_URL}/assistant/code/languages`,
-          { headers }
-        );
-        
-        return response.data.languages;
       } catch (error) {
         if (error.response?.status >= 500) {
           throw new ApiError(500, '服务器处理请求时发生错误，请稍后再试', error.response.data);

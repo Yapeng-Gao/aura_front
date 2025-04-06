@@ -133,6 +133,14 @@ export interface LanguagesResponse {
   languages: string[];
 }
 
+export interface RecentLanguagesResponse {
+  languages: string[];
+}
+
+export interface FavoriteLanguagesResponse {
+  languages: string[];
+}
+
 // 写作助手相关类型
 export interface WritingTemplate {
   id: string;

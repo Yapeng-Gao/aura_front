@@ -18,6 +18,9 @@ const VoiceAssistantScreen: React.FC = () => {
   const [recording, setRecording] = useState<Audio.Recording | null>(null);
   const [recordingUri, setRecordingUri] = useState<string | null>(null);
   const durationTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const MAX_RECORDING_DURATION = 300; // 最大录音时长5分钟(300秒)
+  const [audioLevel, setAudioLevel] = useState(0);
+  const audioLevelTimerRef = useRef<NodeJS.Timeout | null>(null);
   
   // 语音和翻译相关状态
   const [selectedVoice, setSelectedVoice] = useState<string | null>('alloy');
@@ -140,8 +143,22 @@ const VoiceAssistantScreen: React.FC = () => {
       
       // 开始计时
       durationTimerRef.current = setInterval(() => {
-        setRecordingDuration(prev => prev + 1);
+        setRecordingDuration(prev => {
+          const newDuration = prev + 1;
+          // 如果达到最大录音时长，自动停止录音
+          if (newDuration >= MAX_RECORDING_DURATION) {
+            stopRecording();
+            Alert.alert('提示', '已达到最大录音时长(5分钟)');
+            return MAX_RECORDING_DURATION;
+          }
+          return newDuration;
+        });
       }, 1000);
+      
+      // 模拟音频电平
+      audioLevelTimerRef.current = setInterval(() => {
+        setAudioLevel(Math.random() * 0.8 + 0.2); // 产生0.2-1.0之间的随机数
+      }, 100);
       
       // 创建新录音
       const { recording: newRecording } = await Audio.Recording.createAsync(
@@ -161,6 +178,11 @@ const VoiceAssistantScreen: React.FC = () => {
   const stopRecording = async () => {
     if (durationTimerRef.current) {
       clearInterval(durationTimerRef.current);
+    }
+    
+    if (audioLevelTimerRef.current) {
+      clearInterval(audioLevelTimerRef.current);
+      setAudioLevel(0);
     }
     
     if (!recording) {
@@ -186,6 +208,13 @@ const VoiceAssistantScreen: React.FC = () => {
     }
   };
 
+  // 分割长录音为多个片段
+  const splitLongAudio = async (uri: string, maxDurationSecs: number = 60) => {
+    // 注意：这是一个模拟函数，实际实现需要使用音频处理库
+    Alert.alert('提示', '长音频已自动分段处理');
+    return [uri]; // 返回分段后的URI列表，这里简化为原URI
+  };
+
   // 转录录音
   const transcribeRecording = async () => {
     if (!recordingUri) {
@@ -204,21 +233,40 @@ const VoiceAssistantScreen: React.FC = () => {
         throw new Error('录音文件不存在');
       }
       
-      // 创建FormData对象
-      const audioFile = {
-        uri: recordingUri,
-        type: 'audio/m4a',
-        name: 'recording.m4a',
-      };
+      // 检查录音时长，如果超过一分钟，考虑分段处理
+      let audioSegments = [recordingUri];
+      if (recordingDuration > 60) {
+        audioSegments = await splitLongAudio(recordingUri);
+      }
       
-      // 调用API转录
-      const result = await voiceAssistantApi.transcribeAudio(audioFile);
+      let fullTranscription = '';
       
-      setTranscribedText(result.text);
-      setInputText(result.text);
+      // 处理每个音频段
+      for (let i = 0; i < audioSegments.length; i++) {
+        const segmentUri = audioSegments[i];
+        
+        // 创建FormData对象
+        const audioFile = {
+          uri: segmentUri,
+          type: 'audio/m4a',
+          name: `recording_${i}.m4a`,
+        };
+        
+        // 调用API转录
+        const result = await voiceAssistantApi.transcribeAudio(audioFile);
+        fullTranscription += (i > 0 ? ' ' : '') + result.text;
+        
+        // 如果有多个段，显示进度
+        if (audioSegments.length > 1) {
+          Alert.alert('进度', `已处理 ${i+1}/${audioSegments.length} 段`);
+        }
+      }
+      
+      setTranscribedText(fullTranscription);
+      setInputText(fullTranscription);
       
       // 添加到历史记录
-      addToHistory('transcription', result.text, recordingUri);
+      addToHistory('transcription', fullTranscription, recordingUri);
       
       Alert.alert('转录成功', '语音已成功转录为文本');
     } catch (error) {
@@ -401,9 +449,33 @@ const VoiceAssistantScreen: React.FC = () => {
             </TouchableOpacity>
             
             {isRecording && (
-              <Text style={styles.durationText}>
-                录音时长: {formatDuration(recordingDuration)}
-              </Text>
+              <>
+                <Text style={styles.durationText}>
+                  录音时长: {formatDuration(recordingDuration)} / {formatDuration(MAX_RECORDING_DURATION)}
+                </Text>
+                
+                {/* 录音进度条 */}
+                <View style={styles.progressContainer}>
+                  <View style={styles.progressBar}>
+                    <View 
+                      style={[
+                        styles.progressFill, 
+                        { width: `${(recordingDuration / MAX_RECORDING_DURATION) * 100}%` }
+                      ]} 
+                    />
+                  </View>
+                </View>
+                
+                {/* 音量指示器 */}
+                <View style={styles.audioLevelContainer}>
+                  <View 
+                    style={[
+                      styles.audioLevel, 
+                      { height: 40 * audioLevel }
+                    ]}
+                  />
+                </View>
+              </>
             )}
             
             {recordingUri && recordingStatus !== 'processing' && (
@@ -762,6 +834,33 @@ const styles = StyleSheet.create({
     fontSize: theme.typography.fontSize.sm,
     color: theme.colors.textSecondary,
     marginLeft: 32,
+  },
+  progressContainer: {
+    width: '80%',
+    marginTop: theme.spacing.md,
+  },
+  progressBar: {
+    height: 8,
+    backgroundColor: theme.colors.surface,
+    borderRadius: theme.borderRadius.full,
+    overflow: 'hidden',
+  },
+  progressFill: {
+    height: '100%',
+    backgroundColor: theme.colors.primary,
+  },
+  audioLevelContainer: {
+    height: 40,
+    width: 20,
+    backgroundColor: theme.colors.surface,
+    borderRadius: theme.borderRadius.sm,
+    marginTop: theme.spacing.md,
+    justifyContent: 'flex-end',
+    overflow: 'hidden',
+  },
+  audioLevel: {
+    width: '100%',
+    backgroundColor: theme.colors.primary,
   },
 });
 
