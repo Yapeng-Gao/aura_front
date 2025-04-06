@@ -1,5 +1,7 @@
-import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, ActivityIndicator, Alert } from 'react-native';
+import React, { useState, useEffect, useCallback } from 'react';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, ActivityIndicator, Alert, RefreshControl } from 'react-native';
+import { useFocusEffect } from '@react-navigation/native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import ScreenContainer from '../../components/common/ScreenContainer';
 import Card from '../../components/common/Card';
 import theme from '../../theme';
@@ -7,12 +9,20 @@ import Button from '../../components/common/Button';
 import apiService from '../../services/api';
 import { WritingTemplate } from '../../types/assistant';
 import * as Clipboard from 'expo-clipboard';
+import Toast from 'react-native-toast-message';
+import ErrorBoundary from '../../components/common/ErrorBoundary';
+import { useAppSelector } from '../../hooks/useRedux';
+
+// 缓存键
+const TEMPLATES_CACHE_KEY = 'writing_templates_cache';
+const RECENT_DOCS_CACHE_KEY = 'writing_recent_docs';
 
 const WritingAssistantScreen: React.FC = () => {
   const [inputText, setInputText] = useState('');
   const [selectedTemplate, setSelectedTemplate] = useState<string | null>(null);
   const [generatedContent, setGeneratedContent] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
   const [templates, setTemplates] = useState<WritingTemplate[]>([
     {
       id: 'email',
@@ -43,21 +53,89 @@ const WritingAssistantScreen: React.FC = () => {
       icon: '📱'
     }
   ]);
+  
+  // 添加新的状态
+  const [recentDocuments, setRecentDocuments] = useState<any[]>([]);
+  const [currentDocumentId, setCurrentDocumentId] = useState<string | null>(null);
+  const [documentTitle, setDocumentTitle] = useState('');
+  const [styleOption, setStyleOption] = useState('formal');
+  const [lengthOption, setLengthOption] = useState('medium');
+  const [isSaving, setIsSaving] = useState(false);
+  const [showTemplates, setShowTemplates] = useState(true);
+  
+  // 从Redux获取用户信息
+  const { user } = useAppSelector(state => state.auth);
 
-  useEffect(() => {
-    // 加载模板
-    fetchTemplates();
+  // 使用useFocusEffect而不是useEffect以便每次屏幕获得焦点时刷新
+  useFocusEffect(
+    useCallback(() => {
+      // 加载模板
+      fetchTemplates();
+      // 加载最近的文档
+      loadRecentDocuments();
+    }, [])
+  );
+
+  const onRefresh = useCallback(() => {
+    setRefreshing(true);
+    fetchTemplates()
+      .then(() => loadRecentDocuments())
+      .finally(() => setRefreshing(false));
   }, []);
 
   const fetchTemplates = async () => {
     try {
+      // 首先尝试从缓存加载
+      const cachedTemplates = await AsyncStorage.getItem(TEMPLATES_CACHE_KEY);
+      if (cachedTemplates) {
+        setTemplates(JSON.parse(cachedTemplates));
+      }
+      
+      // 然后尝试从服务器获取最新数据
       const fetchedTemplates = await apiService.writing.getTemplates();
       if (fetchedTemplates && fetchedTemplates.length > 0) {
         setTemplates(fetchedTemplates);
+        // 更新缓存
+        await AsyncStorage.setItem(TEMPLATES_CACHE_KEY, JSON.stringify(fetchedTemplates));
       }
     } catch (error) {
       console.error('加载模板失败:', error);
-      // 保留默认模板
+      // 如果服务器请求失败但有缓存数据，就继续使用缓存数据
+      // 如果都没有，则使用默认模板
+      Toast.show({
+        type: 'error',
+        text1: '无法连接到服务器',
+        text2: '正在使用缓存数据'
+      });
+    }
+  };
+
+  const loadRecentDocuments = async () => {
+    try {
+      // 从服务器加载最近的文档
+      const docs = await apiService.writing.getRecentDocuments();
+      if (docs && docs.length > 0) {
+        setRecentDocuments(docs);
+        // 缓存最近的文档
+        await AsyncStorage.setItem(RECENT_DOCS_CACHE_KEY, JSON.stringify(docs));
+      } else {
+        // 如果服务器没有数据，尝试从缓存加载
+        const cachedDocs = await AsyncStorage.getItem(RECENT_DOCS_CACHE_KEY);
+        if (cachedDocs) {
+          setRecentDocuments(JSON.parse(cachedDocs));
+        }
+      }
+    } catch (error) {
+      console.error('加载最近文档失败:', error);
+      // 尝试从缓存加载
+      try {
+        const cachedDocs = await AsyncStorage.getItem(RECENT_DOCS_CACHE_KEY);
+        if (cachedDocs) {
+          setRecentDocuments(JSON.parse(cachedDocs));
+        }
+      } catch (e) {
+        console.error('从缓存加载文档失败:', e);
+      }
     }
   };
 
@@ -65,6 +143,8 @@ const WritingAssistantScreen: React.FC = () => {
     setSelectedTemplate(templateId);
     // 清除之前生成的内容
     setGeneratedContent(null);
+    // 显示输入表单
+    setShowTemplates(false);
     
     // 如果模板有提示词模板，可以将其显示在输入框作为提示
     const template = templates.find(t => t.id === templateId);
@@ -91,6 +171,28 @@ const WritingAssistantScreen: React.FC = () => {
         .replace(/{method}/g, "[研究方法]");
       
       setInputText(placeholderPrompt);
+      
+      // 设置默认文档标题
+      setDocumentTitle(`${template.name} - ${new Date().toLocaleDateString()}`);
+    }
+  };
+
+  const handleBackToTemplates = () => {
+    // 如果有未保存的内容，询问用户
+    if (generatedContent && !currentDocumentId) {
+      Alert.alert(
+        '未保存的内容',
+        '您有未保存的内容，确定要返回吗？',
+        [
+          { text: '取消', style: 'cancel' },
+          { text: '不保存并返回', onPress: () => {
+            setShowTemplates(true);
+            setGeneratedContent(null);
+          }}
+        ]
+      );
+    } else {
+      setShowTemplates(true);
     }
   };
 
@@ -103,34 +205,121 @@ const WritingAssistantScreen: React.FC = () => {
     setLoading(true);
     try {
       // 调用API生成内容
-      const response = await apiService.writing.generateText(inputText, selectedTemplate);
+      const response = await apiService.writing.generateText(
+        inputText, 
+        selectedTemplate,
+        {
+          style: styleOption,
+          length: lengthOption
+        }
+      );
       
       if (response && response.text) {
         setGeneratedContent(response.text);
+        // 自动保存为草稿
+        await saveDocument(response.text, true);
       } else {
         throw new Error('无法生成内容');
       }
     } catch (error) {
       console.error('生成内容失败:', error);
-      Alert.alert('错误', '生成内容失败，请稍后重试');
+      Toast.show({
+        type: 'error',
+        text1: '生成失败',
+        text2: '请检查您的网络连接并重试'
+      });
     } finally {
       setLoading(false);
     }
   };
 
+  const saveDocument = async (content: string, isDraft: boolean = false) => {
+    if (!documentTitle.trim()) {
+      Toast.show({
+        type: 'info',
+        text1: '请先输入文档标题'
+      });
+      return;
+    }
+
+    setIsSaving(true);
+    try {
+      // 如果有现有文档ID，则更新
+      if (currentDocumentId) {
+        await apiService.writing.updateDocument(
+          currentDocumentId,
+          {
+            title: documentTitle,
+            content: content,
+            template_id: selectedTemplate,
+            is_draft: isDraft
+          }
+        );
+        Toast.show({
+          type: 'success',
+          text1: '文档已更新'
+        });
+      } else {
+        // 否则创建新文档
+        const result = await apiService.writing.saveDocument({
+          title: documentTitle,
+          content: content,
+          template_id: selectedTemplate,
+          is_draft: isDraft
+        });
+        if (result && result.id) {
+          setCurrentDocumentId(result.id);
+          Toast.show({
+            type: 'success',
+            text1: '文档已保存'
+          });
+          // 更新最近文档列表
+          await loadRecentDocuments();
+        }
+      }
+    } catch (error) {
+      console.error('保存文档失败:', error);
+      Toast.show({
+        type: 'error',
+        text1: '保存失败',
+        text2: '请检查您的网络连接并重试'
+      });
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
   const handleReset = () => {
-    setInputText('');
-    setSelectedTemplate(null);
-    setGeneratedContent(null);
+    Alert.alert(
+      '确认重置',
+      '这将清除当前所有内容。您确定要重置吗？',
+      [
+        { text: '取消', style: 'cancel' },
+        { text: '确认', onPress: () => {
+          setInputText('');
+          setSelectedTemplate(null);
+          setGeneratedContent(null);
+          setCurrentDocumentId(null);
+          setDocumentTitle('');
+          setShowTemplates(true);
+        }}
+      ]
+    );
   };
 
   const copyToClipboard = async (text: string) => {
     try {
       await Clipboard.setStringAsync(text);
-      Alert.alert('成功', '内容已复制到剪贴板');
+      Toast.show({
+        type: 'success',
+        text1: '已复制到剪贴板'
+      });
     } catch (error) {
       console.error('复制失败:', error);
-      Alert.alert('错误', '复制到剪贴板失败');
+      Toast.show({
+        type: 'error',
+        text1: '复制失败'
+      });
     }
   };
 
@@ -139,14 +328,25 @@ const WritingAssistantScreen: React.FC = () => {
     
     setLoading(true);
     try {
-      const response = await apiService.writing.polishText(generatedContent);
-      if (response && response.text) {
-        setGeneratedContent(response.text);
-        Alert.alert('成功', '文本已优化');
+      const response = await apiService.writing.polishText(generatedContent, { style: styleOption });
+      if (response && response.polished_text) {
+        setGeneratedContent(response.polished_text);
+        // 自动保存更新
+        if (currentDocumentId) {
+          await saveDocument(response.polished_text);
+        }
+        Toast.show({
+          type: 'success',
+          text1: '文本已优化'
+        });
       }
     } catch (error) {
       console.error('优化文本失败:', error);
-      Alert.alert('错误', '优化文本失败，请稍后重试');
+      Toast.show({
+        type: 'error',
+        text1: '优化失败',
+        text2: '请稍后重试'
+      });
     } finally {
       setLoading(false);
     }
@@ -158,17 +358,52 @@ const WritingAssistantScreen: React.FC = () => {
     setLoading(true);
     try {
       const response = await apiService.writing.checkGrammar(generatedContent);
-      if (response) {
-        setGeneratedContent(response.corrected_text);
-        if (response.has_errors) {
-          Alert.alert('语法检查完成', `已修复${response.error_count}处错误`);
-        } else {
-          Alert.alert('语法检查完成', '未发现语法错误');
-        }
+      if (response && response.analysis) {
+        const original = generatedContent;
+        Toast.show({
+          type: 'info',
+          text1: '语法检查完成',
+          text2: '请查看分析结果'
+        });
+        Alert.alert(
+          '语法检查结果',
+          response.analysis,
+          [
+            { text: '关闭', style: 'cancel' }
+          ],
+          { cancelable: true }
+        );
       }
     } catch (error) {
       console.error('语法检查失败:', error);
-      Alert.alert('错误', '语法检查失败，请稍后重试');
+      Toast.show({
+        type: 'error',
+        text1: '语法检查失败',
+        text2: '请稍后重试'
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const loadDocument = async (documentId: string) => {
+    setLoading(true);
+    try {
+      const doc = await apiService.writing.getDocument(documentId);
+      if (doc) {
+        setCurrentDocumentId(doc.id);
+        setDocumentTitle(doc.title);
+        setSelectedTemplate(doc.template_id || null);
+        setGeneratedContent(doc.content);
+        setShowTemplates(false);
+      }
+    } catch (error) {
+      console.error('加载文档失败:', error);
+      Toast.show({
+        type: 'error',
+        text1: '加载文档失败',
+        text2: '请稍后重试'
+      });
     } finally {
       setLoading(false);
     }
@@ -278,15 +513,24 @@ const WritingAssistantScreen: React.FC = () => {
   };
 
   return (
-    <ScreenContainer
-      title="写作助手"
-      backgroundColor={theme.colors.background}
-      showBackButton
-    >
-      <ScrollView style={styles.container}>
-        {renderContent()}
-      </ScrollView>
-    </ScreenContainer>
+    <ErrorBoundary>
+      <ScreenContainer
+        title="写作助手"
+        backgroundColor={theme.colors.background}
+        showBackButton
+      >
+        <ScrollView 
+          style={styles.container}
+          refreshControl={
+            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+          }
+        >
+          <Text style={styles.title}>写作助手</Text>
+          {renderContent()}
+        </ScrollView>
+        <Toast />
+      </ScreenContainer>
+    </ErrorBoundary>
   );
 };
 
@@ -377,6 +621,12 @@ const styles = StyleSheet.create({
   actionButton: {
     flex: 1,
     marginHorizontal: theme.spacing.xs,
+  },
+  title: {
+    fontSize: theme.typography.fontSize.xl,
+    fontWeight: 'bold',
+    color: theme.colors.textPrimary,
+    marginBottom: theme.spacing.md,
   },
 });
 

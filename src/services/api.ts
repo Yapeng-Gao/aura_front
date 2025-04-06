@@ -241,332 +241,54 @@ export const apiClient = {
   },
 };
 
-// API服务模块 - 不包含offline属性，会在sync.ts中添加
-const apiService: ApiService = {
+// 导入各模块服务
+import authService from './auth-service';
+import userService from './user-service';
+import assistantService from './assistant-service';
+import codeService from './code-service';
+import writingService from './writing-service';
+import imageService from './image-service';
+import voiceService from './voice-service';
+import meetingService from './meeting-service';
+import creativeService from './creative-service';
+import iotService from './iot-service';
+import productivityService from './productivity-service';
+import analyticsService from './analytics-service';
+
+// 导出完整的API服务对象
+const apiService = {
   // 通用API客户端
   client: apiClient,
   
   // 原始axios实例，用于高级用例
   api,
   
-  // 认证相关API
-  auth: {
-    login: (credentials: any) => apiClient.post('/auth/login', credentials),
-    register: (userData: any) => apiClient.post('/auth/register', userData),
-    forgotPassword: (email: string) => apiClient.post('/auth/forgot-password', { email }),
-    resetPassword: (token: string, newPassword: string) => 
-      apiClient.post('/auth/reset-password', { token, new_password: newPassword }),
-    refreshToken: (refreshToken: string) => 
-      apiClient.post('/auth/refresh-token', { refresh_token: refreshToken }),
-    logout: () => apiClient.post('/auth/logout'),
-  },
+  // 认证服务
+  auth: authService,
   
-  // 用户相关API
-  user: {
-    getProfile: () => apiClient.get('/users/profile'),
-    updateProfile: (userData: any) => apiClient.patch('/users/profile', userData),
-    updatePreferences: (preferences: any) => apiClient.patch('/users/preferences', preferences),
-    uploadAvatar: (formData: FormData) => apiClient.post('/users/profile/avatar', formData, {
-      headers: {
-        'Content-Type': 'multipart/form-data',
-      },
-    }),
-  },
+  // 用户服务
+  user: userService,
   
-  // AI助手相关API
-  assistant: {
-    // 对话助手API
-    chat: {
-      sendMessage: (conversationId: string, message: string, attachments?: AttachmentUpload[]) => 
-        apiClient.post(`/assistant/chat/${conversationId}/message`, { message, attachments }),
-      getConversation: (conversationId: string) => 
-        apiClient.get(`/assistant/chat/${conversationId}`),
-      createConversation: (title?: string) => 
-        apiClient.post('/assistant/chat/conversation', { title }),
-      listConversations: () => 
-        apiClient.get('/assistant/chat/conversations'),
-      deleteConversation: (conversationId: string) => 
-        apiClient.delete(`/assistant/chat/${conversationId}`),
-    },
-    
-    // 图像助手API
-    image: {
-      getStyles: () => apiClient.get('/assistant/image/styles'),
-      generateImage: (request: { prompt: string, style: string, options?: any }) => 
-        apiClient.post('/assistant/image/generate', request),
-      editImage: (imageUri: string, prompt: string, editType: string) => {
-        const formData = new FormData();
-        // 从URI创建文件对象
-        const filename = imageUri.split('/').pop() || 'image.jpg';
-        const match = /\.(\w+)$/.exec(filename);
-        const type = match ? `image/${match[1]}` : 'image/jpeg';
-        
-        formData.append('image_file', {
-          uri: imageUri,
-          name: filename,
-          type
-        } as any);
-        formData.append('prompt', prompt);
-        formData.append('edit_type', editType);
-        
-        return apiClient.post('/assistant/image/edit', formData, {
-          headers: {
-            'Content-Type': 'multipart/form-data',
-          }
-        });
-      },
-      transferStyle: (imageUri: string, style: string) => {
-        const formData = new FormData();
-        // 从URI创建文件对象
-        const filename = imageUri.split('/').pop() || 'image.jpg';
-        const match = /\.(\w+)$/.exec(filename);
-        const type = match ? `image/${match[1]}` : 'image/jpeg';
-        
-        formData.append('image_file', {
-          uri: imageUri,
-          name: filename,
-          type
-        } as any);
-        formData.append('style', style);
-        
-        return apiClient.post('/assistant/image/style-transfer', formData, {
-          headers: {
-            'Content-Type': 'multipart/form-data',
-          }
-        });
-      },
-      removeBackground: (imageUri: string) => {
-        const formData = new FormData();
-        // 从URI创建文件对象
-        const filename = imageUri.split('/').pop() || 'image.jpg';
-        const match = /\.(\w+)$/.exec(filename);
-        const type = match ? `image/${match[1]}` : 'image/jpeg';
-        
-        formData.append('image_file', {
-          uri: imageUri,
-          name: filename,
-          type
-        } as any);
-        
-        return apiClient.post('/assistant/image/remove-background', formData, {
-          headers: {
-            'Content-Type': 'multipart/form-data',
-          }
-        });
-      },
-    },
-    
-    // 其他助手API... (可以根据需要添加)
-  },
+  // 助手模块
+  assistant: assistantService,
+  code: codeService,
+  writing: writingService,
+  image: imageService,
+  voice: voiceService,
+  meeting: meetingService,
   
-  // 日程管理相关API
-  scheduler: {
-    getEvents: (startDate: string, endDate: string) => 
-      apiClient.get('/scheduler/events', { params: { start_date: startDate, end_date: endDate } }),
-    getEvent: (eventId: string) => apiClient.get(`/scheduler/event/${eventId}`),
-    createEvent: (eventData: any) => apiClient.post('/scheduler/event', eventData),
-    updateEvent: (eventId: string, eventData: any) => apiClient.put(`/scheduler/event/${eventId}`, eventData),
-    deleteEvent: (eventId: string) => apiClient.delete(`/scheduler/event/${eventId}`),
-    
-    getTasks: (status?: string) => apiClient.get('/scheduler/tasks', { params: { status } }),
-    getTask: (taskId: string) => apiClient.get(`/scheduler/task/${taskId}`),
-    createTask: (taskData: any) => apiClient.post('/scheduler/task', taskData),
-    updateTask: (taskId: string, taskData: any) => apiClient.put(`/scheduler/task/${taskId}`, taskData),
-    deleteTask: (taskId: string) => apiClient.delete(`/scheduler/task/${taskId}`),
-    
-    getReminders: () => apiClient.get('/scheduler/reminders'),
-    createReminder: (reminderData: any) => apiClient.post('/scheduler/reminder', reminderData),
-    updateReminder: (reminderId: string, reminderData: any) => 
-      apiClient.put(`/scheduler/reminder/${reminderId}`, reminderData),
-    deleteReminder: (reminderId: string) => apiClient.delete(`/scheduler/reminder/${reminderId}`),
-  },
+  // 创意服务
+  creative: creativeService,
   
-  // 生产力工具相关API
-  productivity: {
-    getNotes: () => apiClient.get('/productivity/notes'),
-    getNote: (noteId: string) => apiClient.get(`/productivity/note/${noteId}`),
-    createNote: (noteData: any) => apiClient.post('/productivity/note', noteData),
-    updateNote: (noteId: string, noteData: any) => apiClient.put(`/productivity/note/${noteId}`, noteData),
-    deleteNote: (noteId: string) => apiClient.delete(`/productivity/note/${noteId}`),
-    
-    processDocument: (formData: FormData) => apiClient.post('/productivity/document/process', formData, {
-      headers: {
-        'Content-Type': 'multipart/form-data',
-      },
-    }),
-    
-    startMeeting: (meetingData: any) => apiClient.post('/productivity/meeting/start', meetingData),
-    endMeeting: (meetingId: string) => apiClient.post(`/productivity/meeting/${meetingId}/end`),
-    getMeetingSummary: (meetingId: string) => apiClient.get(`/productivity/meeting/${meetingId}/summary`),
-    getMeetings: () => apiClient.get('/productivity/meetings'),
-    getMeeting: (meetingId: string) => apiClient.get(`/productivity/meeting/${meetingId}`),
-  },
+  // IoT服务
+  iot: iotService,
   
-  // IoT智能家居相关API
-  iot: {
-    getDeviceTypes: () => apiClient.get<DeviceTypeResponse[]>('/iot/device-types'),
-    getDeviceType: (typeId: string) => apiClient.get<DeviceTypeResponse>(`/iot/device-types/${typeId}`),
-    getDevices: () => apiClient.get<DeviceResponse[]>('/iot/devices'),
-    getDevice: (deviceId: string) => apiClient.get<DeviceResponse>(`/iot/devices/${deviceId}`),
-    addDevice: (deviceData: DeviceCreate) => apiClient.post<DeviceResponse>('/iot/devices', deviceData),
-    updateDevice: (deviceId: string, deviceData: DeviceUpdate) => apiClient.patch<DeviceResponse>(`/iot/devices/${deviceId}`, deviceData),
-    deleteDevice: (deviceId: string) => apiClient.delete(`/iot/devices/${deviceId}`),
-    getDeviceState: (deviceId: string) => apiClient.get<DeviceStateResponse>(`/iot/devices/${deviceId}/state`),
-    updateDeviceState: (deviceId: string, stateData: DeviceStateUpdate) => apiClient.patch<DeviceStateResponse>(`/iot/devices/${deviceId}/state`, stateData),
-    getDeviceCommandHistory: (deviceId: string, limit?: number) => 
-      apiClient.get<DeviceCommandResponse[]>(`/iot/devices/${deviceId}/commands`, { params: { limit } }),
-    getScenes: () => apiClient.get<SceneResponse[]>('/iot/scenes'),
-    getScene: (sceneId: string) => apiClient.get<SceneResponse>(`/iot/scenes/${sceneId}`),
-    createScene: (sceneData: SceneCreate) => apiClient.post<SceneResponse>('/iot/scenes', sceneData),
-    updateScene: (sceneId: string, sceneData: SceneUpdate) => apiClient.patch<SceneResponse>(`/iot/scenes/${sceneId}`, sceneData),
-    deleteScene: (sceneId: string) => apiClient.delete(`/iot/scenes/${sceneId}`),
-    executeScene: (sceneId: string) => apiClient.post<SceneExecutionResponse>(`/iot/scenes/${sceneId}/execute`),
-    getSceneExecutionHistory: (sceneId?: string, limit?: number) => 
-      apiClient.get<SceneExecutionResponse[]>('/iot/scenes/executions', { params: { scene_id: sceneId, limit } }),
-    searchDevices: (query: DeviceSearchQuery) => apiClient.post<DeviceSearchResponse>('/iot/devices/search', query),
-    batchUpdateDevices: (updateData: DeviceBatchUpdate) => apiClient.post<DeviceBatchResponse>('/iot/devices/batch', updateData),
-    getDeviceLogs: (deviceId: string, queryParams: DeviceLogQuery) => 
-      apiClient.get<DeviceLogResponse[]>(`/iot/devices/${deviceId}/logs`, { params: queryParams }),
-    runDeviceDiagnostic: (deviceId: string) => apiClient.post<DeviceDiagnosticResponse>(`/iot/devices/${deviceId}/diagnostic`),
-    checkFirmwareUpdate: (deviceId: string) => apiClient.get<FirmwareUpdateResponse>(`/iot/devices/${deviceId}/firmware/check`),
-    startFirmwareUpdate: (deviceId: string, updateId: string) => 
-      apiClient.post<FirmwareUpdateResponse>(`/iot/devices/${deviceId}/firmware/update/${updateId}`),
-    getRooms: () => apiClient.get<RoomResponse[]>('/iot/rooms'),
-    getRoom: (roomId: string) => apiClient.get<RoomResponse>(`/iot/rooms/${roomId}`),
-    createRoom: (roomData: RoomCreate) => apiClient.post<RoomResponse>('/iot/rooms', roomData),
-    updateRoom: (roomId: string, roomData: RoomUpdate) => apiClient.put<RoomResponse>(`/iot/rooms/${roomId}`, roomData),
-    deleteRoom: (roomId: string) => apiClient.delete(`/iot/rooms/${roomId}`),
-    getRoomStats: (roomId: string) => apiClient.get<RoomStats>(`/iot/rooms/${roomId}/stats`),
-    getDeviceGroups: () => apiClient.get<DeviceGroupResponse[]>('/iot/device-groups'),
-    getDeviceGroup: (groupId: string) => apiClient.get<DeviceGroupDetailResponse>(`/iot/device-groups/${groupId}`),
-    createDeviceGroup: (groupData: DeviceGroupCreate) => apiClient.post<DeviceGroupResponse>('/iot/device-groups', groupData),
-    updateDeviceGroup: (groupId: string, groupData: DeviceGroupUpdate) => apiClient.put<DeviceGroupResponse>(`/iot/device-groups/${groupId}`, groupData),
-    deleteDeviceGroup: (groupId: string) => apiClient.delete(`/iot/device-groups/${groupId}`),
-    addDevicesToGroup: (groupId: string, deviceIds: string[]) => 
-      apiClient.post<DeviceGroupResponse>(`/iot/device-groups/${groupId}/devices`, deviceIds),
-    removeDeviceFromGroup: (groupId: string, deviceId: string) => 
-      apiClient.delete(`/iot/device-groups/${groupId}/devices/${deviceId}`),
-    shareDevice: (deviceId: string, shareData: DeviceShareCreate) => apiClient.post<DeviceSharingResponse>(`/iot/devices/${deviceId}/share`, shareData),
-    getSharedWithMe: () => apiClient.get<SharedDeviceResponse[]>('/iot/shared-with-me'),
-    getSharedByMe: () => apiClient.get<MySharedDeviceResponse[]>('/iot/shared-by-me'),
-    acceptDeviceSharing: (shareId: string) => apiClient.post<SharedDeviceResponse>(`/iot/shared-with-me/${shareId}/accept`),
-    rejectDeviceSharing: (shareId: string) => apiClient.post<void>(`/iot/shared-with-me/${shareId}/reject`),
-    revokeDeviceSharing: (shareId: string) => apiClient.delete<void>(`/iot/shared-by-me/${shareId}`),
-    updateSharePermissions: (shareId: string, permissionsData: DeviceSharePermissionsUpdate) => 
-      apiClient.put<MySharedDeviceResponse>(`/iot/shared-by-me/${shareId}/permissions`, permissionsData),
-    getDiscoveryProtocols: () => apiClient.get<string[]>('/iot/discovery/protocols'),
-    discoverDevices: (discoveryParams: DiscoveryParams) => apiClient.post<DiscoveredDeviceResponse[]>('/iot/discovery/scan', discoveryParams),
-    getDiscoveryHistory: (protocol?: string, limit?: number) => 
-      apiClient.get<DiscoveredDeviceResponse[]>('/iot/discovery/history', { params: { protocol, limit } }),
-    addDiscoveredDevice: (discoveryId: string, deviceData: DiscoveredDeviceAdd) => 
-      apiClient.post<DeviceResponse>(`/iot/discovery/${discoveryId}/add`, deviceData),
-    authenticateDevice: (deviceId: string, authData: DeviceAuthRequest) => 
-      apiClient.post<DeviceAuthResponse>(`/iot/devices/${deviceId}/authenticate`, authData),
-    generateDeviceToken: (deviceId: string, tokenData: DeviceTokenRequest) => 
-      apiClient.post<DeviceTokenResponse>(`/iot/devices/${deviceId}/token`, tokenData),
-    getDeviceTokens: (deviceId: string) => apiClient.get<DeviceTokenInfo[]>(`/iot/devices/${deviceId}/tokens`),
-    revokeDeviceToken: (deviceId: string, tokenId: string) => 
-      apiClient.delete<void>(`/iot/devices/${deviceId}/tokens/${tokenId}`),
-    createSceneTemplate: (templateData: SceneTemplateCreate) => apiClient.post<SceneTemplateResponse>('/iot/scene-templates', templateData),
-    getSceneTemplates: (category?: string) => 
-      apiClient.get<SceneTemplateResponse[]>('/iot/scene-templates', { params: { category } }),
-    getDeviceUsageStats: (deviceId: string) => apiClient.get<DeviceUsageStats>(`/iot/devices/${deviceId}/stats`),
-    getSystemHealth: () => apiClient.get<any>('/iot/system/health'),
-    getSystemMetrics: () => apiClient.get<any>('/iot/system/metrics'),
-    getSystemStats: () => apiClient.get<SystemStats>('/iot/system/stats'),
-    getSystemConfig: (key: string) => apiClient.get<any>(`/iot/system/config/${key}`),
-    updateSystemConfig: (key: string, configData: SystemConfigUpdate) => apiClient.put<any>(`/iot/system/config/${key}`, configData),
-  },
+  // 生产力服务
+  productivity: productivityService,
   
-  // 创意服务相关API
-  creative: {
-    generateText: (prompt: string) => apiClient.post('/creative/generate/text', { prompt }),
-    generateImage: (prompt: string, style: string) => 
-      apiClient.post('/assistant/image/generate', { prompt, style }),
-    generateMusic: (prompt: string, duration: number) => 
-      apiClient.post('/creative/generate/music', { prompt, duration }),
-    
-    getProjects: () => apiClient.get('/creative/projects'),
-    getProject: (projectId: string) => apiClient.get(`/creative/project/${projectId}`),
-    createProject: (projectData: any) => apiClient.post('/creative/project', projectData),
-    updateProject: (projectId: string, projectData: any) => 
-      apiClient.put(`/creative/project/${projectId}`, projectData),
-    deleteProject: (projectId: string) => apiClient.delete(`/creative/project/${projectId}`),
-    
-    getRecommendations: (category: string) => 
-      apiClient.get('/creative/recommendations', { params: { category } }),
-    
-    getARContent: () => apiClient.get('/creative/ar/content'),
-    getARContentItem: (contentId: string) => apiClient.get(`/creative/ar/content/${contentId}`),
-  },
-  
-  // 写作助手相关API
-  writing: {
-    getTemplates: () => apiClient.get<WritingTemplate[]>('/assistant/writing/templates'),
-    
-    generateText: (prompt: string, templateId?: string, options?: Record<string, any>) => 
-      apiClient.post<WriteGenerationResponse>('/assistant/writing/generate', { 
-        prompt, 
-        template_id: templateId,
-        options 
-      }),
-    
-    polishText: (text: string, goal: string = 'improve', style?: string) =>
-      apiClient.post<WriteGenerationResponse>('/assistant/writing/polish', {
-        prompt: text,
-        options: { goal, style }
-      }),
-    
-    checkGrammar: (text: string) =>
-      apiClient.post<WriteGrammarCheckResponse>('/assistant/writing/check-grammar', {
-        prompt: text
-      }),
-    
-    getHistory: () => apiClient.get('/assistant/writing/history'),
-    
-    saveDocument: (title: string, content: string, templateId?: string) =>
-      apiClient.post('/assistant/writing/save', { title, content, template_id: templateId }),
-    
-    getDocument: (documentId: string) => 
-      apiClient.get(`/assistant/writing/document/${documentId}`),
-    
-    updateDocument: (documentId: string, updates: { title?: string, content?: string }) =>
-      apiClient.put(`/assistant/writing/document/${documentId}`, updates),
-    
-    deleteDocument: (documentId: string) =>
-      apiClient.delete(`/assistant/writing/document/${documentId}`)
-  },
-  
-  // 通知相关API
-  notification: {
-    getNotifications: () => apiClient.get('/notification/all'),
-    markAsRead: (notificationId: string) => apiClient.put(`/notification/${notificationId}/read`),
-    markAllAsRead: () => apiClient.put('/notification/read-all'),
-    updateSettings: (settings: any) => apiClient.put('/notification/settings', settings),
-  },
-  
-  // 分析相关API
-  analytics: {
-    getUsageStats: (period: string) => apiClient.get('/analytics/usage', { params: { period } }),
-    getProductivityStats: (period: string) => 
-      apiClient.get('/analytics/productivity', { params: { period } }),
-    getIoTStats: (period: string) => apiClient.get('/analytics/iot', { params: { period } }),
-    recordActivity: (activityData: any) => apiClient.post('/analytics/activity', activityData),
-  },
-  
-  // 自定义API请求
-  custom: {
-    get: <T>(endpoint: string, config?: AxiosRequestConfig) => apiClient.get<T>(endpoint, config),
-    post: <T>(endpoint: string, data?: any, config?: AxiosRequestConfig) => 
-      apiClient.post<T>(endpoint, data, config),
-    put: <T>(endpoint: string, data?: any, config?: AxiosRequestConfig) => 
-      apiClient.put<T>(endpoint, data, config),
-    patch: <T>(endpoint: string, data?: any, config?: AxiosRequestConfig) => 
-      apiClient.patch<T>(endpoint, data, config),
-    delete: <T>(endpoint: string, config?: AxiosRequestConfig) => 
-      apiClient.delete<T>(endpoint, config),
-  }
-} as ApiService; // 使用类型断言
+  // 分析服务
+  analytics: analyticsService
+};
 
 export default apiService;
 

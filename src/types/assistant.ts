@@ -146,52 +146,109 @@ export interface WritingTemplate {
   id: string;
   name: string;
   description: string;
-  category: string;
-  icon: string;
+  category?: string;
+  icon?: string;
   prompt_template?: string;
+  supported_languages?: string[];
 }
 
 export interface WriteGenerationRequest {
-  prompt: string;
+  text: string;
   template_id?: string;
-  options?: Record<string, any>;
+  options?: {
+    style?: string;
+    length?: string;
+    tone?: string;
+    language?: string;
+  };
 }
 
 export interface WriteGenerationResponse {
   text: string;
   template_id?: string;
-  statistics: {
+  statistics?: {
     word_count: number;
-    character_count: number;
-    sentence_count: number;
     paragraph_count: number;
+    char_count: number;
   };
   created_at: string;
 }
 
 export interface WritePolishRequest {
-  prompt: string;
-  options: {
-    goal: string;
-    style?: string;
+  text: string;
+  goal?: string;
+  style?: string;
+  language?: string;
+}
+
+export interface WritePolishResponse {
+  original_text: string;
+  polished_text: string;
+  statistics: {
+    original_word_count: number;
+    polished_word_count: number;
+    word_count_change: number;
+    original_char_count: number;
+    polished_char_count: number;
   };
+  created_at: string;
 }
 
 export interface WriteGrammarCheckRequest {
-  prompt: string;
+  text: string;
+  language?: string;
 }
 
 export interface WriteGrammarCheckResponse {
-  original_text: string;
-  corrected_text: string;
-  has_errors: boolean;
-  error_count: number;
-  corrections: Array<{
-    original: string;
-    corrected: string;
-    reason: string;
-  }>;
+  text: string;
+  analysis: string;
+  statistics: {
+    word_count: number;
+    char_count: number;
+  };
   created_at: string;
+}
+
+export interface WritingDocument {
+  id: string;
+  title: string;
+  content: string;
+  template_id?: string;
+  is_draft: boolean;
+  version: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface WritingDocumentRequest {
+  title: string;
+  content: string;
+  template_id?: string;
+  is_draft?: boolean;
+}
+
+export interface WritingDocumentVersion {
+  version: number;
+  content: string;
+  updated_at: string;
+}
+
+export interface WritingStatistics {
+  generation: {
+    total_generations: number;
+    total_words: number;
+    avg_words: number;
+    templates_used: string[];
+  };
+  polish: {
+    total_polishes: number;
+    total_words_improved: number;
+    avg_improvement: number;
+  };
+  grammar: {
+    total_checks: number;
+    total_words_checked: number;
+  };
 }
 
 // 图像助手相关类型
