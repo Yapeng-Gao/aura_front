@@ -62,7 +62,7 @@ const MeetingDetailScreen: React.FC = () => {
           end_time: response.end_time,
           participants: response.participants || [],
           summary: response.summary,
-          action_items: response.action_items,
+          action_items: response.notes?.action_items || []
         });
       }
     } catch (error) {

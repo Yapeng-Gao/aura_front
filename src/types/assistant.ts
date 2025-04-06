@@ -388,6 +388,7 @@ export interface MeetingRequest {
   description?: string;
   location?: string;
   meeting_type?: string;
+  status?: 'scheduled' | 'in_progress' | 'completed' | 'cancelled';
 }
 
 export interface MeetingResponse {
