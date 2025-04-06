@@ -3,6 +3,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { store } from '../store';
 import { logout } from '../store/slices/authSlice';
 import { API_BASE_URL } from '@env';
+import { Alert } from 'react-native';
 
 // IoT模块相关类型导入
 import {
@@ -38,6 +39,7 @@ import {
   CodeOptimizationRequest,
   CodeTestRequest,
   CodeExplainRequest,
+  LanguagesResponse,
   // 写作助手类型
   WritingTemplate,
   WriteGenerationRequest,
@@ -99,17 +101,17 @@ api.interceptors.request.use(
       
       // 如果AsyncStorage中没有，则从Redux store获取
       if (!token) {
-        const state = store.getState();
+    const state = store.getState();
         token = state.auth.token;
       }
-      
-      // 如果有token，添加到请求头
-      if (token) {
+    
+    // 如果有token，添加到请求头
+    if (token) {
         config.headers = config.headers || {};
-        config.headers.Authorization = `Bearer ${token}`;
-      }
-      
-      return config;
+      config.headers.Authorization = `Bearer ${token}`;
+    }
+    
+    return config;
     } catch (e) {
       console.error('Error reading auth token:', e);
       return config;
@@ -239,193 +241,6 @@ export const apiClient = {
   },
 };
 
-// 定义API服务接口，包含offline
-export interface ApiService {
-  client: typeof apiClient;
-  api: typeof api;
-  auth: {
-    login: (credentials: any) => Promise<any | undefined>;
-    register: (userData: any) => Promise<any | undefined>;
-    forgotPassword: (email: string) => Promise<any | undefined>;
-    resetPassword: (token: string, newPassword: string) => Promise<any | undefined>;
-    refreshToken: (refreshToken: string) => Promise<any | undefined>;
-    logout: () => Promise<any | undefined>;
-  };
-  user: {
-    getProfile: () => Promise<any | undefined>;
-    updateProfile: (userData: any) => Promise<any | undefined>;
-    updatePreferences: (preferences: any) => Promise<any | undefined>;
-    uploadAvatar: (formData: FormData) => Promise<any | undefined>;
-  };
-  assistant: {
-    sendMessage: (message: SendMessageRequest) => Promise<SendMessageResponse | undefined>;
-    getConversation: (conversationId: string) => Promise<GetConversationResponse | undefined>;
-    getConversations: () => Promise<GetConversationsResponse | undefined>;
-    deleteConversation: (conversationId: string) => Promise<void>;
-    updateAssistantSettings: (settings: UpdateAssistantSettingsRequest) => Promise<UpdateAssistantSettingsResponse | undefined>;
-    uploadAttachment: (formData: FormData, conversationId: string) => Promise<UploadAttachmentResponse | undefined>;
-    
-    // 代码助手API
-    generateCode: (request: CodeGenerationRequest) => Promise<CodeGenerationResponse | undefined>;
-    optimizeCode: (request: CodeOptimizationRequest) => Promise<CodeGenerationResponse | undefined>;
-    generateTest: (request: CodeTestRequest) => Promise<CodeGenerationResponse | undefined>;
-    explainCode: (request: CodeExplainRequest) => Promise<CodeGenerationResponse | undefined>;
-    
-    // 写作助手API
-    getWritingTemplates: () => Promise<WritingTemplate[] | undefined>;
-    generateText: (request: WriteGenerationRequest) => Promise<WriteGenerationResponse | undefined>;
-    polishText: (request: WritePolishRequest) => Promise<WriteGenerationResponse | undefined>;
-    checkGrammar: (request: WriteGrammarCheckRequest) => Promise<WriteGrammarCheckResponse | undefined>;
-    
-    // 图像助手API
-    getImageStyles: () => Promise<ImageStyle[] | undefined>;
-    generateImage: (request: ImageGenerationRequest) => Promise<ImageGenerationResponse | undefined>;
-    editImage: (formData: FormData) => Promise<ImageGenerationResponse | undefined>;
-    transferStyle: (formData: FormData) => Promise<ImageGenerationResponse | undefined>;
-    removeBackground: (formData: FormData) => Promise<ImageGenerationResponse | undefined>;
-    
-    // 语音助手API
-    getVoices: () => Promise<Voice[] | undefined>;
-    transcribeAudio: (formData: FormData) => Promise<VoiceTranscriptionResponse | undefined>;
-    generateSpeech: (request: VoiceGenerationRequest) => Promise<VoiceGenerationResponse | undefined>;
-    translateAudio: (formData: FormData, targetLanguage: string, options?: any) => Promise<VoiceTranslateResponse | undefined>;
-    
-    // 会议助手API
-    createMeeting: (request: MeetingRequest) => Promise<MeetingResponse | undefined>;
-    getMeeting: (meetingId: string) => Promise<MeetingResponse | undefined>;
-    getMeetings: (status?: string, fromDate?: string, toDate?: string) => Promise<MeetingResponse[] | undefined>;
-    updateMeeting: (meetingId: string, updates: Partial<MeetingRequest>) => Promise<MeetingResponse | undefined>;
-    startMeeting: (meetingId: string) => Promise<MeetingResponse | undefined>;
-    endMeeting: (meetingId: string) => Promise<MeetingResponse | undefined>;
-    cancelMeeting: (meetingId: string, reason?: string) => Promise<MeetingResponse | undefined>;
-    generateMeetingNotes: (request: MeetingNotesRequest) => Promise<MeetingNoteResponse | undefined>;
-    generateMeetingSummary: (meetingId: string) => Promise<MeetingSummaryResponse | undefined>;
-  };
-  scheduler: {
-    getEvents: (startDate: string, endDate: string) => Promise<any | undefined>;
-    getEvent: (eventId: string) => Promise<any | undefined>;
-    createEvent: (eventData: any) => Promise<any | undefined>;
-    updateEvent: (eventId: string, eventData: any) => Promise<any | undefined>;
-    deleteEvent: (eventId: string) => Promise<any | undefined>;
-    getTasks: (status?: string) => Promise<any | undefined>;
-    getTask: (taskId: string) => Promise<any | undefined>;
-    createTask: (taskData: any) => Promise<any | undefined>;
-    updateTask: (taskId: string, taskData: any) => Promise<any | undefined>;
-    deleteTask: (taskId: string) => Promise<any | undefined>;
-    getReminders: () => Promise<any | undefined>;
-    createReminder: (reminderData: any) => Promise<any | undefined>;
-    updateReminder: (reminderId: string, reminderData: any) => Promise<any | undefined>;
-    deleteReminder: (reminderId: string) => Promise<any | undefined>;
-  };
-  productivity: {
-    getNotes: () => Promise<any | undefined>;
-    getNote: (noteId: string) => Promise<any | undefined>;
-    createNote: (noteData: any) => Promise<any | undefined>;
-    updateNote: (noteId: string, noteData: any) => Promise<any | undefined>;
-    deleteNote: (noteId: string) => Promise<any | undefined>;
-    processDocument: (formData: FormData) => Promise<any | undefined>;
-    startMeeting: (meetingData: any) => Promise<any | undefined>;
-    endMeeting: (meetingId: string) => Promise<any | undefined>;
-    getMeetingSummary: (meetingId: string) => Promise<any | undefined>;
-    getMeetings: () => Promise<any | undefined>;
-    getMeeting: (meetingId: string) => Promise<any | undefined>;
-  };
-  iot: {
-    getDeviceTypes: () => Promise<any | undefined>;
-    getDeviceType: (typeId: string) => Promise<any | undefined>;
-    getDevices: () => Promise<any | undefined>;
-    getDevice: (deviceId: string) => Promise<any | undefined>;
-    addDevice: (deviceData: any) => Promise<any | undefined>;
-    updateDevice: (deviceId: string, deviceData: any) => Promise<any | undefined>;
-    deleteDevice: (deviceId: string) => Promise<any | undefined>;
-    getDeviceState: (deviceId: string) => Promise<any | undefined>;
-    updateDeviceState: (deviceId: string, stateData: any) => Promise<any | undefined>;
-    getDeviceCommandHistory: (deviceId: string, limit?: number) => Promise<any | undefined>;
-    getScenes: () => Promise<any | undefined>;
-    getScene: (sceneId: string) => Promise<any | undefined>;
-    createScene: (sceneData: any) => Promise<any | undefined>;
-    updateScene: (sceneId: string, sceneData: any) => Promise<any | undefined>;
-    deleteScene: (sceneId: string) => Promise<any | undefined>;
-    executeScene: (sceneId: string) => Promise<any | undefined>;
-    getSceneExecutionHistory: (sceneId?: string, limit?: number) => Promise<any | undefined>;
-    searchDevices: (query: any) => Promise<any | undefined>;
-    batchUpdateDevices: (updateData: any) => Promise<any | undefined>;
-    getDeviceLogs: (deviceId: string, queryParams: any) => Promise<any | undefined>;
-    runDeviceDiagnostic: (deviceId: string) => Promise<any | undefined>;
-    checkFirmwareUpdate: (deviceId: string) => Promise<any | undefined>;
-    startFirmwareUpdate: (deviceId: string, updateId: string) => Promise<any | undefined>;
-    getRooms: () => Promise<any | undefined>;
-    getRoom: (roomId: string) => Promise<any | undefined>;
-    createRoom: (roomData: any) => Promise<any | undefined>;
-    updateRoom: (roomId: string, roomData: any) => Promise<any | undefined>;
-    deleteRoom: (roomId: string) => Promise<any | undefined>;
-    getRoomStats: (roomId: string) => Promise<any | undefined>;
-    getDeviceGroups: () => Promise<any | undefined>;
-    getDeviceGroup: (groupId: string) => Promise<any | undefined>;
-    createDeviceGroup: (groupData: any) => Promise<any | undefined>;
-    updateDeviceGroup: (groupId: string, groupData: any) => Promise<any | undefined>;
-    deleteDeviceGroup: (groupId: string) => Promise<any | undefined>;
-    addDevicesToGroup: (groupId: string, deviceIds: string[]) => Promise<any | undefined>;
-    removeDeviceFromGroup: (groupId: string, deviceId: string) => Promise<any | undefined>;
-    shareDevice: (deviceId: string, shareData: any) => Promise<any | undefined>;
-    getSharedWithMe: () => Promise<any | undefined>;
-    getSharedByMe: () => Promise<any | undefined>;
-    acceptDeviceSharing: (shareId: string) => Promise<any | undefined>;
-    rejectDeviceSharing: (shareId: string) => Promise<any | undefined>;
-    revokeDeviceSharing: (shareId: string) => Promise<any | undefined>;
-    updateSharePermissions: (shareId: string, permissionsData: any) => Promise<any | undefined>;
-    getDiscoveryProtocols: () => Promise<any | undefined>;
-    discoverDevices: (discoveryParams: any) => Promise<any | undefined>;
-    getDiscoveryHistory: (protocol?: string, limit?: number) => Promise<any | undefined>;
-    addDiscoveredDevice: (discoveryId: string, deviceData: any) => Promise<any | undefined>;
-    authenticateDevice: (deviceId: string, authData: any) => Promise<any | undefined>;
-    generateDeviceToken: (deviceId: string, tokenData: any) => Promise<any | undefined>;
-    getDeviceTokens: (deviceId: string) => Promise<any | undefined>;
-    revokeDeviceToken: (deviceId: string, tokenId: string) => Promise<any | undefined>;
-    createSceneTemplate: (templateData: any) => Promise<any | undefined>;
-    getSceneTemplates: (category?: string) => Promise<any | undefined>;
-    getDeviceUsageStats: (deviceId: string) => Promise<any | undefined>;
-    getSystemHealth: () => Promise<any | undefined>;
-    getSystemMetrics: () => Promise<any | undefined>;
-    getSystemStats: () => Promise<any | undefined>;
-    getSystemConfig: (key: string) => Promise<any | undefined>;
-    updateSystemConfig: (key: string, configData: SystemConfigUpdate) => Promise<any | undefined>;
-  };
-  creative: {
-    generateText: (prompt: string) => Promise<any | undefined>;
-    generateImage: (prompt: string, style: string) => Promise<any | undefined>;
-    generateMusic: (prompt: string, duration: number) => Promise<any | undefined>;
-    getProjects: () => Promise<any | undefined>;
-    getProject: (projectId: string) => Promise<any | undefined>;
-    createProject: (projectData: any) => Promise<any | undefined>;
-    updateProject: (projectId: string, projectData: any) => Promise<any | undefined>;
-    deleteProject: (projectId: string) => Promise<any | undefined>;
-    getRecommendations: (category: string) => Promise<any | undefined>;
-    getARContent: () => Promise<any | undefined>;
-    getARContentItem: (contentId: string) => Promise<any | undefined>;
-  };
-  notification: {
-    getNotifications: () => Promise<any | undefined>;
-    markAsRead: (notificationId: string) => Promise<any | undefined>;
-    markAllAsRead: () => Promise<any | undefined>;
-    updateSettings: (settings: any) => Promise<any | undefined>;
-  };
-  analytics: {
-    getUsageStats: (period: string) => Promise<any | undefined>;
-    getProductivityStats: (period: string) => Promise<any | undefined>;
-    getIoTStats: (period: string) => Promise<any | undefined>;
-    recordActivity: (activityData: any) => Promise<any | undefined>;
-  };
-  custom: {
-    get: <T>(endpoint: string, config?: AxiosRequestConfig) => Promise<T | undefined>;
-    post: <T>(endpoint: string, data?: any, config?: AxiosRequestConfig) => Promise<T | undefined>;
-    put: <T>(endpoint: string, data?: any, config?: AxiosRequestConfig) => Promise<T | undefined>;
-    patch: <T>(endpoint: string, data?: any, config?: AxiosRequestConfig) => Promise<T | undefined>;
-    delete: <T>(endpoint: string, config?: AxiosRequestConfig) => Promise<T | undefined>;
-  };
-  offline: OfflineApiService;
-}
-
 // API服务模块 - 不包含offline属性，会在sync.ts中添加
 const apiService: ApiService = {
   // 通用API客户端
@@ -478,29 +293,49 @@ const apiService: ApiService = {
       }),
     
     // 代码助手API
-    generateCode: (request: CodeGenerationRequest): Promise<CodeGenerationResponse | undefined> =>
-      apiClient.post('/assistant/code/generate', request),
-    optimizeCode: (request: CodeOptimizationRequest): Promise<CodeGenerationResponse | undefined> =>
-      apiClient.post('/assistant/code/optimize', request),
-    generateTest: (request: CodeTestRequest): Promise<CodeGenerationResponse | undefined> =>
-      apiClient.post('/assistant/code/test', request),
-    explainCode: (request: CodeExplainRequest): Promise<CodeGenerationResponse | undefined> =>
-      apiClient.post('/assistant/code/explain', request),
+    getLanguages: (): Promise<string[] | undefined> =>
+      apiClient.get('/assistant/code/languages').then(response => {
+        return (response as LanguagesResponse)?.languages;
+      }),
+    generateCode: (language: string, prompt: string, context?: Record<string, any>): Promise<CodeGenerationResponse | undefined> =>
+      apiClient.post('/assistant/code/generate', { 
+        language, 
+        prompt, 
+        context 
+      } as CodeGenerationRequest),
+    optimizeCode: (language: string, code: string, optimization_type: 'performance' | 'readability' | 'security' | 'memory' = 'performance'): Promise<CodeGenerationResponse | undefined> =>
+      apiClient.post('/assistant/code/optimize', { 
+        language, 
+        code, 
+        optimization_type 
+      } as CodeOptimizationRequest),
+    generateTestCode: (language: string, code: string, test_framework?: string): Promise<CodeGenerationResponse | undefined> =>
+      apiClient.post('/assistant/code/test', { 
+        language, 
+        code,
+        prompt: `为以下${language}代码生成测试：`, 
+        context: { test_framework } 
+      } as CodeTestRequest),
+    explainCode: (language: string, code: string): Promise<CodeGenerationResponse | undefined> =>
+      apiClient.post('/assistant/code/explain', { 
+        language, 
+        code 
+      } as CodeExplainRequest),
     
     // 写作助手API
     getWritingTemplates: (): Promise<WritingTemplate[] | undefined> =>
       apiClient.get('/assistant/writing/templates'),
-    generateText: (request: WriteGenerationRequest): Promise<WriteGenerationResponse | undefined> =>
+    generateText: (request: WriteGenerationRequest) =>
       apiClient.post('/assistant/writing/generate', request),
-    polishText: (request: WritePolishRequest): Promise<WriteGenerationResponse | undefined> =>
+    polishText: (request: WritePolishRequest) =>
       apiClient.post('/assistant/writing/polish', request),
-    checkGrammar: (request: WriteGrammarCheckRequest): Promise<WriteGrammarCheckResponse | undefined> =>
+    checkGrammar: (request: WriteGrammarCheckRequest) =>
       apiClient.post('/assistant/writing/check-grammar', request),
     
     // 图像助手API
     getImageStyles: (): Promise<ImageStyle[] | undefined> =>
       apiClient.get('/assistant/image/styles'),
-    generateImage: (request: ImageGenerationRequest): Promise<ImageGenerationResponse | undefined> =>
+    generateImage: (request: ImageGenerationRequest) =>
       apiClient.post('/assistant/image/generate', request),
     editImage: (formData: FormData): Promise<ImageGenerationResponse | undefined> =>
       apiClient.post('/assistant/image/edit', formData, {
@@ -526,10 +361,10 @@ const apiService: ApiService = {
       apiClient.get('/assistant/voice/voices'),
     transcribeAudio: (formData: FormData): Promise<VoiceTranscriptionResponse | undefined> =>
       apiClient.post('/assistant/voice/transcribe', formData, {
-        headers: {
-          'Content-Type': 'multipart/form-data',
-        },
-      }),
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    }),
     generateSpeech: (request: VoiceGenerationRequest): Promise<VoiceGenerationResponse | undefined> =>
       apiClient.post('/assistant/voice/generate-speech', request),
     translateAudio: (formData: FormData, targetLanguage: string, options?: any): Promise<VoiceTranslateResponse | undefined> => {
@@ -551,7 +386,7 @@ const apiService: ApiService = {
     },
     
     // 会议助手API
-    createMeeting: (request: MeetingRequest): Promise<MeetingResponse | undefined> =>
+    createMeeting: (request: MeetingRequest) =>
       apiClient.post('/assistant/meeting', request),
     getMeeting: (meetingId: string): Promise<MeetingResponse | undefined> =>
       apiClient.get(`/assistant/meeting/${meetingId}`),
@@ -564,7 +399,7 @@ const apiService: ApiService = {
       
       return apiClient.get(url, { params });
     },
-    updateMeeting: (meetingId: string, updates: Partial<MeetingRequest>): Promise<MeetingResponse | undefined> =>
+    updateMeeting: (meetingId: string, updates: Partial<MeetingRequest>) =>
       apiClient.put(`/assistant/meeting/${meetingId}`, updates),
     startMeeting: (meetingId: string): Promise<MeetingResponse | undefined> =>
       apiClient.post(`/assistant/meeting/${meetingId}/start`),
@@ -763,3 +598,277 @@ const apiService: ApiService = {
 } as ApiService; // 使用类型断言
 
 export default apiService;
+
+// 获取认证头部
+const getAuthHeader = async () => {
+  const token = await AsyncStorage.getItem('token');
+  return {
+    Authorization: `Bearer ${token}`,
+  };
+};
+
+// 处理API错误
+const handleApiError = (error: any) => {
+  console.error('API Error:', error.response?.data || error.message);
+  
+  if (error.response?.status === 401) {
+    // 未授权错误
+    Alert.alert('登录已过期', '请重新登录');
+    // TODO: 重定向到登录页面
+  } else if (error.response?.data?.detail) {
+    Alert.alert('错误', error.response.data.detail);
+  } else {
+    Alert.alert('错误', '请求失败，请稍后重试');
+  }
+};
+
+// API错误类
+export class ApiError extends Error {
+  status: number;
+  data: any;
+
+  constructor(status: number, message: string, data?: any) {
+    super(message);
+    this.name = 'ApiError';
+    this.status = status;
+    this.data = data;
+  }
+}
+
+// 检查网络连接状态
+const checkNetworkConnection = async (): Promise<boolean> => {
+  try {
+    // 简单ping请求检查网络连接
+    await fetch('https://www.google.com', { method: 'HEAD', timeout: 5000 });
+    return true;
+  } catch (error) {
+    console.warn('Network connection check failed:', error);
+    return false;
+  }
+}
+
+// 重试函数
+const retryOperation = async <T>(
+  operation: () => Promise<T>, 
+  maxRetries: number = 3, 
+  delay: number = 1000
+): Promise<T> => {
+  let lastError: any;
+  
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    try {
+      // 检查网络连接
+      const isConnected = await checkNetworkConnection();
+      if (!isConnected && attempt < maxRetries) {
+        console.warn(`Network connection issue detected, attempt ${attempt} of ${maxRetries}`);
+        await new Promise(resolve => setTimeout(resolve, delay * attempt));
+        continue;
+      }
+      
+      return await operation();
+    } catch (error) {
+      lastError = error;
+      console.warn(`Operation failed (attempt ${attempt}/${maxRetries}):`, error);
+      
+      // 如果是网络错误或服务器错误，尝试重试
+      if (
+        error.name === 'NetworkError' || 
+        error.message.includes('Network Error') ||
+        (error.response && error.response.status >= 500)
+      ) {
+        await new Promise(resolve => setTimeout(resolve, delay * attempt));
+      } else {
+        // 其他错误（客户端错误等）直接抛出
+        throw error;
+      }
+    }
+  }
+  
+  // 所有重试都失败了
+  throw lastError;
+};
+
+// 代码助手 API
+export const codeAssistantApi = {
+  generateCode: async (
+    language: string, 
+    prompt: string, 
+    context?: Record<string, any>
+  ): Promise<CodeGenerationResponse> => {
+    const request: CodeGenerationRequest = { language, prompt, context };
+    
+    return retryOperation(async () => {
+      try {
+        const token = await AsyncStorage.getItem('token');
+        const headers = { Authorization: `Bearer ${token}` };
+        
+        const response = await axios.post<CodeGenerationResponse>(
+          `${API_BASE_URL}/assistant/code/generate`,
+          request,
+          { headers }
+        );
+        
+        return response.data;
+      } catch (error) {
+        if (error.response?.status === 400) {
+          // 请求格式错误
+          const errorDetail = error.response.data.detail || '请检查您的输入';
+          throw new ApiError(400, `请求格式错误: ${errorDetail}`, error.response.data);
+        } else if (error.response?.status === 422) {
+          // 验证错误
+          throw new ApiError(422, '代码生成请求验证失败，请检查语言和提示是否有效', error.response.data);
+        } else if (error.response?.status === 429) {
+          // 请求过多
+          throw new ApiError(429, '请求过于频繁，请稍后再试', error.response.data);
+        } else if (error.response?.status >= 500) {
+          // 服务器错误
+          throw new ApiError(500, '服务器处理请求时发生错误，请稍后再试', error.response.data);
+        }
+        
+        // 处理并重新抛出其他错误
+        handleApiError(error);
+        throw error;
+      }
+    });
+  },
+
+  optimizeCode: async (
+    language: string, 
+    code: string, 
+    optimizationType: 'performance' | 'readability' | 'security' | 'memory' = 'performance'
+  ): Promise<CodeGenerationResponse> => {
+    const request: CodeOptimizationRequest = { 
+      language, 
+      code, 
+      optimization_type: optimizationType 
+    };
+    
+    return retryOperation(async () => {
+      try {
+        const token = await AsyncStorage.getItem('token');
+        const headers = { Authorization: `Bearer ${token}` };
+        
+        const response = await axios.post<CodeGenerationResponse>(
+          `${API_BASE_URL}/assistant/code/optimize`,
+          request,
+          { headers }
+        );
+        
+        return response.data;
+      } catch (error) {
+        if (error.response?.status === 400) {
+          throw new ApiError(400, `请求格式错误: ${error.response.data.detail || '请检查您的代码'}`, error.response.data);
+        } else if (error.response?.status === 422) {
+          throw new ApiError(422, '代码优化请求验证失败，请检查语言和代码是否有效', error.response.data);
+        } else if (error.response?.status === 429) {
+          throw new ApiError(429, '请求过于频繁，请稍后再试', error.response.data);
+        } else if (error.response?.status >= 500) {
+          throw new ApiError(500, '服务器处理请求时发生错误，请稍后再试', error.response.data);
+        }
+        
+        handleApiError(error);
+        throw error;
+      }
+    });
+  },
+
+  generateTestCode: async (
+    language: string, 
+    code: string, 
+    test_framework?: string
+  ): Promise<CodeGenerationResponse | undefined> => {
+    const context = test_framework ? { test_framework } : undefined;
+    const request: CodeTestRequest = { 
+      language, 
+      code,
+      prompt: `为以下${language}代码生成测试：`, 
+      context 
+    };
+    
+    return retryOperation(async () => {
+      try {
+        const token = await AsyncStorage.getItem('token');
+        const headers = { Authorization: `Bearer ${token}` };
+        
+        const response = await axios.post<CodeGenerationResponse>(
+          `${API_BASE_URL}/assistant/code/test`,
+          request,
+          { headers }
+        );
+        
+        return response.data;
+      } catch (error) {
+        if (error.response?.status === 400) {
+          throw new ApiError(400, `请求格式错误: ${error.response.data.detail || '请检查您的代码'}`, error.response.data);
+        } else if (error.response?.status === 422) {
+          throw new ApiError(422, '测试生成请求验证失败，请检查语言和代码是否有效', error.response.data);
+        } else if (error.response?.status === 429) {
+          throw new ApiError(429, '请求过于频繁，请稍后再试', error.response.data);
+        } else if (error.response?.status >= 500) {
+          throw new ApiError(500, '服务器处理请求时发生错误，请稍后再试', error.response.data);
+        }
+        
+        handleApiError(error);
+        throw error;
+      }
+    });
+  },
+
+  explainCode: async (
+    language: string, 
+    code: string
+  ): Promise<CodeGenerationResponse> => {
+    const request: CodeExplainRequest = { language, code };
+    
+    return retryOperation(async () => {
+      try {
+        const token = await AsyncStorage.getItem('token');
+        const headers = { Authorization: `Bearer ${token}` };
+        
+        const response = await axios.post<CodeGenerationResponse>(
+          `${API_BASE_URL}/assistant/code/explain`,
+          request,
+          { headers }
+        );
+        
+        return response.data;
+      } catch (error) {
+        if (error.response?.status === 400) {
+          throw new ApiError(400, `请求格式错误: ${error.response.data.detail || '请检查您的代码'}`, error.response.data);
+        } else if (error.response?.status === 422) {
+          throw new ApiError(422, '代码解释请求验证失败，请检查语言和代码是否有效', error.response.data);
+        } else if (error.response?.status === 429) {
+          throw new ApiError(429, '请求过于频繁，请稍后再试', error.response.data);
+        } else if (error.response?.status >= 500) {
+          throw new ApiError(500, '服务器处理请求时发生错误，请稍后再试', error.response.data);
+        }
+        
+        handleApiError(error);
+        throw error;
+      }
+    });
+  },
+
+  getLanguages: async (): Promise<string[]> => {
+    return retryOperation(async () => {
+      try {
+        const token = await AsyncStorage.getItem('token');
+        const headers = { Authorization: `Bearer ${token}` };
+        
+        const response = await axios.get<{ languages: string[] }>(
+          `${API_BASE_URL}/assistant/code/languages`,
+          { headers }
+        );
+        
+        return response.data.languages;
+      } catch (error) {
+        if (error.response?.status >= 500) {
+          throw new ApiError(500, '服务器处理请求时发生错误，请稍后再试', error.response.data);
+        }
+        
+        handleApiError(error);
+        throw error;
+      }
+    });
+  }
+};

@@ -346,8 +346,8 @@ const SmartHomeScreen: React.FC = () => {
           </TouchableOpacity>
         </View>
         
-        <ScrollView 
-          horizontal 
+        <ScrollView
+          horizontal
           showsHorizontalScrollIndicator={false}
           style={styles.sceneList}
         >
@@ -360,8 +360,8 @@ const SmartHomeScreen: React.FC = () => {
               isDarkMode={isDarkMode}
             />
           ))}
-          <TouchableOpacity 
-            style={[
+            <TouchableOpacity
+              style={[
               styles.addSceneButton,
               { backgroundColor: isDarkMode ? theme.dark.colors.cardBackground : theme.colors.cardBackground }
             ]}
@@ -372,12 +372,12 @@ const SmartHomeScreen: React.FC = () => {
               size={16} 
               color={isDarkMode ? theme.dark.colors.textPrimary : theme.colors.textPrimary} 
             />
-            <Text style={[
+              <Text style={[
               styles.addButtonText,
               { color: isDarkMode ? theme.dark.colors.textPrimary : theme.colors.textPrimary }
-            ]}>
+              ]}>
               {t('iot.scenes.add')}
-            </Text>
+              </Text>
           </TouchableOpacity>
         </ScrollView>
       </View>
@@ -413,7 +413,7 @@ const SmartHomeScreen: React.FC = () => {
     }
 
     const selectedRoomData = rooms.find(room => room.room_id === selectedRoom);
-
+    
     return (
       <View style={styles.devicesContainer}>
         <View style={styles.sectionHeader}>
@@ -422,14 +422,14 @@ const SmartHomeScreen: React.FC = () => {
             isDarkMode && { color: theme.dark.colors.textPrimary }
           ]}>
             {selectedRoomData ? selectedRoomData.name : t('iot.devices.title')}
-          </Text>
+              </Text>
           <TouchableOpacity onPress={() => navigation.navigate('AddDevice', { roomId: selectedRoom || undefined })}>
-            <Text style={[
+              <Text style={[
               styles.addDeviceText,
               { color: isDarkMode ? theme.dark.colors.primary : theme.colors.primary }
             ]}>
               {t('iot.devices.add')}
-            </Text>
+              </Text>
           </TouchableOpacity>
         </View>
         
@@ -449,7 +449,7 @@ const SmartHomeScreen: React.FC = () => {
   // 添加设备按钮
   const renderAddDeviceButton = () => {
     return (
-      <TouchableOpacity 
+          <TouchableOpacity
         style={[
           styles.addDeviceButton,
           { backgroundColor: isDarkMode ? theme.dark.colors.primary : theme.colors.primary }
@@ -457,7 +457,7 @@ const SmartHomeScreen: React.FC = () => {
         onPress={() => navigation.navigate('AddDevice')}
       >
         <Icon name="add" size={24} color="#FFFFFF" />
-      </TouchableOpacity>
+          </TouchableOpacity>
     );
   };
 

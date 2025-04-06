@@ -20,6 +20,7 @@ import apiService from '../../services/api';
 import { Message, SendMessageRequest, SendMessageResponse, UpdateAssistantSettingsResponse } from '../../types/assistant';
 import { AIAssistantScreenNavigationProp } from '../../types/navigation';
 import { Ionicons } from '@expo/vector-icons';
+import CodeBlock from '../../components/common/CodeBlock';
 
 const AIAssistantScreen: React.FC = () => {
   const navigation = useNavigation<AIAssistantScreenNavigationProp>();
@@ -249,6 +250,66 @@ const AIAssistantScreen: React.FC = () => {
     );
   };
   
+  // 在消息组件内部添加检测代码块的逻辑
+  const renderMessageContent = (message: Message) => {
+    // 检测消息是否包含代码块
+    if (message.text && message.text.includes('```')) {
+      // 找到所有的代码块
+      const parts = message.text.split(/```(\w*)\n([\s\S]*?)```/g);
+      const result = [];
+      
+      for (let i = 0; i < parts.length; i++) {
+        if (i % 3 === 0) {
+          // 这是普通文本部分
+          if (parts[i]) {
+            result.push(
+              <Text 
+                key={`text-${i}`} 
+                style={[
+                  styles.messageText,
+                  message.sender === 'user' ? styles.userMessageText : styles.assistantMessageText
+                ]}
+              >
+                {parts[i]}
+              </Text>
+            );
+          }
+        } else if (i % 3 === 1) {
+          // 这是语言标识
+          const language = parts[i] || 'text';
+          const code = parts[i + 1];
+          
+          if (code) {
+            result.push(
+              <CodeBlock
+                key={`code-${i}`}
+                code={code}
+                language={language}
+                showLineNumbers={true}
+                style={styles.codeBlock}
+              />
+            );
+          }
+          
+          // 跳过已处理的代码部分
+          i++;
+        }
+      }
+      
+      return result;
+    }
+    
+    // 如果没有代码块，正常显示文本
+    return (
+      <Text style={[
+        styles.messageText,
+        message.sender === 'user' ? styles.userMessageText : styles.assistantMessageText
+      ]}>
+        {message.text}
+      </Text>
+    );
+  };
+  
   if (isLoading) {
     return (
       <ScreenContainer
@@ -336,12 +397,7 @@ const AIAssistantScreen: React.FC = () => {
                   </View>
                 ) : (
                   <>
-                    <Text style={[
-                      styles.messageText,
-                      message.sender === 'user' ? styles.userMessageText : styles.assistantMessageText
-                    ]}>
-                      {message.text}
-                    </Text>
+                    {!message.isProcessing && renderMessageContent(message)}
                     
                     {message.attachmentUrl && (
                       <TouchableOpacity style={styles.attachmentContainer}>
@@ -615,6 +671,11 @@ const styles = StyleSheet.create({
     height: 32,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  codeBlock: {
+    marginTop: theme.spacing.sm,
+    marginBottom: theme.spacing.sm,
+    width: '100%',
   },
 });
 
