@@ -254,8 +254,9 @@ import creativeService from './creative-service';
 import iotService from './iot-service';
 import productivityService from './productivity-service';
 import analyticsService from './analytics-service';
+import calendarService from './calendar-service';
 
-// 导出完整的API服务对象
+// 导出统一的API服务对象
 const apiService = {
   // 通用API客户端
   client: apiClient,
@@ -287,7 +288,10 @@ const apiService = {
   productivity: productivityService,
   
   // 分析服务
-  analytics: analyticsService
+  analytics: analyticsService,
+  
+  // 日历服务
+  calendar: calendarService,
 };
 
 export default apiService;

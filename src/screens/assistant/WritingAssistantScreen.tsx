@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, ActivityIndicator, Alert, RefreshControl } from 'react-native';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, ActivityIndicator, Alert, RefreshControl, Share } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import ScreenContainer from '../../components/common/ScreenContainer';
@@ -12,10 +12,30 @@ import * as Clipboard from 'expo-clipboard';
 import Toast from 'react-native-toast-message';
 import ErrorBoundary from '../../components/common/ErrorBoundary';
 import { useAppSelector } from '../../hooks/useRedux';
+import Dropdown from '../../components/common/Dropdown';
 
 // 缓存键
 const TEMPLATES_CACHE_KEY = 'writing_templates_cache';
 const RECENT_DOCS_CACHE_KEY = 'writing_recent_docs';
+const SUGGESTIONS_CACHE_KEY = 'writing_suggestions_cache';
+
+// 支持的语言
+const SUPPORTED_LANGUAGES = [
+  { label: '中文', value: 'zh' },
+  { label: 'English', value: 'en' },
+  { label: '日本語', value: 'ja' },
+  { label: '한국어', value: 'ko' },
+  { label: 'Español', value: 'es' },
+  { label: 'Français', value: 'fr' },
+];
+
+// 关键词高亮正则表达式
+const HIGHLIGHT_PATTERNS = {
+  redundant: /(\b(事实上|实际上|确实|的确|显然|明显地|很明显|无疑|毫无疑问|众所周知|大家都知道)\b)/g,
+  weak: /(\b(可能|也许|似乎|好像|或许|大概|看起来|应该|兴许|差不多)\b)/g,
+  passive: /(被.+(?:了|的))/g,
+  jargon: /(\b(赋能|抓手|闭环|打通|落地|沉淀|反哺|赛道|壁垒|对标|拉通|颗粒度|组合拳|差异化|去中心化|私域流量)\b)/g
+};
 
 const WritingAssistantScreen: React.FC = () => {
   const [inputText, setInputText] = useState('');
@@ -63,8 +83,19 @@ const WritingAssistantScreen: React.FC = () => {
   const [isSaving, setIsSaving] = useState(false);
   const [showTemplates, setShowTemplates] = useState(true);
   
+  // 添加新的状态变量
+  const [suggestions, setSuggestions] = useState<string[]>([]);
+  const [selectedLanguage, setSelectedLanguage] = useState('zh');
+  const [isAutoSaveEnabled, setIsAutoSaveEnabled] = useState(true);
+  const [highlightedContent, setHighlightedContent] = useState<string | null>(null);
+  const [typingTimeout, setTypingTimeout] = useState<NodeJS.Timeout | null>(null);
+  const [wordCount, setWordCount] = useState(0);
+  const [readingTime, setReadingTime] = useState(0);
+  const inputRef = useRef<TextInput>(null);
+  const lastInputRef = useRef<string>('');
+  
   // 从Redux获取用户信息
-  const { user } = useAppSelector(state => state.auth);
+  const { user } = useAppSelector((state: any) => state.auth);
 
   // 使用useFocusEffect而不是useEffect以便每次屏幕获得焦点时刷新
   useFocusEffect(
@@ -73,6 +104,10 @@ const WritingAssistantScreen: React.FC = () => {
       fetchTemplates();
       // 加载最近的文档
       loadRecentDocuments();
+      // 加载保存的建议
+      loadSavedSuggestions();
+      // 加载用户偏好设置
+      loadUserPreferences();
     }, [])
   );
 
@@ -136,6 +171,193 @@ const WritingAssistantScreen: React.FC = () => {
       } catch (e) {
         console.error('从缓存加载文档失败:', e);
       }
+    }
+  };
+
+  const loadUserPreferences = async () => {
+    try {
+      const autoSavePref = await AsyncStorage.getItem('writing_autosave_pref');
+      if (autoSavePref !== null) {
+        setIsAutoSaveEnabled(JSON.parse(autoSavePref));
+      }
+      
+      const langPref = await AsyncStorage.getItem('writing_language_pref');
+      if (langPref) {
+        setSelectedLanguage(langPref);
+      }
+    } catch (error) {
+      console.error('加载用户偏好设置失败:', error);
+    }
+  };
+
+  const saveUserPreferences = async () => {
+    try {
+      await AsyncStorage.setItem('writing_autosave_pref', JSON.stringify(isAutoSaveEnabled));
+      await AsyncStorage.setItem('writing_language_pref', selectedLanguage);
+    } catch (error) {
+      console.error('保存用户偏好设置失败:', error);
+    }
+  };
+
+  // 加载保存的建议
+  const loadSavedSuggestions = async () => {
+    try {
+      const cachedSuggestions = await AsyncStorage.getItem(SUGGESTIONS_CACHE_KEY);
+      if (cachedSuggestions) {
+        setSuggestions(JSON.parse(cachedSuggestions));
+      }
+    } catch (error) {
+      console.error('加载建议失败:', error);
+    }
+  };
+
+  // 获取智能建议
+  const getSuggestions = async (text: string) => {
+    if (!text || text.length < 10) return;
+    
+    try {
+      // 避免频繁API调用，使用简单的节流
+      if (typingTimeout) {
+        clearTimeout(typingTimeout);
+      }
+      
+      // 如果内容与上次相似度高，不再请求
+      if (lastInputRef.current && similarity(text, lastInputRef.current) > 0.9) {
+        return;
+      }
+      
+      const newTimeout = setTimeout(async () => {
+        const response = await apiService.writing.getSuggestions(text, selectedLanguage);
+        if (response && response.suggestions) {
+          setSuggestions(response.suggestions);
+          await AsyncStorage.setItem(SUGGESTIONS_CACHE_KEY, JSON.stringify(response.suggestions));
+          lastInputRef.current = text;
+        }
+      }, 1000);
+      
+      setTypingTimeout(newTimeout as unknown as NodeJS.Timeout);
+    } catch (error) {
+      console.error('获取建议失败:', error);
+    }
+  };
+
+  // 计算文本相似度的简单函数
+  const similarity = (s1: string, s2: string): number => {
+    let longer = s1.length >= s2.length ? s1 : s2;
+    let shorter = s1.length >= s2.length ? s2 : s1;
+    
+    if (longer.length === 0) {
+      return 1.0;
+    }
+    
+    return (longer.length - editDistance(longer, shorter)) / longer.length;
+  };
+
+  // 计算编辑距离
+  const editDistance = (s1: string, s2: string): number => {
+    s1 = s1.toLowerCase();
+    s2 = s2.toLowerCase();
+    
+    const costs = [];
+    for (let i = 0; i <= s1.length; i++) {
+      let lastValue = i;
+      for (let j = 0; j <= s2.length; j++) {
+        if (i === 0) {
+          costs[j] = j;
+        } else if (j > 0) {
+          let newValue = costs[j - 1];
+          if (s1.charAt(i - 1) !== s2.charAt(j - 1)) {
+            newValue = Math.min(Math.min(newValue, lastValue), costs[j]) + 1;
+          }
+          costs[j - 1] = lastValue;
+          lastValue = newValue;
+        }
+      }
+      if (i > 0) {
+        costs[s2.length] = lastValue;
+      }
+    }
+    return costs[s2.length];
+  };
+
+  // 应用建议到输入
+  const applySuggestion = (suggestion: string) => {
+    setInputText(inputText + ' ' + suggestion);
+    // 清除建议列表，避免用户被大量建议分散注意力
+    setSuggestions([]);
+  };
+
+  // 高亮关键词
+  const highlightKeywords = (text: string): React.ReactNode => {
+    if (!text) return null;
+    
+    // 计算字数和阅读时间
+    const words = text.trim().split(/\s+/).length;
+    setWordCount(words);
+    setReadingTime(Math.ceil(words / 200)); // 假设平均阅读速度为每分钟200词
+    
+    // 如果文本过长，先不处理高亮，避免性能问题
+    if (text.length > 5000) return <Text style={styles.generatedContent}>{text}</Text>;
+    
+    let lastIndex = 0;
+    const elements: React.ReactNode[] = [];
+    
+    // 处理每种高亮模式
+    Object.entries(HIGHLIGHT_PATTERNS).forEach(([type, pattern]) => {
+      const matches = Array.from(text.matchAll(pattern));
+      matches.forEach(match => {
+        const index = match.index || 0;
+        if (index >= lastIndex) {
+          // 添加非高亮部分
+          elements.push(<Text key={`text-${lastIndex}`}>{text.substring(lastIndex, index)}</Text>);
+          
+          // 添加高亮部分
+          const styleToApply = type === 'redundant' 
+            ? styles.redundantHighlight 
+            : type === 'weak' 
+              ? styles.weakHighlight 
+              : type === 'passive' 
+                ? styles.passiveHighlight 
+                : styles.jargonHighlight;
+          
+          elements.push(
+            <Text key={`highlight-${index}`} style={styleToApply}>
+              {match[0]}
+            </Text>
+          );
+          
+          lastIndex = index + match[0].length;
+        }
+      });
+    });
+    
+    // 添加剩余部分
+    if (lastIndex < text.length) {
+      elements.push(<Text key={`text-${lastIndex}`}>{text.substring(lastIndex)}</Text>);
+    }
+    
+    return elements.length > 0 ? elements : <Text>{text}</Text>;
+  };
+
+  // 处理输入变化
+  const handleInputChange = (text: string) => {
+    setInputText(text);
+    
+    // 获取智能建议
+    getSuggestions(text);
+    
+    // 如果启用了自动保存
+    if (isAutoSaveEnabled && currentDocumentId && text.trim().length > 0) {
+      // 使用节流避免频繁保存
+      if (typingTimeout) {
+        clearTimeout(typingTimeout);
+      }
+      
+      const newTimeout = setTimeout(() => {
+        saveDocument(text, true);
+      }, 3000);
+      
+      setTypingTimeout(newTimeout as unknown as NodeJS.Timeout);
     }
   };
 
@@ -204,13 +426,14 @@ const WritingAssistantScreen: React.FC = () => {
 
     setLoading(true);
     try {
-      // 调用API生成内容
+      // 调用API生成内容，添加语言参数
       const response = await apiService.writing.generateText(
         inputText, 
         selectedTemplate,
         {
           style: styleOption,
-          length: lengthOption
+          length: lengthOption,
+          language: selectedLanguage // 添加语言参数
         }
       );
       
@@ -251,7 +474,7 @@ const WritingAssistantScreen: React.FC = () => {
           {
             title: documentTitle,
             content: content,
-            template_id: selectedTemplate,
+            template_id: selectedTemplate || undefined,
             is_draft: isDraft
           }
         );
@@ -264,7 +487,7 @@ const WritingAssistantScreen: React.FC = () => {
         const result = await apiService.writing.saveDocument({
           title: documentTitle,
           content: content,
-          template_id: selectedTemplate,
+          template_id: selectedTemplate || undefined,
           is_draft: isDraft
         });
         if (result && result.id) {
@@ -409,6 +632,25 @@ const WritingAssistantScreen: React.FC = () => {
     }
   };
 
+  const exportAsText = async () => {
+    if (!generatedContent) return;
+    
+    try {
+      // 分享文本
+      await Share.share({
+        message: generatedContent,
+        title: documentTitle || '写作助手导出文档'
+      });
+    } catch (error) {
+      console.error('导出文件失败:', error);
+      Toast.show({
+        type: 'error',
+        text1: '导出失败',
+        text2: '请稍后重试'
+      });
+    }
+  };
+
   const renderContent = () => {
     if (loading) {
       return (
@@ -421,48 +663,95 @@ const WritingAssistantScreen: React.FC = () => {
 
     if (generatedContent) {
       return (
-        <Card title="生成的内容" style={styles.card}>
-          <ScrollView style={styles.generatedContentContainer}>
-            <Text style={styles.generatedContent}>{generatedContent}</Text>
-          </ScrollView>
-          <View style={styles.actionButtonsContainer}>
-            <Button
-              title="复制内容"
-              variant="secondary"
-              size="medium"
-              onPress={() => copyToClipboard(generatedContent)}
-              style={styles.actionButton}
-            />
-            <Button
-              title="重新开始"
-              variant="primary"
-              size="medium"
-              onPress={handleReset}
-              style={styles.actionButton}
-            />
-          </View>
-          <View style={styles.actionButtonsContainer}>
-            <Button
-              title="润色优化"
-              variant="secondary"
-              size="medium"
-              onPress={handlePolishText}
-              style={styles.actionButton}
-            />
-            <Button
-              title="语法检查"
-              variant="secondary"
-              size="medium"
-              onPress={handleGrammarCheck}
-              style={styles.actionButton}
-            />
-          </View>
-        </Card>
+        <>
+          <Card title={`生成的内容 (${wordCount}字 · 阅读时间约${readingTime}分钟)`} style={styles.card}>
+            <ScrollView style={styles.generatedContentContainer}>
+              <Text style={styles.generatedContent}>
+                {highlightKeywords(generatedContent)}
+              </Text>
+            </ScrollView>
+            <View style={styles.actionButtonsContainer}>
+              <Button
+                title="复制内容"
+                variant="secondary"
+                size="medium"
+                onPress={() => copyToClipboard(generatedContent)}
+                style={styles.actionButton}
+              />
+              <Button
+                title="导出文档"
+                variant="secondary"
+                size="medium"
+                onPress={exportAsText}
+                style={styles.actionButton}
+              />
+            </View>
+            <View style={styles.actionButtonsContainer}>
+              <Button
+                title="润色优化"
+                variant="secondary"
+                size="medium"
+                onPress={handlePolishText}
+                style={styles.actionButton}
+              />
+              <Button
+                title="语法检查"
+                variant="secondary"
+                size="medium"
+                onPress={handleGrammarCheck}
+                style={styles.actionButton}
+              />
+            </View>
+            <View style={styles.actionButtonsContainer}>
+              <Button
+                title="重新开始"
+                variant="primary"
+                size="medium"
+                onPress={handleReset}
+                style={styles.actionButton}
+              />
+            </View>
+          </Card>
+          
+          <Card title="高亮说明" style={styles.card}>
+            <View style={styles.highlightLegendContainer}>
+              <View style={styles.highlightLegendItem}>
+                <View style={[styles.highlightSample, styles.redundantHighlight]} />
+                <Text style={styles.highlightLegendText}>冗余词语</Text>
+              </View>
+              <View style={styles.highlightLegendItem}>
+                <View style={[styles.highlightSample, styles.weakHighlight]} />
+                <Text style={styles.highlightLegendText}>模糊表达</Text>
+              </View>
+              <View style={styles.highlightLegendItem}>
+                <View style={[styles.highlightSample, styles.passiveHighlight]} />
+                <Text style={styles.highlightLegendText}>被动语态</Text>
+              </View>
+              <View style={styles.highlightLegendItem}>
+                <View style={[styles.highlightSample, styles.jargonHighlight]} />
+                <Text style={styles.highlightLegendText}>行业术语</Text>
+              </View>
+            </View>
+          </Card>
+        </>
       );
     }
 
     return (
       <>
+        <Card title="写作语言" style={styles.card}>
+          <Dropdown
+            options={SUPPORTED_LANGUAGES}
+            value={selectedLanguage}
+            onValueChange={(value: string) => {
+              setSelectedLanguage(value);
+              saveUserPreferences();
+            }}
+            placeholder="选择语言"
+            style={styles.dropdown}
+          />
+        </Card>
+      
         <Card title="选择模板" style={styles.card}>
           <View style={styles.templateGrid}>
             {templates.map((template) => (
@@ -484,13 +773,84 @@ const WritingAssistantScreen: React.FC = () => {
 
         <Card title="输入提示" style={styles.card}>
           <TextInput
+            ref={inputRef}
             style={styles.input}
             placeholder="请输入您的写作需求..."
             value={inputText}
-            onChangeText={setInputText}
+            onChangeText={handleInputChange}
             multiline
             numberOfLines={4}
           />
+          
+          {suggestions.length > 0 && (
+            <View style={styles.suggestionsContainer}>
+              <Text style={styles.suggestionsTitle}>智能建议:</Text>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+                {suggestions.map((suggestion, index) => (
+                  <TouchableOpacity
+                    key={index}
+                    style={styles.suggestionItem}
+                    onPress={() => applySuggestion(suggestion)}
+                  >
+                    <Text style={styles.suggestionText}>{suggestion}</Text>
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+            </View>
+          )}
+          
+          <View style={styles.optionsContainer}>
+            <View style={styles.optionItem}>
+              <Text style={styles.optionLabel}>风格:</Text>
+              <Dropdown
+                options={[
+                  { label: '正式', value: 'formal' },
+                  { label: '非正式', value: 'informal' },
+                  { label: '专业', value: 'professional' },
+                  { label: '创意', value: 'creative' },
+                ]}
+                value={styleOption}
+                onValueChange={setStyleOption}
+                placeholder="选择风格"
+                style={styles.optionDropdown}
+              />
+            </View>
+            
+            <View style={styles.optionItem}>
+              <Text style={styles.optionLabel}>篇幅:</Text>
+              <Dropdown
+                options={[
+                  { label: '短', value: 'short' },
+                  { label: '中', value: 'medium' },
+                  { label: '长', value: 'long' },
+                ]}
+                value={lengthOption}
+                onValueChange={setLengthOption}
+                placeholder="选择篇幅"
+                style={styles.optionDropdown}
+              />
+            </View>
+          </View>
+          
+          <View style={styles.autoSaveContainer}>
+            <Text style={styles.autoSaveText}>自动保存</Text>
+            <TouchableOpacity
+              style={[
+                styles.toggleButton,
+                isAutoSaveEnabled ? styles.toggleButtonActive : {}
+              ]}
+              onPress={() => {
+                setIsAutoSaveEnabled(!isAutoSaveEnabled);
+                saveUserPreferences();
+              }}
+            >
+              <View style={[
+                styles.toggleThumb,
+                isAutoSaveEnabled ? styles.toggleThumbActive : {}
+              ]} />
+            </TouchableOpacity>
+          </View>
+          
           <Button
             title="生成内容"
             variant="primary"
@@ -499,6 +859,25 @@ const WritingAssistantScreen: React.FC = () => {
             disabled={!inputText.trim() || !selectedTemplate}
             style={styles.generateButton}
           />
+        </Card>
+
+        <Card title="最近文档" style={styles.card}>
+          {recentDocuments.length > 0 ? (
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.recentDocsContainer}>
+              {recentDocuments.map((doc) => (
+                <TouchableOpacity
+                  key={doc.id}
+                  style={styles.recentDocItem}
+                  onPress={() => loadDocument(doc.id)}
+                >
+                  <Text style={styles.recentDocTitle}>{doc.title}</Text>
+                  <Text style={styles.recentDocDate}>{new Date(doc.updated_at).toLocaleDateString()}</Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+          ) : (
+            <Text style={styles.emptyText}>暂无最近文档</Text>
+          )}
         </Card>
 
         <Card title="写作助手简介" style={styles.card}>
@@ -627,6 +1006,144 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: theme.colors.textPrimary,
     marginBottom: theme.spacing.md,
+  },
+  suggestionsContainer: {
+    marginTop: theme.spacing.md,
+    marginBottom: theme.spacing.md,
+  },
+  suggestionsTitle: {
+    fontSize: theme.typography.fontSize.sm,
+    color: theme.colors.textSecondary,
+    marginBottom: theme.spacing.xs,
+  },
+  suggestionItem: {
+    backgroundColor: `${theme.colors.primary}15`,
+    borderRadius: theme.borderRadius.sm,
+    padding: theme.spacing.sm,
+    marginRight: theme.spacing.sm,
+    marginBottom: theme.spacing.xs,
+  },
+  suggestionText: {
+    fontSize: theme.typography.fontSize.sm,
+    color: theme.colors.primary,
+  },
+  optionsContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginTop: theme.spacing.md,
+  },
+  optionItem: {
+    flex: 1,
+    marginHorizontal: theme.spacing.xs,
+  },
+  optionLabel: {
+    fontSize: theme.typography.fontSize.sm,
+    color: theme.colors.textSecondary,
+    marginBottom: theme.spacing.xs,
+  },
+  optionDropdown: {
+    backgroundColor: theme.colors.surface,
+    borderRadius: theme.borderRadius.sm,
+  },
+  autoSaveContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'flex-end',
+    marginTop: theme.spacing.md,
+  },
+  autoSaveText: {
+    fontSize: theme.typography.fontSize.sm,
+    color: theme.colors.textSecondary,
+    marginRight: theme.spacing.sm,
+  },
+  toggleButton: {
+    width: 50,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: theme.colors.border,
+    padding: 2,
+  },
+  toggleButtonActive: {
+    backgroundColor: theme.colors.primary,
+  },
+  toggleThumb: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    backgroundColor: theme.colors.white,
+    position: 'absolute',
+    left: 2,
+    top: 2,
+  },
+  toggleThumbActive: {
+    left: 28,
+  },
+  recentDocsContainer: {
+    flexDirection: 'row',
+  },
+  recentDocItem: {
+    backgroundColor: theme.colors.surface,
+    borderRadius: theme.borderRadius.md,
+    padding: theme.spacing.md,
+    marginRight: theme.spacing.md,
+    width: 160,
+  },
+  recentDocTitle: {
+    fontSize: theme.typography.fontSize.md,
+    fontWeight: '500',
+    color: theme.colors.textPrimary,
+    marginBottom: theme.spacing.xs,
+  },
+  recentDocDate: {
+    fontSize: theme.typography.fontSize.sm,
+    color: theme.colors.textSecondary,
+  },
+  emptyText: {
+    fontSize: theme.typography.fontSize.md,
+    color: theme.colors.textSecondary,
+    fontStyle: 'italic',
+  },
+  dropdown: {
+    backgroundColor: theme.colors.surface,
+    borderRadius: theme.borderRadius.md,
+    marginBottom: theme.spacing.sm,
+  },
+  highlightLegendContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'space-between',
+  },
+  highlightLegendItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    width: '48%',
+    marginBottom: theme.spacing.sm,
+  },
+  highlightSample: {
+    width: 16,
+    height: 16,
+    borderRadius: 4,
+    marginRight: theme.spacing.xs,
+  },
+  highlightLegendText: {
+    fontSize: theme.typography.fontSize.sm,
+    color: theme.colors.textSecondary,
+  },
+  redundantHighlight: {
+    backgroundColor: '#FFD6D6',
+    color: '#D32F2F',
+  },
+  weakHighlight: {
+    backgroundColor: '#FFF9C4',
+    color: '#F57F17',
+  },
+  passiveHighlight: {
+    backgroundColor: '#BBDEFB',
+    color: '#1976D2',
+  },
+  jargonHighlight: {
+    backgroundColor: '#E1BEE7',
+    color: '#7B1FA2',
   },
 });
 

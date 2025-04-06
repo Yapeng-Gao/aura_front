@@ -1,17 +1,16 @@
 import React, { Component, ErrorInfo, ReactNode } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
-import * as Sentry from '@sentry/react-native';
 import theme from '../../theme';
 
 interface Props {
   children: ReactNode;
   fallback?: ReactNode;
+  onError?: (error: Error, info: ErrorInfo) => void;
 }
 
 interface State {
   hasError: boolean;
   error: Error | null;
-  errorInfo: ErrorInfo | null;
 }
 
 class ErrorBoundary extends Component<Props, State> {
@@ -19,76 +18,65 @@ class ErrorBoundary extends Component<Props, State> {
     super(props);
     this.state = {
       hasError: false,
-      error: null,
-      errorInfo: null
+      error: null
     };
   }
 
   static getDerivedStateFromError(error: Error): State {
-    // 更新 state 使下一次渲染能够显示降级 UI
+    // 更新state，使下一次渲染显示错误UI
     return {
       hasError: true,
-      error,
-      errorInfo: null
+      error
     };
   }
 
-  componentDidCatch(error: Error, errorInfo: ErrorInfo): void {
+  componentDidCatch(error: Error, info: ErrorInfo): void {
     // 记录错误信息
-    console.error('Error caught by ErrorBoundary:', error, errorInfo);
+    console.error('Error caught by ErrorBoundary:', error, info);
     
-    // 更新状态
-    this.setState({
-      error,
-      errorInfo
-    });
+    // 可以在这里发送错误到错误跟踪服务
+    // 如果集成了Sentry，可以在这里调用Sentry.captureException(error)
     
-    // 发送错误到Sentry (如果已配置)
-    Sentry.captureException(error);
+    // 如果提供了onError回调，则调用它
+    if (this.props.onError) {
+      this.props.onError(error, info);
+    }
   }
-
+  
+  // 重置错误状态
   resetError = (): void => {
     this.setState({
       hasError: false,
-      error: null,
-      errorInfo: null
+      error: null
     });
   };
 
   render(): ReactNode {
+    // 如果有错误，则显示回退UI
     if (this.state.hasError) {
-      // 如果提供了自定义的降级UI，则使用它
+      // 如果提供了自定义回退UI，则使用它
       if (this.props.fallback) {
         return this.props.fallback;
       }
       
-      // 否则显示默认的错误UI
+      // 否则使用默认回退UI
       return (
         <View style={styles.container}>
-          <Text style={styles.errorTitle}>出错了</Text>
-          <Text style={styles.errorText}>
-            应用程序遇到了一个问题。我们已记录此错误并将尽快修复。
+          <Text style={styles.title}>出错了</Text>
+          <Text style={styles.message}>
+            {this.state.error?.message || '应用程序发生了错误'}
           </Text>
-          
-          {__DEV__ && this.state.error && (
-            <View style={styles.devErrorContainer}>
-              <Text style={styles.devErrorTitle}>错误详情（仅开发模式可见）：</Text>
-              <Text style={styles.devErrorText}>{this.state.error.toString()}</Text>
-              {this.state.errorInfo && (
-                <Text style={styles.devErrorStack}>
-                  {this.state.errorInfo.componentStack}
-                </Text>
-              )}
-            </View>
-          )}
-          
-          <TouchableOpacity style={styles.button} onPress={this.resetError}>
+          <TouchableOpacity 
+            style={styles.button} 
+            onPress={this.resetError}
+          >
             <Text style={styles.buttonText}>重试</Text>
           </TouchableOpacity>
         </View>
       );
     }
 
+    // 如果没有错误，正常渲染子组件
     return this.props.children;
   }
 }
@@ -98,52 +86,32 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    padding: 20,
-    backgroundColor: theme.colors.background
+    backgroundColor: theme.colors.background,
+    padding: theme.spacing.lg,
   },
-  errorTitle: {
-    fontSize: 22,
+  title: {
+    fontSize: theme.typography.fontSize.xl,
     fontWeight: 'bold',
     color: theme.colors.error,
-    marginBottom: 10
+    marginBottom: theme.spacing.md,
   },
-  errorText: {
-    fontSize: 16,
+  message: {
+    fontSize: theme.typography.fontSize.md,
+    color: theme.colors.textSecondary,
     textAlign: 'center',
-    marginBottom: 20,
-    color: theme.colors.textPrimary
-  },
-  devErrorContainer: {
-    width: '100%',
-    padding: 10,
-    backgroundColor: theme.colors.surface,
-    borderRadius: 8,
-    marginBottom: 20
-  },
-  devErrorTitle: {
-    fontWeight: 'bold',
-    marginBottom: 5,
-    color: theme.colors.error
-  },
-  devErrorText: {
-    marginBottom: 10,
-    color: theme.colors.textPrimary
-  },
-  devErrorStack: {
-    fontSize: 12,
-    color: theme.colors.textSecondary
+    marginBottom: theme.spacing.lg,
   },
   button: {
     backgroundColor: theme.colors.primary,
-    paddingHorizontal: 20,
-    paddingVertical: 10,
-    borderRadius: 5
+    paddingHorizontal: theme.spacing.lg,
+    paddingVertical: theme.spacing.md,
+    borderRadius: theme.borderRadius.md,
   },
   buttonText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: 'bold'
-  }
+    color: theme.colors.white,
+    fontSize: theme.typography.fontSize.md,
+    fontWeight: '500',
+  },
 });
 
 export default ErrorBoundary; 

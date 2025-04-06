@@ -413,4 +413,16 @@ export interface MeetingNotesRequest {
 export interface MeetingUpdateRequest {
   meeting_id: string;
   updates: Partial<MeetingRequest>;
+}
+
+// 写作建议相关类型
+export interface WriteSuggestionsRequest {
+  text: string;
+  language?: string;
+  context?: string;
+}
+
+export interface WriteSuggestionsResponse {
+  suggestions: string[];
+  created_at: string;
 } 

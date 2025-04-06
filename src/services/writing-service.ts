@@ -1,5 +1,6 @@
-import { apiClient } from './api';
+import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { API_BASE_URL } from '@env';
 import {
   WritingTemplate,
   WriteGenerationRequest,
@@ -14,154 +15,163 @@ import {
   WritingStatistics
 } from '../types/assistant';
 
+// 定义API端点
+const API_ENDPOINTS = {
+  TEMPLATES: '/writing/templates',
+  GENERATE: '/writing/generate',
+  POLISH: '/writing/polish',
+  GRAMMAR_CHECK: '/writing/grammar-check',
+  SUGGESTIONS: '/writing/suggestions',
+  DOCUMENTS: '/writing/documents',
+  RECENT_DOCUMENTS: '/writing/documents/recent',
+  DOCUMENT: (id: string) => `/writing/documents/${id}`,
+  DOCUMENT_VERSIONS: (id: string) => `/writing/documents/${id}/versions`,
+  RESTORE_VERSION: (docId: string, versionId: string) => 
+    `/writing/documents/${docId}/versions/${versionId}/restore`,
+  EXPORT_PDF: (id: string) => `/writing/documents/${id}/export/pdf`,
+  EXPORT_TEXT: (id: string) => `/writing/documents/${id}/export/text`,
+  STATISTICS: '/writing/statistics',
+};
+
 // 缓存键
 const TEMPLATES_CACHE_KEY = 'writing_templates_cache';
 const RECENT_DOCS_CACHE_KEY = 'writing_recent_docs';
 const DOCUMENT_CACHE_PREFIX = 'writing_doc_';
+
+// 添加新的接口类型
+interface WriteSuggestionsResponse {
+  suggestions: string[];
+}
 
 // 写作助手API服务
 const writingService = {
   // 获取写作模板
   getTemplates: async (): Promise<WritingTemplate[]> => {
     try {
-      // 首先尝试从缓存获取
+      // 首先尝试从缓存加载
       const cachedData = await AsyncStorage.getItem(TEMPLATES_CACHE_KEY);
       
-      // 即使有缓存，也发起网络请求以更新缓存
-      const fetchPromise = apiClient.get<WritingTemplate[]>('/assistant/writing/templates');
+      // 从服务器获取最新数据
+      const response = await axios.get(`${API_BASE_URL}${API_ENDPOINTS.TEMPLATES}`);
+      if (response.status === 200) {
+        const templates = response.data;
+        // 更新缓存
+        await AsyncStorage.setItem(TEMPLATES_CACHE_KEY, JSON.stringify(templates));
+        return templates;
+      }
       
+      // 如果服务器请求失败但有缓存，返回缓存数据
       if (cachedData) {
-        // 如果有缓存，立即返回缓存并在后台更新
-        const parsed = JSON.parse(cachedData);
-        
-        // 后台更新缓存
-        fetchPromise
-          .then(data => {
-            if (data) {
-              AsyncStorage.setItem(TEMPLATES_CACHE_KEY, JSON.stringify(data));
-            }
-          })
-          .catch(err => console.error('Background template fetch failed:', err));
-        
-        return parsed;
+        return JSON.parse(cachedData);
       }
       
-      // 如果没有缓存，等待网络请求
-      const data = await fetchPromise;
-      if (data) {
-        // 保存到缓存
-        await AsyncStorage.setItem(TEMPLATES_CACHE_KEY, JSON.stringify(data));
-        return data;
-      }
-      
-      // 如果请求失败且没有缓存，返回空数组
-      return [];
+      throw new Error('无法获取模板数据');
     } catch (error) {
-      console.error('Failed to fetch writing templates:', error);
-      // 如果请求失败，尝试从缓存获取
+      // 如果发生错误且有缓存，返回缓存数据
       const cachedData = await AsyncStorage.getItem(TEMPLATES_CACHE_KEY);
       if (cachedData) {
         return JSON.parse(cachedData);
       }
-      return [];
+      throw error;
     }
   },
   
   // 生成文本
   generateText: async (
-    prompt: string, 
-    templateId?: string, 
-    options?: { style?: string; length?: string; tone?: string; language?: string }
-  ): Promise<WriteGenerationResponse> => {
-    try {
-      const request: WriteGenerationRequest = {
-        text: prompt,
-        template_id: templateId,
-        options
-      };
-      
-      const response = await apiClient.post<WriteGenerationResponse>(
-        '/assistant/writing/generate', 
-        request
-      );
-      
-      if (!response) {
-        throw new Error('No response from API');
-      }
-      
-      return response;
-    } catch (error) {
-      console.error('Text generation failed:', error);
-      throw error;
+    text: string, 
+    templateId: string, 
+    options?: { 
+      style?: string; 
+      length?: string; 
+      tone?: string;
+      language?: string; // 添加语言选项
     }
+  ): Promise<WriteGenerationResponse> => {
+    const requestData: WriteGenerationRequest = {
+      text,
+      template_id: templateId,
+      ...options
+    };
+    
+    const response = await axios.post(
+      `${API_BASE_URL}${API_ENDPOINTS.GENERATE}`, 
+      requestData
+    );
+    
+    return response.data;
   },
   
   // 润色文本
   polishText: async (
     text: string, 
-    options?: { goal?: string; style?: string; language?: string }
-  ): Promise<WritePolishResponse> => {
-    try {
-      const request: WritePolishRequest = {
-        text,
-        ...options
-      };
-      
-      const response = await apiClient.post<WritePolishResponse>(
-        '/assistant/writing/polish', 
-        request
-      );
-      
-      if (!response) {
-        throw new Error('No response from API');
-      }
-      
-      return response;
-    } catch (error) {
-      console.error('Text polishing failed:', error);
-      throw error;
+    options?: { 
+      style?: string;
+      language?: string; // 添加语言选项
     }
+  ): Promise<WritePolishResponse> => {
+    const requestData: WritePolishRequest = {
+      text,
+      ...options
+    };
+    
+    const response = await axios.post(
+      `${API_BASE_URL}${API_ENDPOINTS.POLISH}`, 
+      requestData
+    );
+    
+    return response.data;
   },
   
   // 语法检查
   checkGrammar: async (
-    text: string, 
-    language?: string
+    text: string,
+    language?: string // 添加语言选项
   ): Promise<WriteGrammarCheckResponse> => {
+    const requestData: WriteGrammarCheckRequest = {
+      text,
+      language
+    };
+    
+    const response = await axios.post(
+      `${API_BASE_URL}${API_ENDPOINTS.GRAMMAR_CHECK}`, 
+      requestData
+    );
+    
+    return response.data;
+  },
+  
+  // 获取智能建议
+  getSuggestions: async (
+    text: string,
+    language: string = 'zh'
+  ): Promise<WriteSuggestionsResponse> => {
     try {
-      const request: WriteGrammarCheckRequest = {
-        text,
-        language
-      };
-      
-      const response = await apiClient.post<WriteGrammarCheckResponse>(
-        '/assistant/writing/grammar', 
-        request
+      const response = await axios.post(
+        `${API_BASE_URL}${API_ENDPOINTS.SUGGESTIONS}`,
+        { text, language }
       );
       
-      if (!response) {
-        throw new Error('No response from API');
-      }
-      
-      return response;
+      return response.data;
     } catch (error) {
-      console.error('Grammar check failed:', error);
-      throw error;
+      console.error('获取建议失败:', error);
+      // 返回空建议列表
+      return { suggestions: [] };
     }
   },
   
   // 获取最近的文档
   getRecentDocuments: async (): Promise<WritingDocument[]> => {
     try {
-      const response = await apiClient.get<WritingDocument[]>('/assistant/writing/documents');
-      
-      if (response) {
+      // 从服务器获取数据
+      const response = await axios.get(`${API_BASE_URL}${API_ENDPOINTS.RECENT_DOCUMENTS}`);
+      if (response.status === 200) {
+        const documents = response.data;
         // 更新缓存
-        await AsyncStorage.setItem(RECENT_DOCS_CACHE_KEY, JSON.stringify(response));
-        return response;
+        await AsyncStorage.setItem(RECENT_DOCS_CACHE_KEY, JSON.stringify(documents));
+        return documents;
       }
       
-      // 如果请求失败，尝试从缓存获取
+      // 如果服务器请求失败，尝试从缓存加载
       const cachedData = await AsyncStorage.getItem(RECENT_DOCS_CACHE_KEY);
       if (cachedData) {
         return JSON.parse(cachedData);
@@ -169,190 +179,147 @@ const writingService = {
       
       return [];
     } catch (error) {
-      console.error('Failed to fetch recent documents:', error);
-      
-      // 如果请求失败，尝试从缓存获取
+      // 如果发生错误，尝试从缓存加载
       const cachedData = await AsyncStorage.getItem(RECENT_DOCS_CACHE_KEY);
       if (cachedData) {
         return JSON.parse(cachedData);
       }
-      
       return [];
     }
   },
   
   // 获取单个文档
-  getDocument: async (documentId: string): Promise<WritingDocument | null> => {
+  getDocument: async (documentId: string): Promise<WritingDocument> => {
     try {
-      // 首先检查缓存
-      const cacheKey = `${DOCUMENT_CACHE_PREFIX}${documentId}`;
-      const cachedData = await AsyncStorage.getItem(cacheKey);
-      
-      // 发起网络请求以确保获取最新数据
-      const fetchPromise = apiClient.get<WritingDocument>(`/assistant/writing/documents/${documentId}`);
-      
-      if (cachedData) {
-        // 如果有缓存，立即返回缓存并在后台更新
-        const parsed = JSON.parse(cachedData);
-        
-        // 后台更新缓存
-        fetchPromise
-          .then(data => {
-            if (data) {
-              AsyncStorage.setItem(cacheKey, JSON.stringify(data));
-            }
-          })
-          .catch(err => console.error(`Background document fetch failed for ${documentId}:`, err));
-        
-        return parsed;
-      }
-      
-      // 如果没有缓存，等待网络请求
-      const data = await fetchPromise;
-      if (data) {
-        // 保存到缓存
-        await AsyncStorage.setItem(cacheKey, JSON.stringify(data));
-        return data;
-      }
-      
-      return null;
+      const response = await axios.get(`${API_BASE_URL}${API_ENDPOINTS.DOCUMENT(documentId)}`);
+      return response.data;
     } catch (error) {
-      console.error(`Failed to fetch document ${documentId}:`, error);
-      
-      // 如果请求失败，尝试从缓存获取
-      const cacheKey = `${DOCUMENT_CACHE_PREFIX}${documentId}`;
-      const cachedData = await AsyncStorage.getItem(cacheKey);
-      if (cachedData) {
-        return JSON.parse(cachedData);
-      }
-      
-      return null;
-    }
-  },
-  
-  // 保存新文档
-  saveDocument: async (document: WritingDocumentRequest): Promise<WritingDocument | null> => {
-    try {
-      const response = await apiClient.post<WritingDocument>(
-        '/assistant/writing/documents', 
-        document
-      );
-      
-      if (response) {
-        // 更新文档缓存
-        await AsyncStorage.setItem(
-          `${DOCUMENT_CACHE_PREFIX}${response.id}`, 
-          JSON.stringify(response)
-        );
-        
-        // 刷新最近文档列表缓存
-        await writingService.getRecentDocuments();
-      }
-      
-      return response || null;
-    } catch (error) {
-      console.error('Failed to save document:', error);
       throw error;
     }
   },
   
-  // 更新现有文档
-  updateDocument: async (
-    documentId: string, 
-    updates: WritingDocumentRequest
-  ): Promise<WritingDocument | null> => {
+  // 保存文档
+  saveDocument: async (document: WritingDocumentRequest): Promise<WritingDocument> => {
     try {
-      const response = await apiClient.put<WritingDocument>(
-        `/assistant/writing/documents/${documentId}`, 
-        updates
-      );
+      const response = await axios.post(`${API_BASE_URL}${API_ENDPOINTS.DOCUMENTS}`, document);
       
-      if (response) {
-        // 更新文档缓存
-        await AsyncStorage.setItem(
-          `${DOCUMENT_CACHE_PREFIX}${documentId}`, 
-          JSON.stringify(response)
-        );
-        
-        // 刷新最近文档列表缓存
-        await writingService.getRecentDocuments();
+      // 更新缓存的最近文档
+      const cachedDocs = await AsyncStorage.getItem(RECENT_DOCS_CACHE_KEY);
+      if (cachedDocs) {
+        const docs: WritingDocument[] = JSON.parse(cachedDocs);
+        docs.unshift(response.data);
+        // 只保留最近10个文档
+        const updatedDocs = docs.slice(0, 10);
+        await AsyncStorage.setItem(RECENT_DOCS_CACHE_KEY, JSON.stringify(updatedDocs));
       }
       
-      return response || null;
+      return response.data;
     } catch (error) {
-      console.error(`Failed to update document ${documentId}:`, error);
+      throw error;
+    }
+  },
+  
+  // 更新文档
+  updateDocument: async (
+    documentId: string, 
+    document: WritingDocumentRequest
+  ): Promise<WritingDocument> => {
+    try {
+      const response = await axios.put(
+        `${API_BASE_URL}${API_ENDPOINTS.DOCUMENT(documentId)}`, 
+        document
+      );
+      
+      // 更新缓存的最近文档
+      const cachedDocs = await AsyncStorage.getItem(RECENT_DOCS_CACHE_KEY);
+      if (cachedDocs) {
+        const docs: WritingDocument[] = JSON.parse(cachedDocs);
+        const updatedDocs = docs.map(doc => 
+          doc.id === documentId ? {...doc, ...response.data} : doc
+        );
+        await AsyncStorage.setItem(RECENT_DOCS_CACHE_KEY, JSON.stringify(updatedDocs));
+      }
+      
+      return response.data;
+    } catch (error) {
       throw error;
     }
   },
   
   // 删除文档
-  deleteDocument: async (documentId: string): Promise<boolean> => {
+  deleteDocument: async (documentId: string): Promise<void> => {
     try {
-      await apiClient.delete(`/assistant/writing/documents/${documentId}`);
+      await axios.delete(`${API_BASE_URL}${API_ENDPOINTS.DOCUMENT(documentId)}`);
       
-      // 删除文档缓存
-      await AsyncStorage.removeItem(`${DOCUMENT_CACHE_PREFIX}${documentId}`);
-      
-      // 刷新最近文档列表缓存
-      await writingService.getRecentDocuments();
-      
-      return true;
-    } catch (error) {
-      console.error(`Failed to delete document ${documentId}:`, error);
-      throw error;
-    }
-  },
-  
-  // 获取文档版本历史
-  getDocumentVersions: async (documentId: string): Promise<WritingDocumentVersion[]> => {
-    try {
-      const response = await apiClient.get<WritingDocumentVersion[]>(
-        `/assistant/writing/documents/${documentId}/versions`
-      );
-      
-      return response || [];
-    } catch (error) {
-      console.error(`Failed to fetch document versions for ${documentId}:`, error);
-      throw error;
-    }
-  },
-  
-  // 恢复到特定版本
-  restoreDocumentVersion: async (
-    documentId: string, 
-    version: number
-  ): Promise<WritingDocument | null> => {
-    try {
-      const response = await apiClient.post<WritingDocument>(
-        `/assistant/writing/documents/${documentId}/restore`,
-        { version }
-      );
-      
-      if (response) {
-        // 更新文档缓存
-        await AsyncStorage.setItem(
-          `${DOCUMENT_CACHE_PREFIX}${documentId}`, 
-          JSON.stringify(response)
-        );
+      // 更新缓存的最近文档
+      const cachedDocs = await AsyncStorage.getItem(RECENT_DOCS_CACHE_KEY);
+      if (cachedDocs) {
+        const docs: WritingDocument[] = JSON.parse(cachedDocs);
+        const updatedDocs = docs.filter(doc => doc.id !== documentId);
+        await AsyncStorage.setItem(RECENT_DOCS_CACHE_KEY, JSON.stringify(updatedDocs));
       }
-      
-      return response || null;
     } catch (error) {
-      console.error(`Failed to restore document ${documentId} to version ${version}:`, error);
       throw error;
     }
   },
   
-  // 获取用户写作统计
-  getUserStatistics: async (): Promise<WritingStatistics | null> => {
+  // 获取文档版本
+  getDocumentVersions: async (documentId: string): Promise<any[]> => {
     try {
-      const response = await apiClient.get<WritingStatistics>(
-        '/assistant/writing/statistics'
+      const response = await axios.get(`${API_BASE_URL}${API_ENDPOINTS.DOCUMENT_VERSIONS(documentId)}`);
+      return response.data;
+    } catch (error) {
+      throw error;
+    }
+  },
+  
+  // 恢复文档版本
+  restoreDocumentVersion: async (documentId: string, versionId: string): Promise<WritingDocument> => {
+    try {
+      const response = await axios.post(
+        `${API_BASE_URL}${API_ENDPOINTS.RESTORE_VERSION(documentId, versionId)}`
+      );
+      return response.data;
+    } catch (error) {
+      throw error;
+    }
+  },
+  
+  // 导出文档为PDF
+  exportToPdf: async (documentId: string): Promise<string> => {
+    try {
+      const response = await axios.get(
+        `${API_BASE_URL}${API_ENDPOINTS.EXPORT_PDF(documentId)}`,
+        { responseType: 'blob' }
       );
       
-      return response || null;
+      // 返回Blob URL供下载
+      return URL.createObjectURL(response.data);
     } catch (error) {
-      console.error('Failed to fetch user writing statistics:', error);
+      throw error;
+    }
+  },
+  
+  // 导出文档为文本
+  exportToText: async (documentId: string): Promise<string> => {
+    try {
+      const response = await axios.get(
+        `${API_BASE_URL}${API_ENDPOINTS.EXPORT_TEXT(documentId)}`,
+        { responseType: 'text' }
+      );
+      
+      return response.data;
+    } catch (error) {
+      throw error;
+    }
+  },
+  
+  // 获取用户统计
+  getUserStatistics: async (): Promise<any> => {
+    try {
+      const response = await axios.get(`${API_BASE_URL}${API_ENDPOINTS.STATISTICS}`);
+      return response.data;
+    } catch (error) {
       throw error;
     }
   }

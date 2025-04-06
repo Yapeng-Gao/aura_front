@@ -3,5 +3,9 @@
  * 简化从组件导入Redux钩子的路径
  */
 
-// 从store目录导出类型化的钩子
-export { useAppDispatch, useAppSelector } from '../store/hooks'; 
+import { TypedUseSelectorHook, useDispatch, useSelector } from 'react-redux';
+import { RootState, AppDispatch } from '../store';
+
+// 使用在整个应用程序中的钩子
+export const useAppDispatch = () => useDispatch<AppDispatch>();
+export const useAppSelector: TypedUseSelectorHook<RootState> = useSelector; 
