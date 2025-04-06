@@ -500,6 +500,43 @@ const apiService: ApiService = {
     getARContentItem: (contentId: string) => apiClient.get(`/creative/ar/content/${contentId}`),
   },
   
+  // 写作助手相关API
+  writing: {
+    getTemplates: () => apiClient.get<WritingTemplate[]>('/assistant/writing/templates'),
+    
+    generateText: (prompt: string, templateId?: string, options?: Record<string, any>) => 
+      apiClient.post<WriteGenerationResponse>('/assistant/writing/generate', { 
+        prompt, 
+        template_id: templateId,
+        options 
+      }),
+    
+    polishText: (text: string, goal: string = 'improve', style?: string) =>
+      apiClient.post<WriteGenerationResponse>('/assistant/writing/polish', {
+        prompt: text,
+        options: { goal, style }
+      }),
+    
+    checkGrammar: (text: string) =>
+      apiClient.post<WriteGrammarCheckResponse>('/assistant/writing/check-grammar', {
+        prompt: text
+      }),
+    
+    getHistory: () => apiClient.get('/assistant/writing/history'),
+    
+    saveDocument: (title: string, content: string, templateId?: string) =>
+      apiClient.post('/assistant/writing/save', { title, content, template_id: templateId }),
+    
+    getDocument: (documentId: string) => 
+      apiClient.get(`/assistant/writing/document/${documentId}`),
+    
+    updateDocument: (documentId: string, updates: { title?: string, content?: string }) =>
+      apiClient.put(`/assistant/writing/document/${documentId}`, updates),
+    
+    deleteDocument: (documentId: string) =>
+      apiClient.delete(`/assistant/writing/document/${documentId}`)
+  },
+  
   // 通知相关API
   notification: {
     getNotifications: () => apiClient.get('/notification/all'),

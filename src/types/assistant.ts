@@ -150,20 +150,46 @@ export interface WritingTemplate {
   icon: string;
 }
 
-export interface WritingPrompt {
-  template_id: string;
-  content: string;
+export interface WriteGenerationRequest {
+  prompt: string;
+  template_id?: string;
   options?: Record<string, any>;
 }
 
-export interface WritingResponse {
-  content: string;
+export interface WriteGenerationResponse {
+  text: string;
+  template_id?: string;
   statistics: {
     word_count: number;
     character_count: number;
     sentence_count: number;
     paragraph_count: number;
   };
+  created_at: string;
+}
+
+export interface WritePolishRequest {
+  prompt: string;
+  options: {
+    goal: string;
+    style?: string;
+  };
+}
+
+export interface WriteGrammarCheckRequest {
+  prompt: string;
+}
+
+export interface WriteGrammarCheckResponse {
+  original_text: string;
+  corrected_text: string;
+  has_errors: boolean;
+  error_count: number;
+  corrections: Array<{
+    original: string;
+    corrected: string;
+    reason: string;
+  }>;
   created_at: string;
 }
 

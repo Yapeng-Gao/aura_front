@@ -1,4 +1,5 @@
 import { AxiosRequestConfig, AxiosResponse, AxiosError } from 'axios';
+import { WritingTemplate, WriteGenerationResponse, WriteGrammarCheckResponse } from './assistant';
 
 // 基础API响应类型
 export interface ApiResponse<T = any> {
@@ -55,4 +56,17 @@ export type ApiService = {
     put: <T>(url: string, data?: any, config?: ApiConfig) => Promise<T>;
     patch: <T>(url: string, data?: any, config?: ApiConfig) => Promise<T>;
     delete: <T>(url: string, config?: ApiConfig) => Promise<T>;
+    
+    // 添加写作助手API
+    writing: {
+        getTemplates: () => Promise<WritingTemplate[]>;
+        generateText: (prompt: string, templateId?: string, options?: Record<string, any>) => Promise<WriteGenerationResponse>;
+        polishText: (text: string, goal?: string, style?: string) => Promise<WriteGenerationResponse>;
+        checkGrammar: (text: string) => Promise<WriteGrammarCheckResponse>;
+        getHistory: () => Promise<any>;
+        saveDocument: (title: string, content: string, templateId?: string) => Promise<any>;
+        getDocument: (documentId: string) => Promise<any>;
+        updateDocument: (documentId: string, updates: { title?: string, content?: string }) => Promise<any>;
+        deleteDocument: (documentId: string) => Promise<any>;
+    };
 };
