@@ -36,6 +36,7 @@ export type RootStackParamList = {
     ScheduleEvent: undefined;
     TaskList: undefined;
     SmartHome: undefined;
+    MeetingAI: { meetingId?: string };
 };
 
 // 认证导航栈参数

@@ -1,4 +1,4 @@
-import { apiClient } from './api';
+import { api } from './api';
 import {
   MeetingRequest,
   MeetingResponse,
@@ -6,219 +6,133 @@ import {
   MeetingSummaryResponse,
   MeetingNotesRequest
 } from '../types/assistant';
+import { Meeting } from '../types/meeting';
+
+export interface MeetingListResponse {
+  meetings: Meeting[];
+  total: number;
+  page: number;
+  page_size: number;
+}
+
+export interface MeetingFilters {
+  status?: string;
+  start_date?: string;
+  end_date?: string;
+  page?: number;
+  page_size?: number;
+}
 
 /**
  * 会议助手服务
  * 处理会议笔记、总结和记录等功能
  */
-const meetingService = {
+export class MeetingService {
+  private static instance: MeetingService;
+  
+  private constructor() {}
+  
+  static getInstance(): MeetingService {
+    if (!MeetingService.instance) {
+      MeetingService.instance = new MeetingService();
+    }
+    return MeetingService.instance;
+  }
+  
   /**
    * 创建会议
    * @param request 会议创建请求
    */
-  createMeeting: async (request: MeetingRequest): Promise<MeetingResponse | null> => {
-    try {
-      const response = await apiClient.post<MeetingResponse>('/assistant/meeting/create', request);
-      return response || null;
-    } catch (error) {
-      console.error('创建会议失败:', error);
-      return null;
-    }
-  },
-
+  async createMeeting(meetingData: any): Promise<Meeting> {
+    const response = await api.post('/productivity/meetings/create', meetingData);
+    return response.data;
+  }
+  
   /**
    * 获取会议信息
    * @param meetingId 会议ID
    */
-  getMeeting: async (meetingId: string): Promise<MeetingResponse | null> => {
-    try {
-      const response = await apiClient.get<MeetingResponse>(`/assistant/meeting/${meetingId}`);
-      return response || null;
-    } catch (error) {
-      console.error(`获取会议(${meetingId})失败:`, error);
-      return null;
-    }
-  },
-
+  async getMeeting(meetingId: string): Promise<Meeting> {
+    const response = await api.get(`/productivity/meetings/${meetingId}`);
+    return response.data;
+  }
+  
   /**
    * 获取用户的所有会议
-   * @param limit 限制返回的记录数
-   * @param offset 分页偏移量
+   * @param filters 过滤条件
    */
-  getMeetings: async (limit: number = 20, offset: number = 0): Promise<Array<MeetingResponse> | null> => {
-    try {
-      const response = await apiClient.get<Array<MeetingResponse>>(
-        `/assistant/meeting?limit=${limit}&offset=${offset}`
-      );
-      return response || null;
-    } catch (error) {
-      console.error('获取会议列表失败:', error);
-      return null;
-    }
-  },
-
+  async getMeetings(filters: MeetingFilters = {}): Promise<MeetingListResponse> {
+    const response = await api.get('/productivity/meetings', { params: filters });
+    return response.data;
+  }
+  
   /**
    * 更新会议信息
    * @param meetingId 会议ID
-   * @param request 会议更新请求
+   * @param meetingData 会议更新数据
    */
-  updateMeeting: async (meetingId: string, request: Partial<MeetingRequest>): Promise<MeetingResponse | null> => {
-    try {
-      const response = await apiClient.put<MeetingResponse>(`/assistant/meeting/${meetingId}`, request);
-      return response || null;
-    } catch (error) {
-      console.error(`更新会议(${meetingId})失败:`, error);
-      return null;
-    }
-  },
-
+  async updateMeeting(meetingId: string, meetingData: any): Promise<Meeting> {
+    const response = await api.put(`/productivity/meetings/${meetingId}`, meetingData);
+    return response.data;
+  }
+  
   /**
    * 删除会议
    * @param meetingId 会议ID
    */
-  deleteMeeting: async (meetingId: string): Promise<boolean> => {
-    try {
-      await apiClient.delete(`/assistant/meeting/${meetingId}`);
-      return true;
-    } catch (error) {
-      console.error(`删除会议(${meetingId})失败:`, error);
-      return false;
-    }
-  },
-
+  async deleteMeeting(meetingId: string): Promise<void> {
+    await api.delete(`/productivity/meetings/${meetingId}`);
+  }
+  
   /**
-   * 创建会议笔记
-   * @param meetingId 会议ID
-   * @param request 笔记创建请求
-   */
-  createMeetingNotes: async (meetingId: string, request: MeetingNotesRequest): Promise<MeetingNoteResponse | null> => {
-    try {
-      const response = await apiClient.post<MeetingNoteResponse>(`/assistant/meeting/${meetingId}/notes`, request);
-      return response || null;
-    } catch (error) {
-      console.error(`创建会议笔记失败:`, error);
-      return null;
-    }
-  },
-
-  /**
-   * 获取会议笔记
-   * @param meetingId 会议ID
-   * @param noteId 笔记ID
-   */
-  getMeetingNote: async (meetingId: string, noteId: string): Promise<MeetingNoteResponse | null> => {
-    try {
-      const response = await apiClient.get<MeetingNoteResponse>(`/assistant/meeting/${meetingId}/notes/${noteId}`);
-      return response || null;
-    } catch (error) {
-      console.error(`获取会议笔记失败:`, error);
-      return null;
-    }
-  },
-
-  /**
-   * 获取会议的所有笔记
+   * 开始会议
    * @param meetingId 会议ID
    */
-  getMeetingNotes: async (meetingId: string): Promise<Array<MeetingNoteResponse> | null> => {
-    try {
-      const response = await apiClient.get<Array<MeetingNoteResponse>>(`/assistant/meeting/${meetingId}/notes`);
-      return response || null;
-    } catch (error) {
-      console.error(`获取会议笔记列表失败:`, error);
-      return null;
-    }
-  },
-
+  async startMeeting(meetingId: string): Promise<Meeting> {
+    const response = await api.post(`/productivity/meetings/${meetingId}/start`);
+    return response.data;
+  }
+  
   /**
-   * 更新会议笔记
-   * @param meetingId 会议ID
-   * @param noteId 笔记ID
-   * @param request 笔记更新请求
-   */
-  updateMeetingNote: async (
-    meetingId: string, 
-    noteId: string, 
-    request: Partial<MeetingNotesRequest>
-  ): Promise<MeetingNoteResponse | null> => {
-    try {
-      const response = await apiClient.put<MeetingNoteResponse>(
-        `/assistant/meeting/${meetingId}/notes/${noteId}`, 
-        request
-      );
-      return response || null;
-    } catch (error) {
-      console.error(`更新会议笔记失败:`, error);
-      return null;
-    }
-  },
-
-  /**
-   * 删除会议笔记
-   * @param meetingId 会议ID
-   * @param noteId 笔记ID
-   */
-  deleteMeetingNote: async (meetingId: string, noteId: string): Promise<boolean> => {
-    try {
-      await apiClient.delete(`/assistant/meeting/${meetingId}/notes/${noteId}`);
-      return true;
-    } catch (error) {
-      console.error(`删除会议笔记失败:`, error);
-      return false;
-    }
-  },
-
-  /**
-   * 获取会议总结
+   * 结束会议
    * @param meetingId 会议ID
    */
-  getMeetingSummary: async (meetingId: string): Promise<MeetingSummaryResponse | null> => {
-    try {
-      const response = await apiClient.get<MeetingSummaryResponse>(`/assistant/meeting/${meetingId}/summary`);
-      return response || null;
-    } catch (error) {
-      console.error(`获取会议总结失败:`, error);
-      return null;
+  async endMeeting(meetingId: string): Promise<Meeting> {
+    const response = await api.post(`/productivity/meetings/${meetingId}/end`);
+    return response.data;
+  }
+  
+  /**
+   * 生成会议笔记
+   * @param meetingId 会议ID
+   * @param audioFile 音频文件
+   * @param textContent 文本内容
+   */
+  async generateNotes(meetingId: string, audioFile?: File, textContent?: string): Promise<any> {
+    const formData = new FormData();
+    if (audioFile) {
+      formData.append('audio_file', audioFile);
     }
-  },
-
+    if (textContent) {
+      formData.append('text_content', textContent);
+    }
+    
+    const response = await api.post(`/productivity/meetings/${meetingId}/notes`, formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    });
+    return response.data;
+  }
+  
   /**
    * 生成会议总结
    * @param meetingId 会议ID
    */
-  generateMeetingSummary: async (meetingId: string): Promise<MeetingSummaryResponse | null> => {
-    try {
-      const response = await apiClient.post<MeetingSummaryResponse>(`/assistant/meeting/${meetingId}/summary/generate`);
-      return response || null;
-    } catch (error) {
-      console.error(`生成会议总结失败:`, error);
-      return null;
-    }
-  },
-
-  /**
-   * 从音频转录会议内容
-   * @param meetingId 会议ID
-   * @param audioFile 音频文件
-   */
-  transcribeMeetingAudio: async (meetingId: string, audioFile: File | Blob): Promise<boolean> => {
-    try {
-      // 创建FormData对象用于上传音频
-      const formData = new FormData();
-      formData.append('audio_file', audioFile);
-      
-      await apiClient.post(`/assistant/meeting/${meetingId}/transcribe`, formData, {
-        headers: {
-          'Content-Type': 'multipart/form-data',
-        },
-      });
-      
-      return true;
-    } catch (error) {
-      console.error(`会议音频转录失败:`, error);
-      return false;
-    }
+  async generateSummary(meetingId: string): Promise<any> {
+    const response = await api.post(`/productivity/meetings/${meetingId}/summary`);
+    return response.data;
   }
-};
+}
 
-export default meetingService; 
+export default MeetingService; 
