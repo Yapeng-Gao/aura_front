@@ -111,12 +111,12 @@ const styles = StyleSheet.create({
     fontSize: 16,
     textAlign: 'center',
     marginBottom: 20,
-    color: theme.colors.text
+    color: theme.colors.textPrimary
   },
   devErrorContainer: {
     width: '100%',
     padding: 10,
-    backgroundColor: theme.colors.card,
+    backgroundColor: theme.colors.surface,
     borderRadius: 8,
     marginBottom: 20
   },
@@ -127,11 +127,11 @@ const styles = StyleSheet.create({
   },
   devErrorText: {
     marginBottom: 10,
-    color: theme.colors.text
+    color: theme.colors.textPrimary
   },
   devErrorStack: {
     fontSize: 12,
-    color: theme.colors.textLight
+    color: theme.colors.textSecondary
   },
   button: {
     backgroundColor: theme.colors.primary,

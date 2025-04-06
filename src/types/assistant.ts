@@ -404,6 +404,12 @@ export interface MeetingNoteResponse {
   updated_at: string;
 }
 
+export interface MeetingNotesRequest {
+  title: string;
+  content: string;
+  tags?: string[];
+}
+
 export interface MeetingUpdateRequest {
   meeting_id: string;
   updates: Partial<MeetingRequest>;
