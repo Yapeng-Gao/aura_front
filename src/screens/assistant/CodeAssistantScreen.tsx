@@ -43,8 +43,22 @@ const CodeAssistantScreen: React.FC = () => {
 
   // 加载最近使用的语言记录和支持的语言列表
   useEffect(() => {
-    // 加载最近使用的语言记录（实际应用中应从AsyncStorage加载）
-    setRecentLanguages(['javascript', 'python']);
+    // 从API加载最近使用的语言记录
+    const fetchRecentLanguages = async () => {
+      try {
+        const recentLangs = await codeAssistantApi.getRecentLanguages();
+        if (recentLangs && recentLangs.length > 0) {
+          setRecentLanguages(recentLangs);
+        } else {
+          // 如果没有记录，设置默认值
+          setRecentLanguages(['javascript', 'python']);
+        }
+      } catch (error) {
+        console.error('获取最近使用的语言记录失败:', error);
+        // 失败时使用默认值
+        setRecentLanguages(['javascript', 'python']);
+      }
+    };
     
     // 从API获取支持的语言列表
     const fetchLanguages = async () => {
@@ -82,6 +96,7 @@ const CodeAssistantScreen: React.FC = () => {
       }
     };
     
+    fetchRecentLanguages();
     fetchLanguages();
   }, []);
   
@@ -286,11 +301,30 @@ const CodeAssistantScreen: React.FC = () => {
   const handleLanguageSelect = (languageId: string) => {
     setSelectedLanguage(languageId);
     
-    // 更新最近使用的语言
-    if (!recentLanguages.includes(languageId)) {
-      const updatedRecentLanguages = [languageId, ...recentLanguages].slice(0, 5);
-      setRecentLanguages(updatedRecentLanguages);
-      // 实际应用中应存储到AsyncStorage
+    // 更新最近使用的语言到后端
+    try {
+      codeAssistantApi.updateRecentLanguage(languageId)
+        .then(updatedLanguages => {
+          // 更新本地状态
+          setRecentLanguages(updatedLanguages);
+        })
+        .catch(error => {
+          console.error('更新最近使用的语言失败:', error);
+          
+          // 即使请求失败，也更新本地状态以提供良好的用户体验
+          if (!recentLanguages.includes(languageId)) {
+            const updatedRecentLanguages = [languageId, ...recentLanguages].slice(0, 5);
+            setRecentLanguages(updatedRecentLanguages);
+          }
+        });
+    } catch (error) {
+      console.error('更新最近使用的语言失败:', error);
+      
+      // 本地状态更新
+      if (!recentLanguages.includes(languageId)) {
+        const updatedRecentLanguages = [languageId, ...recentLanguages].slice(0, 5);
+        setRecentLanguages(updatedRecentLanguages);
+      }
     }
     
     // 找到选中的语言名称
@@ -301,7 +335,7 @@ const CodeAssistantScreen: React.FC = () => {
   };
 
   // 生成代码
-  const handleGenerate = async () => {
+  const handleCodeGeneration = async (type: 'new' | 'test' | 'optimize' | 'explain') => {
     if (!selectedLanguage || !inputText.trim()) return;
     
     setIsGenerating(true);
@@ -309,14 +343,41 @@ const CodeAssistantScreen: React.FC = () => {
     setErrorMessage(null);
     
     try {
-      // 执行代码生成请求
-      const response = await codeAssistantApi.generateCode(
-        selectedLanguage,
-        inputText
-      );
+      let response;
+      
+      // 执行不同类型的代码生成请求
+      switch (type) {
+        case 'new':
+          response = await codeAssistantApi.generateCode(
+            selectedLanguage,
+            inputText
+          );
+          break;
+        case 'test':
+          response = await codeAssistantApi.generateTest(
+            selectedLanguage,
+            inputText
+          );
+          break;
+        case 'optimize':
+          response = await codeAssistantApi.optimizeCode(
+            selectedLanguage,
+            inputText,
+            ['readability', 'performance']
+          );
+          break;
+        case 'explain':
+          response = await codeAssistantApi.explainCode(
+            selectedLanguage,
+            inputText
+          );
+          break;
+      }
       
       // 更新生成的代码
-      setGeneratedCode(response.code);
+      if (response && response.code) {
+        setGeneratedCode(response.code);
+      }
       
       // 更新历史记录
       setHistoryRequests([
@@ -657,7 +718,7 @@ const CodeAssistantScreen: React.FC = () => {
               styles.generateButton,
               (!inputText.trim() || !selectedLanguage || isGenerating) && styles.disabledButton,
             ]}
-            onPress={handleGenerate}
+            onPress={() => handleCodeGeneration('new')}
             disabled={!inputText.trim() || !selectedLanguage || isGenerating}
           >
             {isGenerating ? (

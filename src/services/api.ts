@@ -691,12 +691,9 @@ const retryOperation = async <T>(
 // 代码助手 API
 export const codeAssistantApi = {
   generateCode: async (
-    language: string, 
-    prompt: string, 
-    context?: Record<string, any>
+    language: string,
+    prompt: string
   ): Promise<CodeGenerationResponse> => {
-    const request: CodeGenerationRequest = { language, prompt, context };
-    
     return retryOperation(async () => {
       try {
         const token = await AsyncStorage.getItem('token');
@@ -704,65 +701,41 @@ export const codeAssistantApi = {
         
         const response = await axios.post<CodeGenerationResponse>(
           `${API_BASE_URL}/assistant/code/generate`,
-          request,
+          { language, prompt },
           { headers }
         );
         
         return response.data;
       } catch (error) {
-        if (error.response?.status === 400) {
-          // 请求格式错误
-          const errorDetail = error.response.data.detail || '请检查您的输入';
-          throw new ApiError(400, `请求格式错误: ${errorDetail}`, error.response.data);
-        } else if (error.response?.status === 422) {
-          // 验证错误
-          throw new ApiError(422, '代码生成请求验证失败，请检查语言和提示是否有效', error.response.data);
-        } else if (error.response?.status === 429) {
-          // 请求过多
-          throw new ApiError(429, '请求过于频繁，请稍后再试', error.response.data);
-        } else if (error.response?.status >= 500) {
-          // 服务器错误
+        if (error.response?.status >= 500) {
           throw new ApiError(500, '服务器处理请求时发生错误，请稍后再试', error.response.data);
         }
         
-        // 处理并重新抛出其他错误
         handleApiError(error);
         throw error;
       }
     });
   },
-
+  
   optimizeCode: async (
-    language: string, 
-    code: string, 
-    optimizationType: 'performance' | 'readability' | 'security' | 'memory' = 'performance'
-  ): Promise<CodeGenerationResponse> => {
-    const request: CodeOptimizationRequest = { 
-      language, 
-      code, 
-      optimization_type: optimizationType 
-    };
-    
+    language: string,
+    code: string,
+    goals: string[]
+  ): Promise<CodeOptimizationResponse> => {
     return retryOperation(async () => {
       try {
         const token = await AsyncStorage.getItem('token');
         const headers = { Authorization: `Bearer ${token}` };
         
-        const response = await axios.post<CodeGenerationResponse>(
+        const response = await axios.post<CodeOptimizationResponse>(
           `${API_BASE_URL}/assistant/code/optimize`,
-          request,
+          { language, code, goals },
           { headers }
         );
         
         return response.data;
       } catch (error) {
-        if (error.response?.status === 400) {
-          throw new ApiError(400, `请求格式错误: ${error.response.data.detail || '请检查您的代码'}`, error.response.data);
-        } else if (error.response?.status === 422) {
-          throw new ApiError(422, '代码优化请求验证失败，请检查语言和代码是否有效', error.response.data);
-        } else if (error.response?.status === 429) {
-          throw new ApiError(429, '请求过于频繁，请稍后再试', error.response.data);
-        } else if (error.response?.status >= 500) {
+        if (error.response?.status >= 500) {
           throw new ApiError(500, '服务器处理请求时发生错误，请稍后再试', error.response.data);
         }
         
@@ -771,75 +744,53 @@ export const codeAssistantApi = {
       }
     });
   },
-
-  generateTestCode: async (
-    language: string, 
-    code: string, 
-    test_framework?: string
-  ): Promise<CodeGenerationResponse | undefined> => {
-    const context = test_framework ? { test_framework } : undefined;
-    const request: CodeTestRequest = { 
-      language, 
-      code,
-      prompt: `为以下${language}代码生成测试：`, 
-      context 
-    };
-    
-    return retryOperation(async () => {
-      try {
-        const token = await AsyncStorage.getItem('token');
-        const headers = { Authorization: `Bearer ${token}` };
-        
-        const response = await axios.post<CodeGenerationResponse>(
-          `${API_BASE_URL}/assistant/code/test`,
-          request,
-          { headers }
-        );
-        
-        return response.data;
-      } catch (error) {
-        if (error.response?.status === 400) {
-          throw new ApiError(400, `请求格式错误: ${error.response.data.detail || '请检查您的代码'}`, error.response.data);
-        } else if (error.response?.status === 422) {
-          throw new ApiError(422, '测试生成请求验证失败，请检查语言和代码是否有效', error.response.data);
-        } else if (error.response?.status === 429) {
-          throw new ApiError(429, '请求过于频繁，请稍后再试', error.response.data);
-        } else if (error.response?.status >= 500) {
-          throw new ApiError(500, '服务器处理请求时发生错误，请稍后再试', error.response.data);
-        }
-        
-        handleApiError(error);
-        throw error;
-      }
-    });
-  },
-
+  
   explainCode: async (
-    language: string, 
+    language: string,
     code: string
-  ): Promise<CodeGenerationResponse> => {
-    const request: CodeExplainRequest = { language, code };
-    
+  ): Promise<CodeExplanationResponse> => {
     return retryOperation(async () => {
       try {
         const token = await AsyncStorage.getItem('token');
         const headers = { Authorization: `Bearer ${token}` };
         
-        const response = await axios.post<CodeGenerationResponse>(
+        const response = await axios.post<CodeExplanationResponse>(
           `${API_BASE_URL}/assistant/code/explain`,
-          request,
+          { language, code },
           { headers }
         );
         
         return response.data;
       } catch (error) {
-        if (error.response?.status === 400) {
-          throw new ApiError(400, `请求格式错误: ${error.response.data.detail || '请检查您的代码'}`, error.response.data);
-        } else if (error.response?.status === 422) {
-          throw new ApiError(422, '代码解释请求验证失败，请检查语言和代码是否有效', error.response.data);
-        } else if (error.response?.status === 429) {
-          throw new ApiError(429, '请求过于频繁，请稍后再试', error.response.data);
-        } else if (error.response?.status >= 500) {
+        if (error.response?.status >= 500) {
+          throw new ApiError(500, '服务器处理请求时发生错误，请稍后再试', error.response.data);
+        }
+        
+        handleApiError(error);
+        throw error;
+      }
+    });
+  },
+  
+  generateTest: async (
+    language: string,
+    code: string,
+    testFramework?: string
+  ): Promise<TestCodeResponse> => {
+    return retryOperation(async () => {
+      try {
+        const token = await AsyncStorage.getItem('token');
+        const headers = { Authorization: `Bearer ${token}` };
+        
+        const response = await axios.post<TestCodeResponse>(
+          `${API_BASE_URL}/assistant/code/test`,
+          { language, code, test_framework: testFramework },
+          { headers }
+        );
+        
+        return response.data;
+      } catch (error) {
+        if (error.response?.status >= 500) {
           throw new ApiError(500, '服务器处理请求时发生错误，请稍后再试', error.response.data);
         }
         
@@ -857,6 +808,100 @@ export const codeAssistantApi = {
         
         const response = await axios.get<{ languages: string[] }>(
           `${API_BASE_URL}/assistant/code/languages`,
+          { headers }
+        );
+        
+        return response.data.languages;
+      } catch (error) {
+        if (error.response?.status >= 500) {
+          throw new ApiError(500, '服务器处理请求时发生错误，请稍后再试', error.response.data);
+        }
+        
+        handleApiError(error);
+        throw error;
+      }
+    });
+  },
+
+  getRecentLanguages: async (): Promise<string[]> => {
+    return retryOperation(async () => {
+      try {
+        const token = await AsyncStorage.getItem('token');
+        const headers = { Authorization: `Bearer ${token}` };
+        
+        const response = await axios.get<{ languages: string[] }>(
+          `${API_BASE_URL}/assistant/code/languages/recent`,
+          { headers }
+        );
+        
+        return response.data.languages;
+      } catch (error) {
+        if (error.response?.status >= 500) {
+          throw new ApiError(500, '服务器处理请求时发生错误，请稍后再试', error.response.data);
+        }
+        
+        handleApiError(error);
+        throw error;
+      }
+    });
+  },
+
+  updateRecentLanguage: async (language: string): Promise<string[]> => {
+    return retryOperation(async () => {
+      try {
+        const token = await AsyncStorage.getItem('token');
+        const headers = { Authorization: `Bearer ${token}` };
+        
+        const response = await axios.post<{ languages: string[] }>(
+          `${API_BASE_URL}/assistant/code/languages/recent`,
+          { language },
+          { headers }
+        );
+        
+        return response.data.languages;
+      } catch (error) {
+        if (error.response?.status >= 500) {
+          throw new ApiError(500, '服务器处理请求时发生错误，请稍后再试', error.response.data);
+        }
+        
+        handleApiError(error);
+        throw error;
+      }
+    });
+  },
+
+  getFavoriteLanguages: async (): Promise<string[]> => {
+    return retryOperation(async () => {
+      try {
+        const token = await AsyncStorage.getItem('token');
+        const headers = { Authorization: `Bearer ${token}` };
+        
+        const response = await axios.get<{ languages: string[] }>(
+          `${API_BASE_URL}/assistant/code/languages/favorite`,
+          { headers }
+        );
+        
+        return response.data.languages;
+      } catch (error) {
+        if (error.response?.status >= 500) {
+          throw new ApiError(500, '服务器处理请求时发生错误，请稍后再试', error.response.data);
+        }
+        
+        handleApiError(error);
+        throw error;
+      }
+    });
+  },
+
+  updateFavoriteLanguage: async (language: string, action: 'add' | 'remove'): Promise<string[]> => {
+    return retryOperation(async () => {
+      try {
+        const token = await AsyncStorage.getItem('token');
+        const headers = { Authorization: `Bearer ${token}` };
+        
+        const response = await axios.post<{ languages: string[] }>(
+          `${API_BASE_URL}/assistant/code/languages/favorite`,
+          { language, action },
           { headers }
         );
         
