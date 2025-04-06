@@ -175,30 +175,30 @@ const CodeAssistantScreen: React.FC = () => {
   // 获取默认语言列表（当API调用失败时使用）
   const getDefaultLanguages = () => {
     return [
-      {
-        id: 'typescript',
-        name: 'TypeScript',
-        icon: '📘',
-        description: '类型安全的 JavaScript',
-      },
-      {
-        id: 'javascript',
-        name: 'JavaScript',
-        icon: '📙',
-        description: '动态编程语言',
-      },
-      {
-        id: 'python',
-        name: 'Python',
-        icon: '🐍',
-        description: '简洁优雅的编程语言',
-      },
-      {
-        id: 'java',
-        name: 'Java',
-        icon: '☕',
-        description: '面向对象的编程语言',
-      },
+    {
+      id: 'typescript',
+      name: 'TypeScript',
+      icon: '📘',
+      description: '类型安全的 JavaScript',
+    },
+    {
+      id: 'javascript',
+      name: 'JavaScript',
+      icon: '📙',
+      description: '动态编程语言',
+    },
+    {
+      id: 'python',
+      name: 'Python',
+      icon: '🐍',
+      description: '简洁优雅的编程语言',
+    },
+    {
+      id: 'java',
+      name: 'Java',
+      icon: '☕',
+      description: '面向对象的编程语言',
+    },
       {
         id: 'csharp',
         name: 'C#',
@@ -570,8 +570,8 @@ const CodeAssistantScreen: React.FC = () => {
     if (!recentCategory || recentCategory.languages.length === 0) {
       return null;
     }
-    
-    return (
+
+  return (
       <Card title="最近使用" style={styles.card}>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.recentLanguagesContainer}>
           {recentCategory.languages.map(language => (
@@ -649,7 +649,7 @@ const CodeAssistantScreen: React.FC = () => {
     return (
       <Card title="选择编程语言" style={styles.card}>
         {languageCategories.map(category => renderLanguageCategory(category))}
-      </Card>
+        </Card>
     );
   };
   
@@ -724,17 +724,17 @@ const CodeAssistantScreen: React.FC = () => {
             {isGenerating ? (
               <ActivityIndicator size="small" color={theme.colors.onPrimary} />
             ) : (
-              <Text style={styles.generateButtonText}>生成代码</Text>
+            <Text style={styles.generateButtonText}>生成代码</Text>
             )}
           </TouchableOpacity>
         </Card>
-        
+
         {renderHistoryRequests()}
         
         {renderGeneratedCode()}
 
         {!generatedCode && !isLoading && (
-          <Card title="代码助手功能" style={styles.card}>
+        <Card title="代码助手功能" style={styles.card}>
             <View style={styles.featureOptionsContainer}>
               <TouchableOpacity 
                 style={styles.featureOption}
@@ -747,8 +747,8 @@ const CodeAssistantScreen: React.FC = () => {
                   <Ionicons name="rocket-outline" size={24} color={theme.colors.primary} />
                 </View>
                 <Text style={styles.featureOptionText}>代码优化</Text>
-              </TouchableOpacity>
-              
+          </TouchableOpacity>
+          
               <TouchableOpacity 
                 style={styles.featureOption}
                 onPress={() => {
@@ -760,8 +760,8 @@ const CodeAssistantScreen: React.FC = () => {
                   <Ionicons name="construct-outline" size={24} color={theme.colors.primary} />
                 </View>
                 <Text style={styles.featureOptionText}>代码重构</Text>
-              </TouchableOpacity>
-              
+          </TouchableOpacity>
+          
               <TouchableOpacity 
                 style={styles.featureOption}
                 onPress={() => {
@@ -773,8 +773,8 @@ const CodeAssistantScreen: React.FC = () => {
                   <Ionicons name="shield-checkmark-outline" size={24} color={theme.colors.primary} />
                 </View>
                 <Text style={styles.featureOptionText}>单元测试</Text>
-              </TouchableOpacity>
-              
+          </TouchableOpacity>
+          
               <TouchableOpacity 
                 style={styles.featureOption}
                 onPress={() => {
@@ -903,8 +903,8 @@ const debounce = (func, delay) => {
                 >
                   <Ionicons name="arrow-forward" size={16} color={theme.colors.onPrimary} />
                   <Text style={styles.useFunctionButtonText}>使用此示例</Text>
-                </TouchableOpacity>
-              </Card>
+          </TouchableOpacity>
+        </Card>
             </View>
           </Card>
         )}

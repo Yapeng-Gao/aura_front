@@ -275,154 +275,88 @@ const apiService: ApiService = {
   
   // AI助手相关API
   assistant: {
-    sendMessage: (message: SendMessageRequest): Promise<SendMessageResponse | undefined> => 
-      apiClient.post('/assistant/message', message),
-    getConversation: (conversationId: string): Promise<GetConversationResponse | undefined> => 
-      apiClient.get(`/assistant/conversation/${conversationId}`),
-    getConversations: (): Promise<GetConversationsResponse | undefined> => 
-      apiClient.get('/assistant/conversations'),
-    deleteConversation: (conversationId: string): Promise<void> => 
-      apiClient.delete(`/assistant/conversation/${conversationId}`),
-    updateAssistantSettings: (settings: UpdateAssistantSettingsRequest): Promise<UpdateAssistantSettingsResponse | undefined> => 
-      apiClient.put('/assistant/preference', settings),
-    uploadAttachment: (formData: FormData, conversationId: string): Promise<UploadAttachmentResponse | undefined> => 
-      apiClient.post(`/assistant/attachment/${conversationId}`, formData, {
-        headers: {
-          'Content-Type': 'multipart/form-data',
-        },
-      }),
-    
-    // 代码助手API
-    getLanguages: (): Promise<string[] | undefined> =>
-      apiClient.get('/assistant/code/languages').then(response => {
-        return (response as LanguagesResponse)?.languages;
-      }),
-    generateCode: (language: string, prompt: string, context?: Record<string, any>): Promise<CodeGenerationResponse | undefined> =>
-      apiClient.post('/assistant/code/generate', { 
-        language, 
-        prompt, 
-        context 
-      } as CodeGenerationRequest),
-    optimizeCode: (language: string, code: string, optimization_type: 'performance' | 'readability' | 'security' | 'memory' = 'performance'): Promise<CodeGenerationResponse | undefined> =>
-      apiClient.post('/assistant/code/optimize', { 
-        language, 
-        code, 
-        optimization_type 
-      } as CodeOptimizationRequest),
-    generateTestCode: (language: string, code: string, test_framework?: string): Promise<CodeGenerationResponse | undefined> =>
-      apiClient.post('/assistant/code/test', { 
-        language, 
-        code,
-        prompt: `为以下${language}代码生成测试：`, 
-        context: { test_framework } 
-      } as CodeTestRequest),
-    explainCode: (language: string, code: string): Promise<CodeGenerationResponse | undefined> =>
-      apiClient.post('/assistant/code/explain', { 
-        language, 
-        code 
-      } as CodeExplainRequest),
-    
-    // 写作助手API
-    getWritingTemplates: (): Promise<WritingTemplate[] | undefined> =>
-      apiClient.get('/assistant/writing/templates'),
-    generateText: (request: WriteGenerationRequest) =>
-      apiClient.post('/assistant/writing/generate', request),
-    polishText: (request: WritePolishRequest) =>
-      apiClient.post('/assistant/writing/polish', request),
-    checkGrammar: (request: WriteGrammarCheckRequest) =>
-      apiClient.post('/assistant/writing/check-grammar', request),
+    // 对话助手API
+    chat: {
+      sendMessage: (conversationId: string, message: string, attachments?: AttachmentUpload[]) => 
+        apiClient.post(`/assistant/chat/${conversationId}/message`, { message, attachments }),
+      getConversation: (conversationId: string) => 
+        apiClient.get(`/assistant/chat/${conversationId}`),
+      createConversation: (title?: string) => 
+        apiClient.post('/assistant/chat/conversation', { title }),
+      listConversations: () => 
+        apiClient.get('/assistant/chat/conversations'),
+      deleteConversation: (conversationId: string) => 
+        apiClient.delete(`/assistant/chat/${conversationId}`),
+    },
     
     // 图像助手API
-    getImageStyles: (): Promise<ImageStyle[] | undefined> =>
-      apiClient.get('/assistant/image/styles'),
-    generateImage: (request: ImageGenerationRequest) =>
-      apiClient.post('/assistant/image/generate', request),
-    editImage: (formData: FormData): Promise<ImageGenerationResponse | undefined> =>
-      apiClient.post('/assistant/image/edit', formData, {
-        headers: {
-          'Content-Type': 'multipart/form-data',
-        },
-      }),
-    transferStyle: (formData: FormData): Promise<ImageGenerationResponse | undefined> =>
-      apiClient.post('/assistant/image/transfer-style', formData, {
-        headers: {
-          'Content-Type': 'multipart/form-data',
-        },
-      }),
-    removeBackground: (formData: FormData): Promise<ImageGenerationResponse | undefined> =>
-      apiClient.post('/assistant/image/remove-background', formData, {
-        headers: {
-          'Content-Type': 'multipart/form-data',
-        },
-      }),
-    
-    // 语音助手API
-    getVoices: (): Promise<Voice[] | undefined> =>
-      apiClient.get('/assistant/voice/voices'),
-    transcribeAudio: (formData: FormData): Promise<VoiceTranscriptionResponse | undefined> =>
-      apiClient.post('/assistant/voice/transcribe', formData, {
-      headers: {
-        'Content-Type': 'multipart/form-data',
-      },
-    }),
-    generateSpeech: (request: VoiceGenerationRequest): Promise<VoiceGenerationResponse | undefined> =>
-      apiClient.post('/assistant/voice/generate-speech', request),
-    translateAudio: (formData: FormData, targetLanguage: string, options?: any): Promise<VoiceTranslateResponse | undefined> => {
-      const data = new FormData();
-      // 不能直接使用for...in遍历FormData，需要使用正确的方法
-      // 将原始音频文件添加到新FormData
-      if (formData.get('audio')) {
-        data.append('audio', formData.get('audio') as Blob);
-      }
-      data.append('target_language', targetLanguage);
-      if (options) {
-        data.append('options', JSON.stringify(options));
-      }
-      return apiClient.post('/assistant/voice/translate', data, {
-        headers: {
-          'Content-Type': 'multipart/form-data',
-        },
-      });
-    },
-    
-    // 会议助手API
-    createMeeting: (request: MeetingRequest) =>
-      apiClient.post('/assistant/meeting', request),
-    getMeeting: (meetingId: string): Promise<MeetingResponse | undefined> =>
-      apiClient.get(`/assistant/meeting/${meetingId}`),
-    getMeetings: (status?: string, fromDate?: string, toDate?: string): Promise<MeetingResponse[] | undefined> => {
-      let url = '/assistant/meetings';
-      const params: Record<string, string> = {};
-      if (status) params.status = status;
-      if (fromDate) params.from_date = fromDate;
-      if (toDate) params.to_date = toDate;
-      
-      return apiClient.get(url, { params });
-    },
-    updateMeeting: (meetingId: string, updates: Partial<MeetingRequest>) =>
-      apiClient.put(`/assistant/meeting/${meetingId}`, updates),
-    startMeeting: (meetingId: string): Promise<MeetingResponse | undefined> =>
-      apiClient.post(`/assistant/meeting/${meetingId}/start`),
-    endMeeting: (meetingId: string): Promise<MeetingResponse | undefined> =>
-      apiClient.post(`/assistant/meeting/${meetingId}/end`),
-    cancelMeeting: (meetingId: string, reason?: string): Promise<MeetingResponse | undefined> =>
-      apiClient.post(`/assistant/meeting/${meetingId}/cancel`, { reason }),
-    generateMeetingNotes: (request: MeetingNotesRequest): Promise<MeetingNoteResponse | undefined> => {
-      if (request.audio) {
+    image: {
+      getStyles: () => apiClient.get('/assistant/image/styles'),
+      generateImage: (request: { prompt: string, style: string, options?: any }) => 
+        apiClient.post('/assistant/image/generate', request),
+      editImage: (imageUri: string, prompt: string, editType: string) => {
         const formData = new FormData();
-        formData.append('meeting_id', request.meeting_id);
-        formData.append('audio', request.audio);
-        return apiClient.post('/assistant/meeting/notes', formData, {
+        // 从URI创建文件对象
+        const filename = imageUri.split('/').pop() || 'image.jpg';
+        const match = /\.(\w+)$/.exec(filename);
+        const type = match ? `image/${match[1]}` : 'image/jpeg';
+        
+        formData.append('image_file', {
+          uri: imageUri,
+          name: filename,
+          type
+        } as any);
+        formData.append('prompt', prompt);
+        formData.append('edit_type', editType);
+        
+        return apiClient.post('/assistant/image/edit', formData, {
           headers: {
             'Content-Type': 'multipart/form-data',
-          },
+          }
         });
-      } else {
-        return apiClient.post('/assistant/meeting/notes', request);
-      }
+      },
+      transferStyle: (imageUri: string, style: string) => {
+        const formData = new FormData();
+        // 从URI创建文件对象
+        const filename = imageUri.split('/').pop() || 'image.jpg';
+        const match = /\.(\w+)$/.exec(filename);
+        const type = match ? `image/${match[1]}` : 'image/jpeg';
+        
+        formData.append('image_file', {
+          uri: imageUri,
+          name: filename,
+          type
+        } as any);
+        formData.append('style', style);
+        
+        return apiClient.post('/assistant/image/style-transfer', formData, {
+          headers: {
+            'Content-Type': 'multipart/form-data',
+          }
+        });
+      },
+      removeBackground: (imageUri: string) => {
+        const formData = new FormData();
+        // 从URI创建文件对象
+        const filename = imageUri.split('/').pop() || 'image.jpg';
+        const match = /\.(\w+)$/.exec(filename);
+        const type = match ? `image/${match[1]}` : 'image/jpeg';
+        
+        formData.append('image_file', {
+          uri: imageUri,
+          name: filename,
+          type
+        } as any);
+        
+        return apiClient.post('/assistant/image/remove-background', formData, {
+          headers: {
+            'Content-Type': 'multipart/form-data',
+          }
+        });
+      },
     },
-    generateMeetingSummary: (meetingId: string): Promise<MeetingSummaryResponse | undefined> =>
-      apiClient.post(`/assistant/meeting/${meetingId}/summary`),
+    
+    // 其他助手API... (可以根据需要添加)
   },
   
   // 日程管理相关API
@@ -548,7 +482,7 @@ const apiService: ApiService = {
   creative: {
     generateText: (prompt: string) => apiClient.post('/creative/generate/text', { prompt }),
     generateImage: (prompt: string, style: string) => 
-      apiClient.post('/creative/generate/image', { prompt, style }),
+      apiClient.post('/assistant/image/generate', { prompt, style }),
     generateMusic: (prompt: string, duration: number) => 
       apiClient.post('/creative/generate/music', { prompt, duration }),
     
