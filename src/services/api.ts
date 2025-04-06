@@ -851,3 +851,139 @@ export const codeAssistantApi = {
     });
   }
 };
+
+// 语音助手 API
+export const voiceAssistantApi = {
+  getVoices: async (): Promise<Voice[]> => {
+    return retryOperation(async () => {
+      try {
+        const token = await AsyncStorage.getItem('token');
+        const headers = { Authorization: `Bearer ${token}` };
+        
+        const response = await axios.get<{ voices: Voice[] }>(
+          `${API_BASE_URL}/assistant/voice/available`,
+          { headers }
+        );
+        
+        return response.data.voices;
+      } catch (error) {
+        if (error.response?.status >= 500) {
+          throw new ApiError(500, '服务器处理请求时发生错误，请稍后再试', error.response.data);
+        }
+        
+        handleApiError(error);
+        throw error;
+      }
+    });
+  },
+  
+  transcribeAudio: async (
+    audioFile: any,
+    options?: { language?: string }
+  ): Promise<VoiceTranscriptionResponse> => {
+    return retryOperation(async () => {
+      try {
+        const token = await AsyncStorage.getItem('token');
+        const headers = { 
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'multipart/form-data'
+        };
+        
+        const formData = new FormData();
+        formData.append('audio_file', audioFile);
+        
+        if (options?.language) {
+          formData.append('options', JSON.stringify({ language: options.language }));
+        }
+        
+        const response = await axios.post<VoiceTranscriptionResponse>(
+          `${API_BASE_URL}/assistant/voice/transcribe`,
+          formData,
+          { headers }
+        );
+        
+        return response.data;
+      } catch (error) {
+        if (error.response?.status >= 500) {
+          throw new ApiError(500, '服务器处理请求时发生错误，请稍后再试', error.response.data);
+        }
+        
+        handleApiError(error);
+        throw error;
+      }
+    });
+  },
+  
+  generateSpeech: async (
+    text: string,
+    voiceId: string,
+    speed: number = 1.0,
+    options?: { format?: 'mp3' | 'wav' | 'ogg' }
+  ): Promise<VoiceGenerationResponse> => {
+    return retryOperation(async () => {
+      try {
+        const token = await AsyncStorage.getItem('token');
+        const headers = { Authorization: `Bearer ${token}` };
+        
+        const response = await axios.post<VoiceGenerationResponse>(
+          `${API_BASE_URL}/assistant/voice/generate`,
+          { 
+            text, 
+            voice_id: voiceId, 
+            speed,
+            options
+          },
+          { headers }
+        );
+        
+        return response.data;
+      } catch (error) {
+        if (error.response?.status >= 500) {
+          throw new ApiError(500, '服务器处理请求时发生错误，请稍后再试', error.response.data);
+        }
+        
+        handleApiError(error);
+        throw error;
+      }
+    });
+  },
+  
+  translateAudio: async (
+    audioFile: any,
+    targetLanguage: string,
+    options?: { voiceId?: string }
+  ): Promise<VoiceTranslateResponse> => {
+    return retryOperation(async () => {
+      try {
+        const token = await AsyncStorage.getItem('token');
+        const headers = { 
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'multipart/form-data'
+        };
+        
+        const formData = new FormData();
+        formData.append('audio_file', audioFile);
+        formData.append('target_language', targetLanguage);
+        
+        if (options?.voiceId) {
+          formData.append('options', JSON.stringify({ voice_id: options.voiceId }));
+        }
+        
+        const response = await axios.post<VoiceTranslateResponse>(
+          `${API_BASE_URL}/assistant/voice/translate`,
+          formData,
+          { headers }
+        );
+        
+        return response.data;
+      } catch (error) {
+        if (error.response?.status >= 500) {
+          throw new ApiError(500, '服务器处理请求时发生错误，请稍后再试', error.response.data);
+        }
+        
+        handleApiError(error);
+        throw error;
+      }
+    });
+  }
+};
