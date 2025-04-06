@@ -41,7 +41,7 @@ const WritingAssistantScreen: React.FC = () => {
       description: '生成社交媒体文案',
       category: 'marketing',
       icon: '📱'
-    },
+    }
   ]);
 
   useEffect(() => {
@@ -65,12 +65,33 @@ const WritingAssistantScreen: React.FC = () => {
     setSelectedTemplate(templateId);
     // 清除之前生成的内容
     setGeneratedContent(null);
-  };
-
-  const getTemplatePrompt = () => {
-    if (!selectedTemplate) return '';
-    const template = templates.find(t => t.id === selectedTemplate);
-    return template ? template.name : '';
+    
+    // 如果模板有提示词模板，可以将其显示在输入框作为提示
+    const template = templates.find(t => t.id === templateId);
+    if (template && template.prompt_template) {
+      // 替换模板中的占位符为通用说明
+      let placeholderPrompt = template.prompt_template
+        .replace(/{purpose}/g, "[目的]")
+        .replace(/{recipient}/g, "[收件人]")
+        .replace(/{subject}/g, "[主题]")
+        .replace(/{topic}/g, "[主题]")
+        .replace(/{report_type}/g, "[报告类型]")
+        .replace(/{focus}/g, "[关注点]")
+        .replace(/{article_type}/g, "[文章类型]")
+        .replace(/{content}/g, "[内容]")
+        .replace(/{platform}/g, "[平台]")
+        .replace(/{post_type}/g, "[文案类型]")
+        .replace(/{project}/g, "[项目]")
+        .replace(/{proposal_type}/g, "[提案类型]")
+        .replace(/{audience}/g, "[目标受众]")
+        .replace(/{genre}/g, "[文学流派]")
+        .replace(/{creative_type}/g, "[创作类型]")
+        .replace(/{theme}/g, "[主题]")
+        .replace(/{academic_type}/g, "[学术文档类型]")
+        .replace(/{method}/g, "[研究方法]");
+      
+      setInputText(placeholderPrompt);
+    }
   };
 
   const handleGenerate = async () => {
@@ -185,6 +206,22 @@ const WritingAssistantScreen: React.FC = () => {
               style={styles.actionButton}
             />
           </View>
+          <View style={styles.actionButtonsContainer}>
+            <Button
+              title="润色优化"
+              variant="secondary"
+              size="medium"
+              onPress={handlePolishText}
+              style={styles.actionButton}
+            />
+            <Button
+              title="语法检查"
+              variant="secondary"
+              size="medium"
+              onPress={handleGrammarCheck}
+              style={styles.actionButton}
+            />
+          </View>
         </Card>
       );
     }
@@ -229,26 +266,12 @@ const WritingAssistantScreen: React.FC = () => {
           />
         </Card>
 
-        <Card title="写作助手功能" style={styles.card}>
-          <TouchableOpacity style={styles.assistantFeature} onPress={handlePolishText}>
-            <Text style={styles.featureTitle}>智能润色</Text>
-            <Text style={styles.featureDescription}>优化文章表达，提升写作质量</Text>
-          </TouchableOpacity>
-          
-          <TouchableOpacity style={styles.assistantFeature} onPress={handleGrammarCheck}>
-            <Text style={styles.featureTitle}>语法检查</Text>
-            <Text style={styles.featureDescription}>检查并修正语法错误</Text>
-          </TouchableOpacity>
-          
-          <TouchableOpacity style={styles.assistantFeature}>
-            <Text style={styles.featureTitle}>风格转换</Text>
-            <Text style={styles.featureDescription}>转换文章风格，适应不同场景</Text>
-          </TouchableOpacity>
-          
-          <TouchableOpacity style={styles.assistantFeature}>
-            <Text style={styles.featureTitle}>内容扩写</Text>
-            <Text style={styles.featureDescription}>根据关键词扩展相关内容</Text>
-          </TouchableOpacity>
+        <Card title="写作助手简介" style={styles.card}>
+          <Text style={styles.introText}>
+            写作助手可以帮助您快速生成各类文本内容，包括邮件、报告、文章、社交媒体文案等。
+            选择一个模板，输入您的需求，系统将为您生成高质量的内容。
+            生成后，您还可以使用润色、语法检查等功能进一步优化文本。
+          </Text>
         </Card>
       </>
     );
@@ -299,7 +322,7 @@ const styles = StyleSheet.create({
   },
   templateTitle: {
     fontSize: theme.typography.fontSize.md,
-    fontWeight: 500,
+    fontWeight: '500',
     color: theme.colors.textPrimary,
     marginBottom: theme.spacing.xs,
   },
@@ -320,20 +343,10 @@ const styles = StyleSheet.create({
   generateButton: {
     marginTop: theme.spacing.md,
   },
-  assistantFeature: {
-    padding: theme.spacing.md,
-    borderBottomWidth: 1,
-    borderBottomColor: theme.colors.divider,
-  },
-  featureTitle: {
+  introText: {
     fontSize: theme.typography.fontSize.md,
-    fontWeight: 500,
-    color: theme.colors.textPrimary,
-    marginBottom: theme.spacing.xs,
-  },
-  featureDescription: {
-    fontSize: theme.typography.fontSize.sm,
     color: theme.colors.textSecondary,
+    lineHeight: 22,
   },
   loadingContainer: {
     padding: theme.spacing.xl,

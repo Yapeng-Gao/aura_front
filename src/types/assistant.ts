@@ -148,6 +148,7 @@ export interface WritingTemplate {
   description: string;
   category: string;
   icon: string;
+  prompt_template?: string;
 }
 
 export interface WriteGenerationRequest {
