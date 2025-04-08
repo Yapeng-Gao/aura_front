@@ -1,34 +1,81 @@
-import React, { ReactNode } from 'react';
-import { View, Text, StyleSheet, SafeAreaView, StatusBar } from 'react-native';
+import React from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, SafeAreaView, StatusBar } from 'react-native';
+import { useNavigation } from '@react-navigation/native';
+import theme from '../../theme';
+import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 
 interface ScreenContainerProps {
-  children: ReactNode;
-  title?: string;
+  children: React.ReactNode;
+  title: string;
   backgroundColor?: string;
-  showHeader?: boolean;
-  headerRight?: ReactNode;
+  showBackButton?: boolean;
+  rightButton?: {
+    icon: string;
+    onPress: () => void;
+  };
+  rightIcon?: React.ReactNode;
+  onRightPress?: () => void;
+  headerRight?: React.ReactNode;
+  buttonText?: string; // 为兼容性添加，但实际未使用
 }
 
 const ScreenContainer: React.FC<ScreenContainerProps> = ({
   children,
   title,
-  backgroundColor = '#f5f5f5',
-  showHeader = false,
+  backgroundColor = theme.colors.background,
+  showBackButton = false,
+  rightButton,
+  rightIcon,
+  onRightPress,
   headerRight,
 }) => {
+  const navigation = useNavigation();
+
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor }]}>
-      <StatusBar barStyle="dark-content" backgroundColor={backgroundColor} />
-      
-      {showHeader && (
+    <View style={[styles.container, { backgroundColor }]}>
+      <SafeAreaView style={styles.safeArea}>
+        <StatusBar
+          barStyle="dark-content"
+          backgroundColor={backgroundColor}
+          translucent
+        />
         <View style={styles.header}>
-          <Text style={styles.headerTitle}>{title}</Text>
-          {headerRight && <View style={styles.headerRight}>{headerRight}</View>}
+          {showBackButton && (
+            <TouchableOpacity
+              style={styles.backButton}
+              onPress={() => navigation.goBack()}
+            >
+              <Icon name="arrow-left" size={24} color={theme.colors.textPrimary} />
+            </TouchableOpacity>
+          )}
+          <View style={styles.titleContainer}>
+            <Text style={styles.title}>{title}</Text>
+          </View>
+          {rightButton && (
+            <TouchableOpacity
+              style={styles.rightButton}
+              onPress={rightButton.onPress}
+            >
+              <Text style={styles.rightButtonText}>{rightButton.icon}</Text>
+            </TouchableOpacity>
+          )}
+          {rightIcon && onRightPress && (
+            <TouchableOpacity
+              style={styles.rightButton}
+              onPress={onRightPress}
+            >
+              {rightIcon}
+            </TouchableOpacity>
+          )}
+          {headerRight && (
+            <View style={styles.headerRightContainer}>
+              {headerRight}
+            </View>
+          )}
         </View>
-      )}
-      
-      {children}
-    </SafeAreaView>
+        {children}
+      </SafeAreaView>
+    </View>
   );
 };
 
@@ -36,21 +83,40 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
+  safeArea: {
+    flex: 1,
+  },
   header: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
+    padding: theme.spacing.md,
     borderBottomWidth: 1,
-    borderBottomColor: '#eee',
+    borderBottomColor: theme.colors.border,
   },
-  headerTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
+  backButton: {
+    padding: theme.spacing.sm,
+    marginRight: theme.spacing.sm,
   },
-  headerRight: {
-    alignItems: 'flex-end',
+  titleContainer: {
+    flex: 1,
+    alignItems: 'center',
+  },
+  title: {
+    fontSize: theme.typography.fontSize.lg,
+    fontWeight: theme.typography.fontWeight.bold as any,
+    color: theme.colors.textPrimary,
+  },
+  rightButton: {
+    padding: theme.spacing.sm,
+  },
+  rightButtonText: {
+    fontSize: theme.typography.fontSize.md,
+    color: theme.colors.primary,
+    fontWeight: theme.typography.fontWeight.medium as any,
+  },
+  headerRightContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
   },
 });
 

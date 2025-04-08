@@ -2,6 +2,7 @@ import axios, { AxiosRequestConfig, AxiosResponse, AxiosError } from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { store } from '../store';
 import { logout } from '../store/slices/authSlice';
+import { API_BASE_URL } from '@env';
 import { Alert } from 'react-native';
 
 // 导入服务模块
@@ -24,38 +25,32 @@ import writingService from './writing-service'; // 写作服务
 export const AUTH_TOKEN_KEY = 'aura_auth_token';
 export const REFRESH_TOKEN_KEY = 'aura_refresh_token';
 
-// API基础URL
-const API_BASE_URL = __DEV__ 
-  ? 'http://localhost:8000/api' // 开发环境
-  : 'https://api.auraapp.com/api'; // 生产环境
-
 // 创建axios实例
-const apiClient = axios.create({
-  baseURL: API_BASE_URL,
-  timeout: 30000,
+const api = axios.create({
+  baseURL: API_BASE_URL || 'http://localhost:8000',
+  timeout: 10000,
   headers: {
     'Content-Type': 'application/json',
-  }
+    'Accept': 'application/json',
+  },
 });
 
 // 请求拦截器
-apiClient.interceptors.request.use(
+api.interceptors.request.use(
   async (config) => {
-    // 在这里可以添加token等身份验证逻辑
+    try {
+      const token = await AsyncStorage.getItem(AUTH_TOKEN_KEY);
+    if (token) {
+        config.headers = config.headers || {};
+      config.headers.Authorization = `Bearer ${token}`;
+    }
     return config;
+    } catch (e) {
+      console.error('Error reading auth token:', e);
+      return config;
+    }
   },
   (error) => {
-    return Promise.reject(error);
-  }
-);
-
-// 响应拦截器
-apiClient.interceptors.response.use(
-  (response) => {
-    return response.data;
-  },
-  (error) => {
-    console.error('API错误:', error);
     return Promise.reject(error);
   }
 );
@@ -69,50 +64,41 @@ interface ApiResponse<T> {
   errors?: Array<{ code: string; field?: string; message: string }>;
 }
 
-// 导出API服务
-const apiService = {
-  client: apiClient,
-
+// 通用API请求方法
+export const apiClient = {
   // GET请求
-  get: async (url: string, params?: any) => {
-    try {
-      return await apiClient.get(url, { params });
-    } catch (error) {
-      console.error(`GET请求失败 ${url}:`, error);
-      throw error;
-    }
+  get: <T>(url: string, config?: AxiosRequestConfig): Promise<T | undefined> => {
+    return api.get<ApiResponse<T>>(url, config)
+      .then((response: AxiosResponse<ApiResponse<T>>) => response.data.data);
   },
 
   // POST请求
-  post: async (url: string, data?: any) => {
-    try {
-      return await apiClient.post(url, data);
-    } catch (error) {
-      console.error(`POST请求失败 ${url}:`, error);
-      throw error;
-    }
+  post: <T>(url: string, data?: any, config?: AxiosRequestConfig): Promise<T | undefined> => {
+    return api.post<ApiResponse<T>>(url, data, config)
+      .then((response: AxiosResponse<ApiResponse<T>>) => response.data.data);
   },
 
   // PUT请求
-  put: async (url: string, data?: any) => {
-    try {
-      return await apiClient.put(url, data);
-    } catch (error) {
-      console.error(`PUT请求失败 ${url}:`, error);
-      throw error;
-    }
+  put: <T>(url: string, data?: any, config?: AxiosRequestConfig): Promise<T | undefined> => {
+    return api.put<ApiResponse<T>>(url, data, config)
+      .then((response: AxiosResponse<ApiResponse<T>>) => response.data.data);
   },
 
   // DELETE请求
-  delete: async (url: string) => {
-    try {
-      return await apiClient.delete(url);
-    } catch (error) {
-      console.error(`DELETE请求失败 ${url}:`, error);
-      throw error;
-    }
+  delete: <T = void>(url: string, config?: AxiosRequestConfig): Promise<T | undefined> => {
+    return api.delete<ApiResponse<T>>(url, config)
+      .then((response: AxiosResponse<ApiResponse<T>>) => response.data.data);
   },
+};
 
+// 导出统一的API服务对象
+const apiService = {
+  // 通用API客户端
+  client: apiClient,
+  
+  // 原始axios实例，用于高级用例
+  api,
+  
   // 认证服务
   auth: authService,
   

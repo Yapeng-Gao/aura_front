@@ -24,7 +24,5 @@
     "web": {
       "favicon": "./assets/favicon.png"
     }
-  },
-  "name": "AuraApp",
-  "displayName": "Aura App"
+  }
 }
