@@ -21,6 +21,20 @@ import {
  * 处理设备、场景和空间管理等功能
  */
 const iotService = {
+  /**
+   * 获取所有设备（别名方法，与devices.getAll功能相同）
+   */
+  getDevices: async (): Promise<DeviceResponse[] | null> => {
+    return iotService.devices.getAll();
+  },
+
+  /**
+   * 获取所有场景（别名方法，与scenes.getAll功能相同）
+   */
+  getScenes: async (): Promise<SceneResponse[] | null> => {
+    return iotService.scenes.getAll();
+  },
+
   // 设备类型管理
   deviceTypes: {
     /**

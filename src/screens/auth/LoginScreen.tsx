@@ -61,7 +61,7 @@ const LoginScreen: React.FC = () => {
             // IMPORTANT: Based on the previous 422 error, try sending 'email'
             // If this still fails, the detailed log below will show what the backend received
             // and what it responded with.
-            const responseData = await apiService.post<LoginResponseData>(
+            const responseData = await apiService.client.post<LoginResponseData>(
                 '/auth/login',
                 {
                     email: email,
@@ -95,9 +95,24 @@ const LoginScreen: React.FC = () => {
                     console.warn("无法存储用户信息:", e);
                 }
             }
+            
+            // 创建符合Redux期望格式的用户对象
+            const user = responseData.user ? {
+                id: responseData.user.id.toString(),
+                email: responseData.user.email,
+                username: responseData.user.name || responseData.user.email.split('@')[0] // 如果没有name，使用邮箱的用户名部分
+            } : {
+                id: 'temp-id', // 临时ID，稍后可以通过获取用户信息API更新
+                email: email,
+                username: email.split('@')[0]
+            };
+            
             // --- 3. Dispatch Redux action 来更新认证状态 ---
-            //    如果你的 action 需要用户信息或其他数据，请传递 payload
-            dispatch(loginSuccess({token:responseData.access_token,refreshToken:responseData.refresh_token }));
+            dispatch(loginSuccess({
+                token: responseData.access_token,
+                refreshToken: responseData.refresh_token || '',
+                user: user
+            }));
             // --- 结束 Redux Dispatch ---
             navigation.navigate('Main');
             // Alert.alert('登录成功', `欢迎回来${responseData.user?.name ? ', ' + responseData.user.name : ''}！`);

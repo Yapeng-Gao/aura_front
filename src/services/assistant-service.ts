@@ -121,6 +121,14 @@ const assistantService = {
   },
 
   /**
+   * 更新助手设置（别名，与updateSettings功能相同）
+   * @param request 设置更新请求
+   */
+  updateAssistantSettings: async (request: UpdateAssistantSettingsRequest): Promise<UpdateAssistantSettingsResponse | null> => {
+    return assistantService.updateSettings(request);
+  },
+
+  /**
    * 获取助手设置
    */
   getSettings: async (): Promise<UpdateAssistantSettingsResponse | null> => {
