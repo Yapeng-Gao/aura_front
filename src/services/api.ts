@@ -40,11 +40,11 @@ api.interceptors.request.use(
   async (config) => {
     try {
       const token = await AsyncStorage.getItem(AUTH_TOKEN_KEY);
-    if (token) {
+      if (token) {
         config.headers = config.headers || {};
-      config.headers.Authorization = `Bearer ${token}`;
-    }
-    return config;
+        config.headers.Authorization = `Bearer ${token}`;
+      }
+      return config;
     } catch (e) {
       console.error('Error reading auth token:', e);
       return config;

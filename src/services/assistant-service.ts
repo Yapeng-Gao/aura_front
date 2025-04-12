@@ -112,7 +112,7 @@ const assistantService = {
    */
   updateSettings: async (request: UpdateAssistantSettingsRequest): Promise<UpdateAssistantSettingsResponse | null> => {
     try {
-      const response = await apiClient.put<UpdateAssistantSettingsResponse>('/assistant/settings', request);
+      const response = await apiClient.put<UpdateAssistantSettingsResponse>('/assistant/preference', request);
       return response || null;
     } catch (error) {
       console.error('更新助手设置失败:', error);
@@ -133,7 +133,7 @@ const assistantService = {
    */
   getSettings: async (): Promise<UpdateAssistantSettingsResponse | null> => {
     try {
-      const response = await apiClient.get<UpdateAssistantSettingsResponse>('/assistant/settings');
+      const response = await apiClient.get<UpdateAssistantSettingsResponse>('/assistant/preference');
       return response || null;
     } catch (error) {
       console.error('获取助手设置失败:', error);

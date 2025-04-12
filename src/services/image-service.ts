@@ -27,6 +27,14 @@ interface ExtendedImageRemoveBackgroundRequest extends ImageRemoveBackgroundRequ
   imageBase64?: string;
 }
 
+interface ApiImageResponse {
+  image_id: string;
+  image_url: string;
+  prompt: string;
+  style: string;
+  created_at: string;
+}
+
 /**
  * 图像助手服务
  * 处理图像生成、编辑、风格转换等功能
@@ -51,10 +59,65 @@ const imageService = {
    */
   generateImage: async (request: ImageGenerationRequest): Promise<ImageGenerationResponse | null> => {
     try {
-      const response = await apiClient.post<ImageGenerationResponse>('/assistant/image/generate', request);
-      return response || null;
-    } catch (error) {
-      console.error('生成图像失败:', error);
+      console.log('发送图像生成请求:', request);
+      // 增加超时时间到30秒
+      const response = await apiClient.post<ApiImageResponse>('/assistant/image/generate', request, {
+        timeout: 30000
+      });
+      console.log('图像生成响应原始数据:', response);
+      
+      // 确保返回的是 ImageGenerationResponse 对象
+      if (response && typeof response === 'object') {
+        // 检查响应是否包含必要的字段
+        if (response.image_id && response.image_url) {
+          return {
+            image_id: response.image_id,
+            image_url: response.image_url,
+            prompt: response.prompt,
+            style: response.style,
+            created_at: response.created_at
+          };
+        }
+      }
+      return null;
+    } catch (error: any) {
+      if (error.response) {
+        console.error('服务器错误:', {
+          status: error.response.status,
+          statusText: error.response.statusText,
+          data: error.response.data
+        });
+      } else if (error.request) {
+        console.error('网络错误:', {
+          message: error.message,
+          request: error.request
+        });
+        // 添加重试逻辑
+        try {
+          console.log('尝试重新连接...');
+          const retryResponse = await apiClient.post<ApiImageResponse>('/assistant/image/generate', request, {
+            timeout: 30000
+          });
+          console.log('重试响应原始数据:', retryResponse);
+          if (retryResponse && typeof retryResponse === 'object') {
+            if (retryResponse.image_id && retryResponse.image_url) {
+              return {
+                image_id: retryResponse.image_id,
+                image_url: retryResponse.image_url,
+                prompt: retryResponse.prompt,
+                style: retryResponse.style,
+                created_at: retryResponse.created_at
+              };
+            }
+          }
+          return null;
+        } catch (retryError: any) {
+          console.error('重试失败:', retryError);
+        }
+      } else {
+        console.error('请求配置错误:', error.message);
+      }
+      console.error('完整错误对象:', error);
       return null;
     }
   },

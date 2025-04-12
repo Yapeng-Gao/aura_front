@@ -36,7 +36,7 @@ const SyncContext = createContext<SyncContextType | undefined>(undefined);
 const checkNetworkConnection = async (): Promise<boolean> => {
   try {
     // 发送一个简单的GET请求到API服务器检查连接
-    await fetch(`${apiService.api.defaults.baseURL}/ping`, { 
+    await fetch(`${apiService.api.defaults.baseURL?.replace('/api', '') || 'http://localhost:8000'}/api/ping`, { 
       method: 'GET',
       headers: { 'Content-Type': 'application/json' },
       // 短超时，避免长时间等待

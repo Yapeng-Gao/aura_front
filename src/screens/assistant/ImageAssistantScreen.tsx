@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image, TextInput, ActivityIndicator, Alert, Modal } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 // 模拟ImagePicker功能
 const ImagePicker = {
   requestMediaLibraryPermissionsAsync: async (): Promise<{status: string}> => ({ status: 'granted' }),
@@ -21,86 +22,94 @@ import ScreenContainer from '../../components/common/ScreenContainer';
 import Card from '../../components/common/Card';
 import Button from '../../components/common/Button';
 import theme from '../../theme';
+import apiService from '../../services/api';
+import { 
+  ImageGenerationRequest, 
+  ImageGenerationResponse,
+  ImageEditRequest,
+  ImageStyleTransferRequest 
+} from '../../types/assistant';
+import type { ImageStyle as BackendImageStyle } from '../../types/assistant';
 
-// 模拟API服务接口定义
-interface MockImageStyle {
+// 在React Native中处理图像的自定义类型，适用于文件上传
+interface RNImageFile {
+  uri: string;
+  name: string;
+  type: string;
+}
+
+// 扩展后端接口类型适应React Native
+interface RNImageGenerationRequest extends Omit<ImageGenerationRequest, 'options'> {
+  options?: {
+    size?: string;
+    model?: string;
+    quality?: 'standard' | 'hd';
+  };
+}
+
+interface RNImageEditRequest {
+  image: RNImageFile;
+  prompt: string;
+  mask?: RNImageFile;
+  options?: {
+    size?: string;
+  };
+}
+
+interface RNImageStyleTransferRequest {
+  image: RNImageFile;
+  style: string;
+  strength: number;
+}
+
+interface LocalImageStyle {
+  id: string;
+  name: string;
+  icon: string;
+  description: string;
+  preview: any;
+  preview_url?: string;
+}
+
+interface ImageHistoryItem {
+  id: string;
+  imageUrl: string;
+  prompt?: string;
+  style?: string;
+  mode: 'text-to-image' | 'image-to-image' | 'edit';
+  createdAt: string;
+}
+
+// 定义模型和质量选项
+interface ModelOption {
   id: string;
   name: string;
   description: string;
-  preview_url: string;
 }
 
-interface MockImageGenerationRequest {
-  prompt: string;
-  style: string;
-  options?: Record<string, unknown>;
-}
+// 模拟保存到相册功能
+const saveToGallery = async (imageUrl: string): Promise<boolean> => {
+  try {
+    console.log('保存图片到相册:', imageUrl);
+    // 在真实实现中，这里需要使用类似expo-media-library的库
+    // 模拟成功
+    return true;
+  } catch (error) {
+    console.error('保存到相册失败:', error);
+    return false;
+  }
+};
 
-interface MockImageResponse {
-  image_id: string;
-  image_url: string;
-  prompt?: string;
-  style?: string;
-  edit_type?: string;
-  created_at: string;
-}
-
-// 模拟API服务
-const mockApiService = {
-  assistant: {
-    image: {
-      getStyles: async (): Promise<MockImageStyle[]> => Promise.resolve([
-        {
-          id: 'realistic',
-          name: '写实风格',
-          description: '生成逼真的图像',
-          preview_url: 'https://picsum.photos/200/200?random=1'
-        },
-        {
-          id: 'anime',
-          name: '动漫风格',
-          description: '生成动漫风格图像',
-          preview_url: 'https://picsum.photos/200/200?random=2'
-        },
-        {
-          id: 'oil',
-          name: '油画风格',
-          description: '生成油画风格图像',
-          preview_url: 'https://picsum.photos/200/200?random=3'
-        },
-        {
-          id: 'sketch',
-          name: '素描风格',
-          description: '生成素描风格图像',
-          preview_url: 'https://picsum.photos/200/200?random=4'
-        }
-      ]),
-      generateImage: async (request: MockImageGenerationRequest): Promise<MockImageResponse> => Promise.resolve({
-        image_id: '123',
-        image_url: `https://picsum.photos/800/600?random=${Math.random()}`,
-        prompt: request.prompt,
-        style: request.style,
-        created_at: new Date().toISOString()
-      }),
-      editImage: async (imageUri: string, prompt: string, editType: string): Promise<MockImageResponse> => Promise.resolve({
-        image_id: '456',
-        image_url: `https://picsum.photos/800/600?random=${Math.random()}`,
-        prompt: prompt,
-        edit_type: editType,
-        created_at: new Date().toISOString()
-      }),
-      transferStyle: async (imageUri: string, style: string): Promise<MockImageResponse> => Promise.resolve({
-        image_id: '789',
-        image_url: `https://picsum.photos/800/600?random=${Math.random()}`,
-        style: style,
-        created_at: new Date().toISOString()
-      }),
-      removeBackground: async (imageUri: string): Promise<MockImageResponse> => Promise.resolve({
-        image_id: '101',
-        image_url: `https://picsum.photos/800/600?random=${Math.random()}`,
-        created_at: new Date().toISOString()
-      })
-    }
+// 模拟分享功能
+const shareImage = async (imageUrl: string): Promise<boolean> => {
+  try {
+    console.log('分享图片:', imageUrl);
+    // 在真实实现中，这里需要使用类似expo-sharing的库
+    // 模拟成功
+    return true;
+  } catch (error) {
+    console.error('分享失败:', error);
+    return false;
   }
 };
 
@@ -112,7 +121,7 @@ interface ImageStyle {
   preview: any;
 }
 
-const INITIAL_STYLES: ImageStyle[] = [
+const INITIAL_STYLES: LocalImageStyle[] = [
   {
     id: 'realistic',
     name: '写实风格',
@@ -143,53 +152,13 @@ const INITIAL_STYLES: ImageStyle[] = [
   },
 ];
 
-// 添加图像保存和分享功能
-
-// 模拟保存到相册功能
-const saveToGallery = async (imageUrl: string): Promise<boolean> => {
-  try {
-    console.log('保存图片到相册:', imageUrl);
-    // 在真实实现中，这里需要使用类似expo-media-library的库
-    // 模拟成功
-    return true;
-  } catch (error) {
-    console.error('保存到相册失败:', error);
-    return false;
-  }
-};
-
-// 模拟分享功能
-const shareImage = async (imageUrl: string): Promise<boolean> => {
-  try {
-    console.log('分享图片:', imageUrl);
-    // 在真实实现中，这里需要使用类似expo-sharing的库
-    // 模拟成功
-    return true;
-  } catch (error) {
-    console.error('分享失败:', error);
-    return false;
-  }
-};
-
-// 添加图像历史记录类型和状态
-interface ImageHistoryItem {
-  id: string;
-  imageUrl: string;
-  prompt?: string;
-  style?: string;
-  mode: 'text-to-image' | 'image-to-image' | 'edit';
-  createdAt: string;
-}
-
-// 定义模型和质量选项
-interface ModelOption {
-  id: string;
-  name: string;
-  description: string;
-}
-
 // 模型选项
 const MODEL_OPTIONS: ModelOption[] = [
+  {
+    id: 'wanx2.1-t2i-turbo',
+    name: '通义万相',
+    description: '阿里云文心大模型，高精度图像生成',
+  },
   {
     id: 'dall-e-3',
     name: 'DALL-E 3',
@@ -255,16 +224,16 @@ const ImageAssistantScreen: React.FC = () => {
   const [prompt, setPrompt] = useState<string>('');
   const [isGenerating, setIsGenerating] = useState<boolean>(false);
   const [generatedImage, setGeneratedImage] = useState<string | null>(null);
-  const [imageStyles, setImageStyles] = useState<ImageStyle[]>(INITIAL_STYLES);
+  const [imageStyles, setImageStyles] = useState<LocalImageStyle[]>(INITIAL_STYLES);
   const [selectedImage, setSelectedImage] = useState<any>(null);
   const [mode, setMode] = useState<'text-to-image' | 'image-to-image' | 'edit'>('text-to-image');
   const [isLoadingStyles, setIsLoadingStyles] = useState<boolean>(false);
   const [editType, setEditType] = useState<string>('enhance');
   const [imageHistory, setImageHistory] = useState<ImageHistoryItem[]>([]);
   const [isHistoryVisible, setIsHistoryVisible] = useState<boolean>(false);
-  const [selectedStyleInfo, setSelectedStyleInfo] = useState<MockImageStyle | null>(null);
+  const [selectedStyleInfo, setSelectedStyleInfo] = useState<LocalImageStyle | null>(null);
   const [isStyleInfoVisible, setIsStyleInfoVisible] = useState<boolean>(false);
-  const [selectedModel, setSelectedModel] = useState<string>('dall-e-3');
+  const [selectedModel, setSelectedModel] = useState<string>('wanx2.1-t2i-turbo');
   const [selectedQuality, setSelectedQuality] = useState<string>('standard');
   const [selectedSize, setSelectedSize] = useState<string>('1024x1024');
   const [showAdvancedOptions, setShowAdvancedOptions] = useState<boolean>(false);
@@ -336,15 +305,18 @@ const ImageAssistantScreen: React.FC = () => {
         setIsLoadingStyles(true);
         // 尝试从API获取风格列表，如失败则使用初始风格
         try {
-          const styles = await mockApiService.assistant.image.getStyles();
-          const mappedStyles = styles.map(style => ({
-            id: style.id,
-            name: style.name,
-            icon: getIconForStyle(style.id),
-            description: style.description,
-            preview: { uri: style.preview_url } // 从URL加载图片
-          }));
-          setImageStyles(mappedStyles);
+          const styles = await apiService.image.getAvailableStyles();
+          if (styles && styles.length > 0) {
+            const mappedStyles = styles.map(style => ({
+              id: style.id,
+              name: style.name,
+              icon: getIconForStyle(style.id),
+              description: style.description,
+              preview: { uri: style.preview_url },
+              preview_url: style.preview_url
+            }));
+            setImageStyles(mappedStyles);
+          }
         } catch (error) {
           console.warn('无法获取风格列表，使用本地风格', error);
           // 保持初始风格
@@ -426,37 +398,147 @@ const ImageAssistantScreen: React.FC = () => {
       
       if (mode === 'text-to-image') {
         // 文本生成图像
-        response = await mockApiService.assistant.image.generateImage({
-          prompt: prompt,
+        // 使用真实的API服务
+        const apiRequest: RNImageGenerationRequest = {
+          prompt,
           style: selectedStyle,
           options: {
             model: selectedModel,
-            quality: selectedQuality,
+            quality: selectedQuality === 'standard' ? 'standard' : 'hd',
             size: selectedSize
           }
-        });
+        };
         
-        setGeneratedImage(response.image_url);
-        saveToHistory(response.image_url, mode);
+        // 转换到实际的API类型
+        const convertedRequest: ImageGenerationRequest = {
+          prompt: apiRequest.prompt,
+          style: apiRequest.style,
+          options: {
+            model: apiRequest.options?.model,
+            quality: apiRequest.options?.quality,
+            size: apiRequest.options?.size
+          }
+        };
+        
+        response = await apiService.image.generateImage(convertedRequest);
+        
+        if (response) {
+          setGeneratedImage(response.image_url);
+          saveToHistory(response.image_url, mode);
+        } else {
+          throw new Error('生成图像失败，请重试');
+        }
       } else if (mode === 'image-to-image') {
         // 图像+提示生成新图像
-        response = await mockApiService.assistant.image.transferStyle(
-          selectedImage.uri,
-          selectedStyle
-        );
+        if (!selectedImage) return;
         
-        setGeneratedImage(response.image_url);
-        saveToHistory(response.image_url, mode);
+        // 创建图像文件对象
+        const imageFile: RNImageFile = {
+          uri: selectedImage.uri,
+          name: 'image.jpg',
+          type: 'image/jpeg'
+        };
+        
+        // 使用封装的API调用
+        try {
+          // 创建FormData
+          const formData = new FormData();
+          
+          // 创建文件对象
+          const file = {
+            uri: imageFile.uri,
+            name: imageFile.name,
+            type: imageFile.type
+          };
+          // @ts-ignore - React Native的FormData处理方式与Web不同
+          formData.append('image', file);
+          formData.append('style', selectedStyle);
+          formData.append('strength', '0.7');
+          
+          // 直接使用FormData调用API
+          const baseUrl = apiService.api.defaults.baseURL || 'http://localhost:8000';
+          const result = await fetch(`${baseUrl}/assistant/image/style-transfer`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'multipart/form-data',
+              'Authorization': `Bearer ${await AsyncStorage.getItem('aura_auth_token')}`
+            },
+            body: formData
+          });
+          
+          if (!result.ok) {
+            throw new Error(`服务器返回错误: ${result.status}`);
+          }
+          
+          const data = await result.json();
+          response = data.data;
+          
+          if (response) {
+            setGeneratedImage(response.image_url);
+            saveToHistory(response.image_url, mode);
+          } else {
+            throw new Error('图像风格转换失败，请重试');
+          }
+        } catch (error) {
+          console.error('风格转换请求失败:', error);
+          throw error;
+        }
       } else if (mode === 'edit') {
         // 编辑图像
-        response = await mockApiService.assistant.image.editImage(
-          selectedImage.uri,
-          prompt || '增强图像质量',
-          editType
-        );
+        if (!selectedImage) return;
         
-        setGeneratedImage(response.image_url);
-        saveToHistory(response.image_url, mode);
+        // 创建图像文件对象
+        const imageFile: RNImageFile = {
+          uri: selectedImage.uri,
+          name: 'image.jpg',
+          type: 'image/jpeg'
+        };
+        
+        // 使用封装的API调用
+        try {
+          // 创建FormData
+          const formData = new FormData();
+          
+          // 创建文件对象
+          const file = {
+            uri: imageFile.uri,
+            name: imageFile.name,
+            type: imageFile.type
+          };
+          // @ts-ignore - React Native的FormData处理方式与Web不同
+          formData.append('image', file);
+          formData.append('prompt', prompt || '增强图像质量');
+          formData.append('edit_type', editType);
+          formData.append('size', selectedSize);
+          
+          // 直接使用FormData调用API
+          const baseUrl = apiService.api.defaults.baseURL || 'http://localhost:8000';
+          const result = await fetch(`${baseUrl}/assistant/image/edit`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'multipart/form-data',
+              'Authorization': `Bearer ${await AsyncStorage.getItem('aura_auth_token')}`
+            },
+            body: formData
+          });
+          
+          if (!result.ok) {
+            throw new Error(`服务器返回错误: ${result.status}`);
+          }
+          
+          const data = await result.json();
+          response = data.data;
+          
+          if (response) {
+            setGeneratedImage(response.image_url);
+            saveToHistory(response.image_url, mode);
+          } else {
+            throw new Error('图像编辑失败，请重试');
+          }
+        } catch (error) {
+          console.error('图像编辑请求失败:', error);
+          throw error;
+        }
       }
     } catch (error) {
       console.error('生成图像失败', error);
@@ -523,12 +605,7 @@ const ImageAssistantScreen: React.FC = () => {
   const showStyleInfo = (styleId: string) => {
     const style = imageStyles.find(s => s.id === styleId);
     if (style) {
-      setSelectedStyleInfo({
-        id: style.id,
-        name: style.name,
-        description: style.description,
-        preview_url: typeof style.preview === 'string' ? style.preview : ''
-      });
+      setSelectedStyleInfo(style);
       setIsStyleInfoVisible(true);
     }
   };
