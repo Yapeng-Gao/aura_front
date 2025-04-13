@@ -110,10 +110,11 @@ const assistantService = {
    * 更新助手设置
    * @param request 设置更新请求
    */
-  updateSettings: async (request: UpdateAssistantSettingsRequest): Promise<UpdateAssistantSettingsResponse | null> => {
+  updateAssistantSettings: async (request: UpdateAssistantSettingsRequest): Promise<UpdateAssistantSettingsResponse | null> => {
     try {
       const formattedRequest = {
         assistant_name: request.assistant_name,
+        avatar: request.avatar,
         voice: request.voice,
         personality: request.personality,
         response_style: request.response_style,
@@ -133,14 +134,14 @@ const assistantService = {
    * 更新助手设置（别名，与updateSettings功能相同）
    * @param request 设置更新请求
    */
-  updateAssistantSettings: async (request: UpdateAssistantSettingsRequest): Promise<UpdateAssistantSettingsResponse | null> => {
-    return assistantService.updateSettings(request);
-  },
+  // updateAssistantSettings: async (request: UpdateAssistantSettingsRequest): Promise<UpdateAssistantSettingsResponse | null> => {
+  //   return assistantService.updateSettings(request);
+  // },
 
   /**
    * 获取助手设置
    */
-  getSettings: async (): Promise<UpdateAssistantSettingsResponse | null> => {
+  getAssistantSettings: async (): Promise<UpdateAssistantSettingsResponse | null> => {
     try {
       const response = await apiClient.get<UpdateAssistantSettingsResponse>('/assistant/preference');
       return response || null;

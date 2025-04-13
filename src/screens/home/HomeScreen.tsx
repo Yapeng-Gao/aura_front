@@ -77,7 +77,8 @@ const HomeScreen: React.FC = () => {
 
       // 获取助手设置
       try {
-        const assistantSettings = await apiService.assistant.updateAssistantSettings({});
+        const assistantSettings = await apiService.assistant.getAssistantSettings();
+        console.log('assistantSettings',assistantSettings);
         if (assistantSettings) {
           setAssistantName(assistantSettings.assistant_name);
         }

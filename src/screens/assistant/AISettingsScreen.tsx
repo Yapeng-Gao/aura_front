@@ -37,7 +37,7 @@ const AISettingsScreen: React.FC = () => {
       try {
         setIsLoading(true);
         // 获取助手偏好设置
-        const response = await apiService.assistant.getSettings();
+        const response = await apiService.assistant.getAssistantSettings();
         if (response) {
           setAssistantName(response.assistant_name);
           setSelectedPersonality(response.personality as '专业' | '友好' | '幽默' | '平衡');

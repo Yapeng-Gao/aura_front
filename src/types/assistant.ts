@@ -70,6 +70,7 @@ export interface GetConversationsResponse {
 // 更新助手设置请求
 export interface UpdateAssistantSettingsRequest {
   assistant_name?: string;
+  avatar?: string;
   voice?: string;
   personality?: string;
   response_style?: string;
