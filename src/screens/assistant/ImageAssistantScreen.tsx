@@ -689,6 +689,12 @@ const ImageAssistantScreen: React.FC = () => {
           <Text style={styles.editOptionName}>去除背景</Text>
         </TouchableOpacity>
         <TouchableOpacity
+          style={[styles.editOption, editType === 'repair' && styles.selectedEditOption]}
+          onPress={() => setEditType('repair')}
+        >
+          <Text style={styles.editOptionName}>图像修复</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
           style={[styles.editOption, editType === 'colorize' && styles.selectedEditOption]}
           onPress={() => setEditType('colorize')}
         >
@@ -988,28 +994,6 @@ const ImageAssistantScreen: React.FC = () => {
           )}
         </Card>
 
-        <Card title="图像助手功能" style={styles.card}>
-          <TouchableOpacity style={styles.assistantFeature}>
-            <Text style={styles.featureTitle}>图像编辑</Text>
-            <Text style={styles.featureDescription}>智能编辑和优化图像</Text>
-          </TouchableOpacity>
-          
-          <TouchableOpacity style={styles.assistantFeature}>
-            <Text style={styles.featureTitle}>风格迁移</Text>
-            <Text style={styles.featureDescription}>将图像转换为不同艺术风格</Text>
-          </TouchableOpacity>
-          
-          <TouchableOpacity style={styles.assistantFeature}>
-            <Text style={styles.featureTitle}>图像修复</Text>
-            <Text style={styles.featureDescription}>智能修复破损或模糊的图像</Text>
-          </TouchableOpacity>
-          
-          <TouchableOpacity style={styles.assistantFeature}>
-            <Text style={styles.featureTitle}>背景移除</Text>
-            <Text style={styles.featureDescription}>自动移除图像背景</Text>
-          </TouchableOpacity>
-        </Card>
-
         {renderHistorySection()}
         {renderStyleInfoModal()}
         {renderAdvancedOptions()}
@@ -1200,21 +1184,6 @@ const styles = StyleSheet.create({
   },
   actionButton: {
     marginHorizontal: theme.spacing.sm,
-  },
-  assistantFeature: {
-    padding: theme.spacing.md,
-    borderBottomWidth: 1,
-    borderBottomColor: theme.colors.divider,
-  },
-  featureTitle: {
-    fontSize: theme.typography.fontSize.md,
-    fontWeight: theme.typography.fontWeight.medium as any,
-    color: theme.colors.textPrimary,
-    marginBottom: theme.spacing.xs,
-  },
-  featureDescription: {
-    fontSize: theme.typography.fontSize.sm,
-    color: theme.colors.textSecondary,
   },
   historyHeader: {
     flexDirection: 'row',

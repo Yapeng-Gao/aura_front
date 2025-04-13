@@ -50,7 +50,7 @@ interface AssistantSettings {
     theme: string;
   };
   behavior: {
-    personality: 'professional' | 'friendly' | 'creative' | 'concise';
+    personality: '专业' | '友好' | '创意' | '简洁';
     proactivity: number; // 0-100
   };
   voice: {
@@ -71,16 +71,16 @@ const initialState: AssistantState = {
   currentConversation: null,
   assistantSettings: {
     appearance: {
-      avatar: 'default',
-      theme: 'light',
+      avatar: '默认',
+      theme: '浅色',
     },
     behavior: {
-      personality: 'friendly',
+      personality: '友好',
       proactivity: 50,
     },
     voice: {
       enabled: true,
-      voiceId: 'default',
+      voiceId: '默认',
       speed: 1.0,
       pitch: 50,
     },

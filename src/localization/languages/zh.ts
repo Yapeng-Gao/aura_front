@@ -93,6 +93,11 @@ const zh: LanguageResource = {
       membershipType: '会员类型',
       expiryDate: '到期日期',
       upgradeMembership: '升级会员',
+      free: '免费',
+      premium: '高级',
+      pro: '专业',
+      enterprise: '企业',
+      notSet: '未设置'
     },
     completion: {
       title: '资料完成度',

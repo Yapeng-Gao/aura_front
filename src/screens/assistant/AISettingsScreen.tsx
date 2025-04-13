@@ -11,10 +11,10 @@ import { UpdateAssistantSettingsRequest } from '../../types/assistant';
 
 const AISettingsScreen: React.FC = () => {
   // 助手个性化设置状态
-  const [assistantName, setAssistantName] = useState('Aura');
-  const [selectedVoice, setSelectedVoice] = useState('female_1');
-  const [selectedPersonality, setSelectedPersonality] = useState<'professional' | 'friendly' | 'humorous' | 'balanced'>('professional');
-  const [selectedResponseStyle, setSelectedResponseStyle] = useState<'concise' | 'detailed' | 'casual' | 'formal'>('concise');
+  const [assistantName, setAssistantName] = useState('小艾');
+  const [selectedVoice, setSelectedVoice] = useState('女声1');
+  const [selectedPersonality, setSelectedPersonality] = useState<'专业' | '友好' | '幽默' | '平衡'>('专业');
+  const [selectedResponseStyle, setSelectedResponseStyle] = useState<'简洁' | '详细' | '随意' | '正式'>('简洁');
   const [selectedAvatar, setSelectedAvatar] = useState(1);
   const [specialties, setSpecialties] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -36,13 +36,13 @@ const AISettingsScreen: React.FC = () => {
     const loadSettings = async () => {
       try {
         setIsLoading(true);
-        // 获取助手偏好设置，使用空请求来获取现有设置
-        const response = await apiService.assistant.updateAssistantSettings({});
+        // 获取助手偏好设置
+        const response = await apiService.assistant.getSettings();
         if (response) {
           setAssistantName(response.assistant_name);
-          setSelectedPersonality(response.personality);
-          setSelectedResponseStyle(response.response_style);
-          // 假设voice与selectedVoice对应
+          setSelectedPersonality(response.personality as '专业' | '友好' | '幽默' | '平衡');
+          setSelectedResponseStyle(response.response_style as '简洁' | '详细' | '随意' | '正式');
+          setSelectedVoice(response.voice);
           if (response.specialties) {
             setSpecialties(response.specialties);
           }
@@ -68,26 +68,26 @@ const AISettingsScreen: React.FC = () => {
   
   // 可用的性格类型
   const personalities = [
-    { id: 'professional', name: '专业', description: '正式、专注于任务、提供精确信息' },
-    { id: 'friendly', name: '友好', description: '温暖、亲切、对话风格轻松自然' },
-    { id: 'humorous', name: '幽默', description: '风趣、活泼、喜欢在对话中加入笑点' },
-    { id: 'balanced', name: '平衡', description: '根据情境调整风格，专业与友好的平衡' },
+    { id: '专业', name: '专业', description: '正式、专注于任务、提供精确信息' },
+    { id: '友好', name: '友好', description: '温暖、亲切、对话风格轻松自然' },
+    { id: '幽默', name: '幽默', description: '风趣、活泼、喜欢在对话中加入笑点' },
+    { id: '平衡', name: '平衡', description: '根据情境调整风格，专业与友好的平衡' },
   ];
   
   // 响应风格选项
   const responseStyles = [
-    { id: 'concise', name: '简洁', description: '简明扼要、直接、避免冗长解释' },
-    { id: 'detailed', name: '详细', description: '提供全面的信息和背景知识' },
-    { id: 'casual', name: '随意', description: '使用日常语言，风格轻松' },
-    { id: 'formal', name: '正式', description: '使用正式语言，适合专业场合' },
+    { id: '简洁', name: '简洁', description: '简明扼要、直接、避免冗长解释' },
+    { id: '详细', name: '详细', description: '提供全面的信息和背景知识' },
+    { id: '随意', name: '随意', description: '使用日常语言，风格轻松' },
+    { id: '正式', name: '正式', description: '使用正式语言，适合专业场合' },
   ];
 
   // 语音选项
   const voices = [
-    { id: 'female_1', name: '女声1', description: '标准女声' },
-    { id: 'female_2', name: '女声2', description: '温柔女声' },
-    { id: 'male_1', name: '男声1', description: '标准男声' },
-    { id: 'male_2', name: '男声2', description: '低沉男声' },
+    { id: '女声1', name: '女声1', description: '标准女声' },
+    { id: '女声2', name: '女声2', description: '温柔女声' },
+    { id: '男声1', name: '男声1', description: '标准男声' },
+    { id: '男声2', name: '男声2', description: '低沉男声' },
   ];
   
   // 保存设置

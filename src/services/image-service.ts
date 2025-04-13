@@ -35,6 +35,35 @@ interface ApiImageResponse {
   created_at: string;
 }
 
+export interface ImageHistoryRecord {
+  image_id: string;
+  image_url: string;
+  prompt: string;
+  style: string;
+  model: string;
+  quality: string;
+  size: string;
+  generation_time: number;
+  created_at: string;
+}
+
+export interface ImageHistoryPagination {
+  total: number;
+  page: number;
+  page_size: number;
+  total_pages: number;
+}
+
+export interface ImageHistoryResponse {
+  records: ImageHistoryRecord[];
+  pagination: ImageHistoryPagination;
+}
+
+interface ApiResponse<T> {
+  data: T;
+  success: boolean;
+}
+
 /**
  * 图像助手服务
  * 处理图像生成、编辑、风格转换等功能
@@ -346,6 +375,131 @@ const imageService = {
       return true;
     } catch (error) {
       console.error('删除图像失败:', error);
+      return false;
+    }
+  },
+
+  getImageHistory: async (
+    page: number = 1,
+    pageSize: number = 10,
+    style?: string,
+    startDate?: string,
+    endDate?: string
+  ): Promise<ImageHistoryResponse> => {
+    try {
+      const response = await apiClient.get<ImageHistoryResponse>('/assistant/image/history', {
+        params: {
+          page,
+          page_size: pageSize,
+          style,
+          start_date: startDate,
+          end_date: endDate
+        }
+      });
+      if (!response) {
+        throw new Error('获取图像历史记录失败：响应数据为空');
+      }
+      return response;
+    } catch (error) {
+      console.error('获取图像历史记录失败:', error);
+      throw error;
+    }
+  },
+
+  deleteImageHistory: async (imageIds: string[]): Promise<boolean> => {
+    try {
+      const response = await apiClient.delete<{ success: boolean }>('/assistant/image/history', {
+        data: { image_ids: imageIds }
+      });
+      if (!response) {
+        throw new Error('删除图像历史记录失败：响应数据为空');
+      }
+      return response.success;
+    } catch (error) {
+      console.error('删除图像历史记录失败:', error);
+      throw error;
+    }
+  },
+
+  // 获取图像风格列表
+  getImageStyles: async (): Promise<ImageStyle[]> => {
+    try {
+      const response = await apiClient.get<ImageStyle[]>('/assistant/image/styles');
+      return response || [];
+    } catch (error) {
+      console.error('获取图像风格失败:', error);
+      return [];
+    }
+  },
+
+  // 编辑图像
+  editImage: async (request: ImageEditRequest): Promise<ImageGenerationResponse | null> => {
+    try {
+      const formData = new FormData();
+      formData.append('image', {
+        uri: request.image.uri,
+        name: request.image.name,
+        type: request.image.type
+      });
+      formData.append('prompt', request.prompt);
+      formData.append('edit_type', request.edit_type);
+      formData.append('options', JSON.stringify(request.options));
+
+      const response = await apiClient.post<ImageGenerationResponse>('/assistant/image/edit', formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data'
+        }
+      });
+      return response || null;
+    } catch (error) {
+      console.error('编辑图像失败:', error);
+      return null;
+    }
+  },
+
+  // 图像风格迁移
+  transferStyle: async (request: ImageStyleTransferRequest): Promise<ImageGenerationResponse | null> => {
+    try {
+      const formData = new FormData();
+      formData.append('image', {
+        uri: request.image.uri,
+        name: request.image.name,
+        type: request.image.type
+      });
+      formData.append('style', request.style);
+      formData.append('strength', request.strength.toString());
+      formData.append('options', JSON.stringify(request.options));
+
+      const response = await apiClient.post<ImageGenerationResponse>('/assistant/image/style-transfer', formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data'
+        }
+      });
+      return response || null;
+    } catch (error) {
+      console.error('风格迁移失败:', error);
+      return null;
+    }
+  },
+
+  // 保存图像
+  saveImage: async (imageUrl: string): Promise<boolean> => {
+    try {
+      const response = await apiClient.post<{ success: boolean }>('/assistant/image/save', { imageUrl });
+      return response?.success || false;
+    } catch (error) {
+      console.error('保存图像失败:', error);
+      return false;
+    }
+  },
+
+  // 分享图像
+  shareImage: async (imageUrl: string): Promise<boolean> => {
+    try {
+      const response = await apiClient.post<{ success: boolean }>('/assistant/image/share', { imageUrl });
+      return response?.success || false;
+    } catch (error) {
+      console.error('分享图像失败:', error);
       return false;
     }
   }

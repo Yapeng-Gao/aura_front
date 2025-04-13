@@ -1,13 +1,28 @@
 // 用户模型
 export interface User {
     id: string;
+    userId: string;
     username: string;
+    name: string;
     email: string;
     phone?: string;
+    phoneNumber?: string;
     avatar?: string;
+    profileImage?: string;
     createdAt: string;
     updatedAt: string;
     roles: Role[];
+    subscription?: {
+        plan: string;
+        expiresAt: string;
+    };
+    preferences?: {
+        theme: string;
+        language: string;
+        notifications: {
+            push: boolean;
+        };
+    };
 }
 
 // 角色模型

@@ -34,7 +34,7 @@ const AppNavigator = () => {
             <RootStack.Navigator screenOptions={{ headerShown: false }}>
                 {isAuthenticated ? (
                     <>
-                        <RootStack.Screen name="Main" component={TabNavigator} />
+                        <RootStack.Screen name="Home" component={TabNavigator} />
                         <RootStack.Screen 
                             name="EditProfile" 
                             component={EditProfileScreen}

@@ -17,6 +17,7 @@ interface ScreenContainerProps {
   onRightPress?: () => void;
   headerRight?: React.ReactNode;
   buttonText?: string; // 为兼容性添加，但实际未使用
+  hideHeader?: boolean; // 新增属性，控制是否隐藏整个头部
 }
 
 const ScreenContainer: React.FC<ScreenContainerProps> = ({
@@ -28,6 +29,7 @@ const ScreenContainer: React.FC<ScreenContainerProps> = ({
   rightIcon,
   onRightPress,
   headerRight,
+  hideHeader = false,
 }) => {
   const navigation = useNavigation();
 
@@ -39,40 +41,42 @@ const ScreenContainer: React.FC<ScreenContainerProps> = ({
           backgroundColor={backgroundColor}
           translucent
         />
-        <View style={styles.header}>
-          {showBackButton && (
-            <TouchableOpacity
-              style={styles.backButton}
-              onPress={() => navigation.goBack()}
-            >
-              <Icon name="arrow-left" size={24} color={theme.colors.textPrimary} />
-            </TouchableOpacity>
-          )}
-          <View style={styles.titleContainer}>
-            <Text style={styles.title}>{title}</Text>
-          </View>
-          {rightButton && (
-            <TouchableOpacity
-              style={styles.rightButton}
-              onPress={rightButton.onPress}
-            >
-              <Text style={styles.rightButtonText}>{rightButton.icon}</Text>
-            </TouchableOpacity>
-          )}
-          {rightIcon && onRightPress && (
-            <TouchableOpacity
-              style={styles.rightButton}
-              onPress={onRightPress}
-            >
-              {rightIcon}
-            </TouchableOpacity>
-          )}
-          {headerRight && (
-            <View style={styles.headerRightContainer}>
-              {headerRight}
+        {!hideHeader && (
+          <View style={styles.header}>
+            {showBackButton && (
+              <TouchableOpacity
+                style={styles.backButton}
+                onPress={() => navigation.goBack()}
+              >
+                <Icon name="arrow-left" size={24} color={theme.colors.textPrimary} />
+              </TouchableOpacity>
+            )}
+            <View style={styles.titleContainer}>
+              <Text style={styles.title}>{title}</Text>
             </View>
-          )}
-        </View>
+            {rightButton && (
+              <TouchableOpacity
+                style={styles.rightButton}
+                onPress={rightButton.onPress}
+              >
+                <Text style={styles.rightButtonText}>{rightButton.icon}</Text>
+              </TouchableOpacity>
+            )}
+            {rightIcon && onRightPress && (
+              <TouchableOpacity
+                style={styles.rightButton}
+                onPress={onRightPress}
+              >
+                {rightIcon}
+              </TouchableOpacity>
+            )}
+            {headerRight && (
+              <View style={styles.headerRightContainer}>
+                {headerRight}
+              </View>
+            )}
+          </View>
+        )}
         {children}
       </SafeAreaView>
     </View>
@@ -112,11 +116,12 @@ const styles = StyleSheet.create({
   rightButtonText: {
     fontSize: theme.typography.fontSize.md,
     color: theme.colors.primary,
-    fontWeight: theme.typography.fontWeight.medium as any,
   },
   headerRightContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    position: 'absolute',
+    right: theme.spacing.md,
+    top: theme.spacing.md,
+    zIndex: 1,
   },
 });
 

@@ -114,7 +114,7 @@ const LoginScreen: React.FC = () => {
                 user: user
             }));
             // --- 结束 Redux Dispatch ---
-            navigation.navigate('Main');
+            navigation.navigate('Home');
             // Alert.alert('登录成功', `欢迎回来${responseData.user?.name ? ', ' + responseData.user.name : ''}！`);
 
 

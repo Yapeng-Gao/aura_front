@@ -297,7 +297,7 @@ const authService = {
    */
   getCurrentUser: async (): Promise<User | null> => {
     try {
-      const response = await apiClient.get<User>('/users/me');
+      const response = await apiClient.get<User>('/users/profile');
       return response || null;
     } catch (error) {
       console.error('获取当前用户失败:', error);

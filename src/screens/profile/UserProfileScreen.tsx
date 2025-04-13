@@ -76,8 +76,8 @@ const UserProfileScreen: React.FC = () => {
           phoneNumber: userData.phoneNumber,
           profileImage: userData.profileImage,
           avatar: require('../../../assets/images/avatar-placeholder.png'), // 保留默认头像以备加载失败
-          membershipType: userData.subscription?.plan || 'Free',
-          membershipExpiry: userData.subscription?.expiresAt || '未设置',
+          membershipType: userData.subscription?.plan ? t(`profile.membership.${userData.subscription.plan.toLowerCase()}`) : t('profile.membership.free'),
+          membershipExpiry: userData.subscription?.expiresAt || t('profile.membership.notSet'),
           joinDate: userData.createdAt || '',
           preferences: {
             theme: userData.preferences?.theme || '跟随系统',

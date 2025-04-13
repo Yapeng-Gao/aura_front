@@ -69,18 +69,20 @@ export interface GetConversationsResponse {
 
 // 更新助手设置请求
 export interface UpdateAssistantSettingsRequest {
-  name?: string;
+  assistant_name?: string;
   voice?: string;
   personality?: string;
   response_style?: string;
+  specialties?: string;
 }
 
 // 更新助手设置响应
 export interface UpdateAssistantSettingsResponse {
-  name: string;
+  assistant_name: string;
   voice: string;
   personality: string;
   response_style: string;
+  specialties?: string;
   updated_at: string;
 }
 

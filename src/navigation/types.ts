@@ -2,7 +2,7 @@ import { NavigatorScreenParams } from '@react-navigation/native';
 
 // 定义所有路由参数类型
 export type RootStackParamList = {
-    Main: undefined;
+    Home: undefined;
     Auth: undefined;
     EditProfile: undefined;
     PersonalInfo: undefined;
