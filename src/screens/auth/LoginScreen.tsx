@@ -1,27 +1,31 @@
-import React, { useState } from 'react';
-import { View, Text, StyleSheet, Image, Alert } from 'react-native';
+import React, {useState} from 'react';
+import {View, Text, StyleSheet, Image, Alert} from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import axios, { AxiosError } from 'axios';
-import { useNavigation } from '@react-navigation/native';
-import apiService, { AUTH_TOKEN_KEY, REFRESH_TOKEN_KEY } from '../../services/api';
-import { useDispatch } from 'react-redux';
+import axios, {AxiosError} from 'axios';
+import {useNavigation} from '@react-navigation/native';
+import {apiClient, AUTH_TOKEN_KEY, REFRESH_TOKEN_KEY} from '../../services/api';
+import {useDispatch} from 'react-redux';
 import ScreenContainer from '../../components/common/ScreenContainer';
 import Button from '../../components/common/Button';
 import InputField from '../../components/common/InputField';
 import theme from '../../theme';
-import { loginSuccess } from '../../store/slices/authSlice'; // 导入你定义的登录成功 action
-import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { RootStackParamList } from '../../navigation/types';
+import {loginSuccess} from '../../store/slices/authSlice';
+import {NativeStackNavigationProp} from '@react-navigation/native-stack';
+import {RootStackParamList} from '../../navigation/types';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 
-interface LoginResponseData {
-    access_token: string;
-    refresh_token?: string;
-    user?: {
-        id: string | number;
-        name: string; // Assuming backend might return 'name' based on register endpoint
-        email: string;
+interface AuthResponse {
+    message?: string;
+    data?: {
+        user: {
+            user_id: string;
+            email: string;
+            username: string;
+        }
+        access_token: string;
+        refresh_token: string;
     };
+
 }
 
 // Keep a general error structure, but detailed logging will reveal the exact structure
@@ -57,155 +61,33 @@ const LoginScreen: React.FC = () => {
         setError('');
 
         try {
-            // --- Make the request ---
-            // IMPORTANT: Based on the previous 422 error, try sending 'email'
-            // If this still fails, the detailed log below will show what the backend received
-            // and what it responded with.
-            const responseData = await apiService.client.post<LoginResponseData>(
-                '/auth/login',
-                {
-                    email: email,
-                    password: password
-                }
-            );
-            console.log(responseData);
-            // --- Login Success ---
-            if (!responseData || !responseData.access_token) {
-                console.error('登录响应缺少 access_token:', responseData);
-                throw new Error('登录响应无效，请稍后重试。');
-            }
-            console.log('登录成功:', responseData);
-            console.log('DEBUG: AUTH_TOKEN_KEY Before Use:', AUTH_TOKEN_KEY);
-            await AsyncStorage.setItem(AUTH_TOKEN_KEY, responseData.access_token);
-            console.log('访问令牌 (Access Token) 存储成功');
-
-            if (responseData.refresh_token) {
-                console.log('DEBUG: REFRESH_TOKEN_KEY Before Use:', REFRESH_TOKEN_KEY); // <--- 添加这行调试
-                await AsyncStorage.setItem(REFRESH_TOKEN_KEY, responseData.refresh_token);
-                console.log('刷新令牌 (Refresh Token) 存储成功');
-            } else {
-                console.log('DEBUG: REFRESH_TOKEN_KEY Before Remove:', REFRESH_TOKEN_KEY);
-                await AsyncStorage.removeItem(REFRESH_TOKEN_KEY);
-            }
-
-            if (responseData.user) {
-                try {
-                    await AsyncStorage.setItem('@user_info', JSON.stringify(responseData.user));
-                } catch (e) {
-                    console.warn("无法存储用户信息:", e);
-                }
-            }
-            
-            // 创建符合Redux期望格式的用户对象
-            const user = responseData.user ? {
-                id: responseData.user.id.toString(),
-                email: responseData.user.email,
-                username: responseData.user.name || responseData.user.email.split('@')[0] // 如果没有name，使用邮箱的用户名部分
-            } : {
-                id: 'temp-id', // 临时ID，稍后可以通过获取用户信息API更新
+            const response = await apiClient.post<AuthResponse>('/auth/login', {
                 email: email,
-                username: email.split('@')[0]
-            };
-            
-            // --- 3. Dispatch Redux action 来更新认证状态 ---
-            dispatch(loginSuccess({
-                token: responseData.access_token,
-                refreshToken: responseData.refresh_token || '',
-                user: user
-            }));
-            // --- 结束 Redux Dispatch ---
-            navigation.navigate('Home');
-            // Alert.alert('登录成功', `欢迎回来${responseData.user?.name ? ', ' + responseData.user.name : ''}！`);
+                password: password
+            });
+            console.log(response);
+
+            if (response) {
+
+                const user = response.user;
+                const access_token = response.access_token;
+                const refresh_token = response.refresh_token;
 
 
-        } catch (err: any) {
-            console.error('登录失败:', err); // Keep the original error log
+                // 保存令牌到AsyncStorage
+                await AsyncStorage.setItem(AUTH_TOKEN_KEY, access_token);
+                await AsyncStorage.setItem(REFRESH_TOKEN_KEY, refresh_token);
 
-            let errorMessage = '登录失败，请检查您的凭据或网络连接。'; // More specific default
+                // 更新Redux状态
+                dispatch(loginSuccess({user, access_token, refresh_token}));
 
-            if (axios.isAxiosError(err)) {
-                const axiosError = err as AxiosError<ApiErrorResponse>; // Use the defined interface
-
-                // --- DETAILED LOGGING ---
-                if (axiosError.response) {
-                    console.error('--- 后端错误响应 ---');
-                    console.error('状态码 (Status Code):', axiosError.response.status);
-                    // Log the raw data received from the backend
-                    console.error('响应数据 (Response Data):', JSON.stringify(axiosError.response.data, null, 2));
-                    // Log the request config's data to see what was SENT
-                    if(axiosError.config?.data) {
-                        try {
-                            // Axios request data might be a string, try parsing
-                            console.error('发送的数据 (Sent Data):', JSON.stringify(JSON.parse(axiosError.config.data), null, 2));
-                        } catch {
-                            // If not JSON, log as is
-                            console.error('发送的数据 (Sent Data):', axiosError.config.data);
-                        }
-                    }
-                    console.error('--- 结束后端错误响应 ---');
-                } else if (axiosError.request) {
-                    console.error('请求已发出但未收到响应:', axiosError.request);
-                    errorMessage = '无法连接到服务器，请检查网络。';
-                } else {
-                    console.error('Axios 配置或请求设置错误:', axiosError.message);
-                    errorMessage = '发起请求时出错。';
-                }
-                // --- END DETAILED LOGGING ---
-
-
-                // --- Attempt to extract user-friendly message ---
-                if (axiosError.response?.data) {
-                    const responseData = axiosError.response.data;
-
-                    // 1. Check for FastAPI/Pydantic style 'detail' array
-                    if (responseData.detail && Array.isArray(responseData.detail) && responseData.detail.length > 0) {
-                        const firstError = responseData.detail[0];
-                        if (firstError.msg) {
-                            // Try to make it slightly more readable if loc is present
-                            if (firstError.loc && Array.isArray(firstError.loc) && firstError.loc.length > 1) {
-                                errorMessage = `字段 '${firstError.loc[firstError.loc.length - 1]}'： ${firstError.msg}`;
-                            } else {
-                                errorMessage = firstError.msg;
-                            }
-                        } // Fallback to generic message if no msg field
-                    }
-                    // 2. Check for common 'errors' object (e.g., Laravel)
-                    else if (typeof responseData.errors === 'object' && responseData.errors !== null && Object.keys(responseData.errors).length > 0) {
-                        const errorFields = Object.keys(responseData.errors);
-                        const firstFieldErrors = responseData.errors[errorFields[0]];
-                        if (Array.isArray(firstFieldErrors) && firstFieldErrors.length > 0) {
-                            errorMessage = firstFieldErrors[0];
-                        } else if (typeof firstFieldErrors === 'string') {
-                            errorMessage = firstFieldErrors;
-                        } else if (responseData.message) { // Use top-level message if errors field is weird
-                            errorMessage = responseData.message;
-                        }
-                    }
-                    // 3. Check for a top-level 'message'
-                    else if (responseData.message && typeof responseData.message === 'string') {
-                        errorMessage = responseData.message;
-                    }
-                    // 4. Use status code for generic messages if nothing else found
-                    else if (axiosError.response?.status === 422) {
-                        errorMessage = '输入信息无效或格式不正确。'; // Generic 422
-                    } else if (axiosError.response?.status === 401) {
-                        errorMessage = '邮箱或密码错误。'; // Generic 401
-                    } else if (axiosError.response?.status === 400) {
-                        errorMessage = '请求格式错误。'; // Generic 400
-                    }
-                }
-                // Keep the network error message if it was set earlier
-                else if (!axiosError.response && axiosError.request) {
-                    errorMessage = '无法连接到服务器，请检查网络。';
-                }
-
-
-            } else if (err instanceof Error) {
-                errorMessage = err.message; // Handle standard JS errors
+                // 导航到首页
+                navigation.navigate('Home');
             }
-
-            setError(errorMessage); // Show the best possible error message to the user
-
+        } catch (error: any) {
+            console.log(error);
+            const errorMessage = error.response?.data?.message || '登录失败，请检查您的凭证';
+            setError(errorMessage);
         } finally {
             setLoading(false);
         }
