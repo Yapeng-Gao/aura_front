@@ -187,52 +187,5 @@ export const apiClient = {
   },
 };
 
-// 导出统一的API服务对象
-const apiService = {
-  // 通用API客户端
-  client: apiClient,
-  
-  // 原始axios实例，用于高级用例
-  api,
-  
-  // 认证服务
-  auth: authService,
-  
-  // 用户服务
-  user: userService,
-  
-  // 助手服务
-  assistant: assistantService,
-  
-  // 代码服务
-  code: codeService,
-  
-  // 图像服务
-  image: imageService,
-  
-  // 语音服务
-  voice: voiceService,
-  
-  // 会议服务
-  meeting: meetingService,
-  
-  // 创意服务
-  creative: creativeService,
-  
-  // IoT服务
-  iot: iotService,
-  
-  // 生产力服务
-  productivity: productivityService,
-  
-  // 分析服务
-  analytics: analyticsService,
-  
-  // 日历服务
-  // calendar: calendarService,
-  
-  // 写作服务 - 新添加
-  writing: writingService
-};
-
-export default apiService;
+// 导出API实例
+export default api;
