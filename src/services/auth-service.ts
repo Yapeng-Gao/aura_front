@@ -68,7 +68,11 @@ interface PasswordChangeRequest {
 }
 
 interface ResetPasswordRequest {
-  email: string;
+  token: string,
+  new_password: string,
+}
+interface ForgetPasswordRequest {
+  email: string,
 }
 
 interface ResetPasswordConfirmRequest {
@@ -236,7 +240,23 @@ const authService = {
    */
   requestPasswordReset: async (data: ResetPasswordRequest): Promise<boolean> => {
     try {
-      await apiClient.post('/auth/forgot-password', data);
+      const response=await apiClient.post('/auth/reset-password', data);
+      console.log(response);
+      return true;
+    } catch (error) {
+      console.error('请求密码重置失败:', error);
+      return false;
+    }
+  },
+  /**
+   * 请求密码重置
+   * @param data 密码重置请求
+   */
+  requestPasswordForget: async (data: ForgetPasswordRequest): Promise<boolean> => {
+    try {
+      console.log(data)
+      const response=await apiClient.post('/auth/forgot-password', data);
+      console.log(response);
       return true;
     } catch (error) {
       console.error('请求密码重置失败:', error);
@@ -250,11 +270,11 @@ const authService = {
    */
   confirmPasswordReset: async (data: ResetPasswordConfirmRequest): Promise<boolean> => {
     try {
-      await apiClient.post('/auth/reset-password', data);
-      return true;
+      const response = await apiClient.post('/auth/reset-password', data);
+      return response.data.success;
     } catch (error) {
-      console.error('确认密码重置失败:', error);
-      return false;
+      console.error('重置密码失败:', error);
+      throw error;
     }
   },
   
