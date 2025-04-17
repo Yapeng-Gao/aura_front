@@ -2,6 +2,9 @@ import React from 'react';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createStackNavigator } from '@react-navigation/stack';
 import TabBarIcon from '../components/common/TabBarIcon';
+import { useTranslation } from 'react-i18next';
+import { useColorScheme } from 'react-native';
+import { colors } from '../theme/colors';
 
 // 主屏幕组件
 import HomeScreen from '../screens/home/HomeScreen';
@@ -67,55 +70,75 @@ const IoTStackNavigator = () => (
 );
 
 // 主 Tab 导航器
-const TabNavigator = () => (
-    <Tab.Navigator
-        screenOptions={{
-            tabBarActiveTintColor: '#007AFF',
-            tabBarInactiveTintColor: '#8E8E93',
-            headerShown: false
-        }}
-    >
-        <Tab.Screen
-            name="Home"
-            component={HomeScreen}
-            options={{
-                tabBarIcon: ({ color }) => <TabBarIcon name="home" color={color} />,
-                tabBarLabel: '首页'
+const TabNavigator = () => {
+    const { t } = useTranslation();
+    const colorScheme = useColorScheme();
+    const isDarkMode = colorScheme === 'dark';
+
+    return (
+        <Tab.Navigator
+            screenOptions={{
+                headerShown: false,
+                tabBarStyle: {
+                    backgroundColor: isDarkMode ? colors.dark.background : colors.background,
+                    borderTopColor: isDarkMode ? colors.dark.border : colors.border,
+                },
+                tabBarActiveTintColor: colors.primary,
+                tabBarInactiveTintColor: isDarkMode ? colors.dark.textSecondary : colors.textSecondary,
             }}
-        />
-        <Tab.Screen
-            name="Assistant"
-            component={AssistantStackNavigator}
-            options={{
-                tabBarIcon: ({ color }) => <TabBarIcon name="magic" color={color} />,
-                tabBarLabel: '助手'
-            }}
-        />
-        <Tab.Screen
-            name="Productivity"
-            component={ProductivityStackNavigator}
-            options={{
-                tabBarIcon: ({ color }) => <TabBarIcon name="tasks" color={color} />,
-                tabBarLabel: '效率'
-            }}
-        />
-        <Tab.Screen
-            name="IoT"
-            component={IoTStackNavigator}
-            options={{
-                tabBarIcon: ({ color }) => <TabBarIcon name="mobile" color={color} />,
-                tabBarLabel: '物联网'
-            }}
-        />
-        <Tab.Screen
-            name="Profile"
-            component={UserProfileScreen}
-            options={{
-                tabBarIcon: ({ color }) => <TabBarIcon name="user" color={color} />,
-                tabBarLabel: '我的'
-            }}
-        />
-    </Tab.Navigator>
-);
+        >
+            <Tab.Screen
+                name="Home"
+                component={HomeScreen}
+                options={{
+                    tabBarLabel: '首页',
+                    tabBarIcon: ({ color, size }) => (
+                        <TabBarIcon name="home" color={color} size={size} />
+                    ),
+                }}
+            />
+            <Tab.Screen
+                name="Assistant"
+                component={AssistantStackNavigator}
+                options={{
+                    tabBarLabel: '助手',
+                    tabBarIcon: ({ color, size }) => (
+                        <TabBarIcon name="magic" color={color} size={size} />
+                    ),
+                }}
+            />
+            <Tab.Screen
+                name="SmartHome"
+                component={IoTStackNavigator}
+                options={{
+                    tabBarLabel: '物联网',
+                    tabBarIcon: ({ color, size }) => (
+                        <TabBarIcon name="mobile" color={color} size={size} />
+                    ),
+                }}
+            />
+            <Tab.Screen
+                name="Tasks"
+                component={ProductivityStackNavigator}
+                options={{
+                    tabBarLabel: '效率',
+                    tabBarIcon: ({ color, size }) => (
+                        <TabBarIcon name="check-circle" color={color} size={size} />
+                    ),
+                }}
+            />
+            <Tab.Screen
+                name="Profile"
+                component={UserProfileScreen}
+                options={{
+                    tabBarLabel: '我的',
+                    tabBarIcon: ({ color, size }) => (
+                        <TabBarIcon name="user" color={color} size={size} />
+                    ),
+                }}
+            />
+        </Tab.Navigator>
+    );
+};
 
 export default TabNavigator;

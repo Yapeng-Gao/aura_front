@@ -10,6 +10,7 @@ import apiService from '../../services/api';
 import { updateUserProfile } from '../../store/slices/authSlice';
 import { RootStackParamList } from '../../navigation/types';
 import AvatarUploader from '../../components/profile/AvatarUploader';
+import userService from "@/services/user-service";
 
 type EditProfileScreenNavigationProp = StackNavigationProp<RootStackParamList, 'EditProfile'>;
 
@@ -33,7 +34,7 @@ const EditProfileScreen: React.FC = () => {
   const fetchUserProfile = async () => {
     try {
       setLoading(true);
-      const userData = await apiService.user.getProfile();
+      const userData = await userService.getProfile();
       
       if (userData) {
         setUsername(userData.name || '');

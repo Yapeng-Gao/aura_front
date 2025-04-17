@@ -14,8 +14,10 @@ import AchievementsCard from '../../components/profile/AchievementsCard';
 import theme from '../../theme';
 import { logout } from '../../store/slices/authSlice';
 import { RootStackParamList } from '../../navigation/types';
-import apiService from '../../services/api';
+// import apiService, {apiClient} from '../../services/api';
 import useTranslation from '../../hooks/useTranslation';
+import userService from "@/services/user-service";
+import authService from "@/services/auth-service";
 
 type ProfileScreenNavigationProp = StackNavigationProp<RootStackParamList>;
 
@@ -66,7 +68,7 @@ const UserProfileScreen: React.FC = () => {
   const fetchUserProfile = async () => {
     try {
       setLoading(true);
-      const userData = await apiService.user.getProfile();
+      const userData = await userService.getProfile();
       
       if (userData) {
         setUser({
@@ -106,12 +108,9 @@ const UserProfileScreen: React.FC = () => {
         },
         {
           text: t('common.confirm'),
-          onPress: () => {
+          onPress: async () => {
+            await authService.logout();
             dispatch(logout());
-            navigation.reset({
-              index: 0,
-              routes: [{ name: 'Auth' }],
-            });
           },
         },
       ]
